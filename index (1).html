@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuidado · Ministerio de Hombres</title>
+<meta name="description" content="Registro de cuidado del ministerio de hombres de Semillas de Vida.">
+<meta name="theme-color" content="#0F130E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Tokens
+   ============================================================ */
+:root{
+  --fondo:#0F130E;
+  --panel:#171C16;
+  --alto:#1F261D;
+  --linea:#2B332A;
+  --linea-suave:#222A21;
+  --texto:#E9ECE6;
+  --suave:#98A294;
+  --tenue:#6C7569;
+  --verde:#5BA075;
+  --verde-tenue:#24412F;
+  --ambar:#CBA04A;
+  --ambar-tenue:#3C3118;
+  --barro:#BE5B45;
+  --barro-tenue:#3E201A;
+  --foco:#8FC9A6;
+  --r:10px;
+  --sans:'Archivo',system-ui,sans-serif;
+  --serif:'Newsreader',Georgia,serif;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --fondo:#FBFBF8;
+    --panel:#FFFFFF;
+    --alto:#F3F4F0;
+    --linea:#DFE1DB;
+    --linea-suave:#ECEDE8;
+    --texto:#171A15;
+    --suave:#5F665C;
+    --tenue:#878E83;
+    --verde:#31704B;
+    --verde-tenue:#DCEBE1;
+    --ambar:#8A6511;
+    --ambar-tenue:#F6EBD2;
+    --barro:#9C4028;
+    --barro-tenue:#F7E2DC;
+    --foco:#31704B;
+  }
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--fondo);
+  color:var(--texto);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:calc(76px + env(safe-area-inset-bottom));
+}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--foco);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+.envoltura{max-width:620px;margin:0 auto;padding:0 16px}
+
+/* ============================================================
+   Cabecera
+   ============================================================ */
+.cabeza{padding:24px 0 14px}
+.cabeza h1{
+  font-family:var(--serif);
+  font-weight:500;
+  font-size:26px;
+  line-height:1.15;
+  margin:0;
+  letter-spacing:-.01em;
+}
+.cabeza p{margin:4px 0 0;color:var(--suave);font-size:14px}
+
+/* ============================================================
+   El registro: una fila por hombre
+   ============================================================ */
+.registro{list-style:none;margin:0;padding:0}
+.fila{
+  display:block;width:100%;text-align:left;
+  background:none;border:0;border-top:1px solid var(--linea-suave);
+  padding:15px 0 13px;cursor:pointer;
+}
+.fila:first-child{border-top:0}
+.fila:hover .nombre{color:var(--verde)}
+.fila-alto{display:flex;align-items:baseline;gap:12px}
+.nombre{
+  font-family:var(--serif);font-size:20px;font-weight:500;
+  flex:1;min-width:0;line-height:1.2;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.cuenta{
+  font-variant-numeric:tabular-nums;
+  font-size:24px;font-weight:600;letter-spacing:-.02em;
+  line-height:1;white-space:nowrap;
+}
+.cuenta small{font-size:11px;font-weight:500;margin-left:3px;color:var(--tenue)}
+.cuenta.v-cuidado{color:var(--verde)}
+.cuenta.v-alerta{color:var(--ambar)}
+.cuenta.v-desconectado{color:var(--barro)}
+.sub{
+  display:flex;gap:8px;align-items:center;
+  margin-top:5px;font-size:13px;color:var(--suave);
+}
+.sub .marca{
+  font-size:11px;font-weight:600;padding:1px 6px;border-radius:3px;
+}
+.m-cuidado{background:var(--verde-tenue);color:var(--verde)}
+.m-alerta{background:var(--ambar-tenue);color:var(--ambar)}
+.m-desconectado{background:var(--barro-tenue);color:var(--barro)}
+
+/* La medida: cuanto lleva, con la marca de los 30 dias */
+.medida{
+  display:block;position:relative;height:3px;margin-top:9px;
+  background:var(--linea-suave);border-radius:2px;overflow:visible;
+}
+.medida i{position:absolute;inset:0 auto 0 0;border-radius:2px;display:block}
+.medida b{
+  position:absolute;top:-2px;width:1px;height:7px;
+  background:var(--linea);
+}
+.medida.v-cuidado i{background:var(--verde)}
+.medida.v-alerta i{background:var(--ambar)}
+.medida.v-desconectado i{background:var(--barro)}
+
+/* ============================================================
+   Bloques
+   ============================================================ */
+.bloque{
+  background:var(--panel);border:1px solid var(--linea);
+  border-radius:var(--r);padding:16px;margin:14px 0;
+}
+.bloque h2{
+  font-family:var(--serif);font-size:18px;font-weight:500;
+  margin:0 0 10px;
+}
+.vacio{
+  border:1px dashed var(--linea);border-radius:var(--r);
+  padding:26px 18px;text-align:center;color:var(--suave);
+  font-size:14px;line-height:1.6;margin:16px 0;
+}
+.vacio strong{display:block;color:var(--texto);font-size:16px;font-weight:600;margin-bottom:5px}
+
+/* ============================================================
+   Controles
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  background:var(--verde);color:#fff;border:0;border-radius:var(--r);
+  padding:13px 18px;font-weight:600;font-size:15px;cursor:pointer;
+  width:100%;
+}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.seco{background:transparent;color:var(--texto);border:1px solid var(--linea)}
+.btn.seco:hover{background:var(--alto);filter:none}
+.btn.chico{width:auto;padding:8px 13px;font-size:13px}
+
+label{display:block;font-size:13px;font-weight:600;color:var(--suave);margin:14px 0 6px}
+label:first-child{margin-top:0}
+input[type=text],input[type=email],input[type=password],input[type=date],input[type=url],select,textarea{
+  width:100%;background:var(--fondo);border:1px solid var(--linea);
+  border-radius:var(--r);padding:11px 12px;font-size:16px;
+}
+textarea{resize:vertical;min-height:88px;line-height:1.5}
+.ayuda{font-size:12.5px;color:var(--tenue);margin:6px 0 0;line-height:1.5}
+
+/* Botones de opcion grandes */
+.opciones{display:grid;gap:8px;grid-template-columns:1fr 1fr}
+.opcion{
+  background:var(--fondo);border:1px solid var(--linea);border-radius:var(--r);
+  padding:13px 12px;cursor:pointer;text-align:left;
+}
+.opcion b{display:block;font-size:15px;font-weight:600;margin-bottom:2px}
+.opcion span{display:block;font-size:12px;color:var(--tenue);line-height:1.4}
+.opcion[aria-pressed=true]{border-color:var(--verde);background:var(--verde-tenue)}
+.opcion[aria-pressed=true] b{color:var(--verde)}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  background:var(--fondo);border:1px solid var(--linea);border-radius:99px;
+  padding:7px 13px;font-size:13.5px;cursor:pointer;
+}
+.chip[aria-pressed=true]{background:var(--verde);border-color:var(--verde);color:#fff;font-weight:600}
+
+.casilla{display:flex;gap:10px;align-items:flex-start;cursor:pointer;margin-top:16px}
+.casilla input{margin:3px 0 0;width:18px;height:18px;accent-color:var(--verde);flex:0 0 auto}
+.casilla div b{display:block;font-size:14px;font-weight:600}
+.casilla div span{display:block;font-size:12.5px;color:var(--tenue);line-height:1.5;margin-top:2px}
+
+/* ============================================================
+   Linea de tiempo de los registros
+   ============================================================ */
+.hilo{list-style:none;margin:0;padding:0}
+.anota{
+  border-left:2px solid var(--linea);padding:0 0 18px 14px;position:relative;
+}
+.anota:last-child{padding-bottom:0}
+.anota::before{
+  content:'';position:absolute;left:-5px;top:6px;
+  width:8px;height:8px;border-radius:50%;background:var(--linea);
+}
+.anota.es-reunion::before{background:var(--verde)}
+.anota-alto{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.anota-fecha{font-size:12.5px;color:var(--tenue);font-variant-numeric:tabular-nums}
+.anota-tema{font-family:var(--serif);font-size:17px;font-weight:500;margin:1px 0 0}
+.anota-cuerpo{font-size:14.5px;color:var(--suave);margin:4px 0 0;line-height:1.55;white-space:pre-wrap}
+.sello{font-size:11px;font-weight:600;padding:1px 6px;border-radius:3px;background:var(--alto);color:var(--suave)}
+
+/* ============================================================
+   Navegacion
+   ============================================================ */
+.barra{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:var(--panel);border-top:1px solid var(--linea);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.barra ul{display:flex;list-style:none;margin:0;padding:0;max-width:620px;margin:0 auto}
+.barra button{
+  flex:1;background:none;border:0;padding:11px 4px 12px;cursor:pointer;
+  color:var(--tenue);font-size:11.5px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+}
+.barra button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7}
+.barra button[aria-current=page]{color:var(--verde)}
+
+.volver{
+  background:none;border:0;color:var(--suave);font-size:14px;font-weight:600;
+  padding:16px 0 4px;cursor:pointer;display:flex;align-items:center;gap:5px;
+}
+.volver:hover{color:var(--texto)}
+
+/* ============================================================
+   Varios
+   ============================================================ */
+.datos{list-style:none;margin:0;padding:0;font-size:14px}
+.datos li{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-top:1px solid var(--linea-suave)}
+.datos li:first-child{border-top:0}
+.datos span{color:var(--suave)}
+.datos b{font-weight:600;text-align:right}
+
+.panorama{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.panorama div{background:var(--panel);border:1px solid var(--linea);border-radius:var(--r);padding:13px 12px}
+.panorama b{display:block;font-size:27px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.panorama span{display:block;font-size:12px;color:var(--suave);margin-top:5px}
+
+.aviso{
+  position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));
+  max-width:588px;margin:0 auto;z-index:40;
+  background:var(--alto);border:1px solid var(--linea);border-radius:var(--r);
+  padding:13px 15px;font-size:14px;box-shadow:0 8px 28px rgba(0,0,0,.3);
+}
+.aviso.mal{border-color:var(--barro);color:var(--barro)}
+
+.error{
+  background:var(--barro-tenue);border:1px solid var(--barro);color:var(--barro);
+  border-radius:var(--r);padding:11px 13px;font-size:14px;margin:12px 0;line-height:1.5;
+}
+
+.cargando{text-align:center;color:var(--tenue);padding:44px 0;font-size:14px}
+
+/* Entrada */
+.entrada{max-width:380px;margin:0 auto;padding:14vh 20px 40px}
+.entrada h1{font-family:var(--serif);font-weight:500;font-size:32px;margin:0;line-height:1.1}
+.entrada .lema{color:var(--suave);font-size:14.5px;margin:8px 0 30px;line-height:1.5}
+
+@media (min-width:760px){
+  body{padding-bottom:0;padding-top:64px}
+  .barra{top:0;bottom:auto;border-top:0;border-bottom:1px solid var(--linea)}
+  .barra ul{max-width:620px}
+  .aviso{bottom:24px}
+}
+</style>
+</head>
+<body>
+
+<main id="app"><p class="cargando">Abriendo…</p></main>
+<nav class="barra" id="barra" hidden></nav>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
+
+/* ============================================================
+   Conexion
+   ============================================================ */
+const SB = createClient(
+  'https://gmgiciabtqvvzmzsnjis.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtZ2ljaWFidHF2dnptenNuamlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzOTYwMjgsImV4cCI6MjEwNjk3MjAyOH0.oT_LeB3_Uh-HhpAzI-VJoDOBRukc4f5WbBaQWCbPkL8'
+);
+
+const app   = document.getElementById('app');
+const barra = document.getElementById('barra');
+
+const S = { yo:null, vista:'inicio', persona:null, nombres:new Map() };
+
+/* ============================================================
+   Utilidades
+   ============================================================ */
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function haceCuanto(dias){
+  if (dias === null || dias === undefined) return '';
+  if (dias <= 0)  return 'hoy';
+  if (dias === 1) return 'ayer';
+  if (dias < 7)   return `hace ${dias} días`;
+  if (dias < 60)  { const s = Math.round(dias/7); return `hace ${s} ${s===1?'semana':'semanas'}`; }
+  if (dias < 365) { const m = Math.round(dias/30); return `hace ${m} ${m===1?'mes':'meses'}`; }
+  const a = Math.floor(dias/365);
+  return `hace ${a} ${a===1?'año':'años'}`;
+}
+
+// 'en alerta' lleva espacio; se normaliza para que case con el CSS
+const claseEstado = s => 'v-' + ({ 'cuidado':'cuidado', 'en alerta':'alerta', 'desconectado':'desconectado' }[s] || 'alerta');
+
+function fechaCorta(f){
+  if (!f) return '';
+  const [a,m,d] = f.split('-').map(Number);
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${d} ${meses[m-1]} ${a}`;
+}
+
+const hoy = () => new Date().toLocaleDateString('en-CA', { timeZone:'America/Bogota' });
+
+function avisar(texto, mal=false){
+  document.querySelectorAll('.aviso').forEach(n => n.remove());
+  const n = document.createElement('div');
+  n.className = 'aviso' + (mal ? ' mal' : '');
+  n.setAttribute('role', mal ? 'alert' : 'status');
+  n.textContent = texto;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 4200);
+}
+
+const cargando = () => { app.innerHTML = '<p class="cargando">Un momento…</p>'; };
+
+/* ============================================================
+   Arranque  (se llama al final del archivo, cuando ya esta
+   todo declarado)
+   ============================================================ */
+async function arrancar(){
+  const { data:{ session } } = await SB.auth.getSession();
+  session ? await entrar() : pantallaEntrada();
+  SB.auth.onAuthStateChange((evento) => {
+    if (evento === 'SIGNED_OUT') { S.yo = null; barra.hidden = true; pantallaEntrada(); }
+  });
+}
+
+async function entrar(){
+  cargando();
+  const { data, error } = await SB.rpc('quien_soy');
+  if (error) { app.innerHTML = `<div class="envoltura"><div class="error">No se pudo abrir la sesión: ${esc(error.message)}</div></div>`; return; }
+
+  if (!data || !data.length){
+    app.innerHTML = `<div class="envoltura"><div class="cabeza"><h1>Tu correo no está en el ministerio</h1>
+      <p>Entraste bien, pero este correo todavía no corresponde a ningún hombre registrado,
+         así que no hay nada que mostrarte. Avísale a quien administra la plataforma para que te agregue.</p></div>
+      <button class="btn seco" id="salir">Cerrar sesión</button></div>`;
+    document.getElementById('salir').onclick = () => SB.auth.signOut();
+    return;
+  }
+
+  S.yo = data[0];
+  const { data:gente } = await SB.from('personas').select('id,nombre');
+  S.nombres = new Map((gente||[]).map(p => [p.id, p.nombre]));
+  pintarBarra();
+  ir('inicio');
+}
+
+/* ============================================================
+   Entrada
+   ============================================================ */
+function pantallaEntrada(){
+  barra.hidden = true;
+  app.innerHTML = `
+  <div class="entrada">
+    <h1>Cuidado</h1>
+    <p class="lema">Ministerio de hombres · Semillas de Vida</p>
+    <form id="f">
+      <label for="correo">Correo</label>
+      <input id="correo" type="email" autocomplete="username" required>
+      <label for="clave">Contraseña</label>
+      <input id="clave" type="password" autocomplete="current-password" required>
+      <div id="err"></div>
+      <div style="margin-top:20px"><button class="btn" type="submit" id="b">Entrar</button></div>
+    </form>
+  </div>`;
+
+  document.getElementById('f').onsubmit = async (e) => {
+    e.preventDefault();
+    const b = document.getElementById('b');
+    b.disabled = true; b.textContent = 'Entrando…';
+    const { error } = await SB.auth.signInWithPassword({
+      email: document.getElementById('correo').value.trim(),
+      password: document.getElementById('clave').value
+    });
+    if (error){
+      document.getElementById('err').innerHTML =
+        '<div class="error">El correo o la contraseña no coinciden. Revísalos e inténtalo otra vez.</div>';
+      b.disabled = false; b.textContent = 'Entrar';
+      return;
+    }
+    await entrar();
+  };
+}
+
+/* ============================================================
+   Navegacion
+   ============================================================ */
+const ICONOS = {
+  inicio:     '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg>',
+  material:   '<svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z" stroke-linejoin="round"/></svg>',
+  ministerio: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5" stroke-linecap="round"/><path d="M16 11a3 3 0 1 0 0-6M18 20c0-2.5-1-4-2.5-4.6" stroke-linecap="round"/></svg>',
+  yo:         '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3-6 7-6s7 2.4 7 6" stroke-linecap="round"/></svg>'
+};
+
+function pintarBarra(){
+  const items = [['inicio','Inicio'], ['material','Material']];
+  if (S.yo.es_admin || S.yo.ve_todo) items.push(['ministerio','Ministerio']);
+  items.push(['yo','Yo']);
+
+  barra.hidden = false;
+  barra.innerHTML = '<ul>' + items.map(([v,t]) =>
+    `<li><button data-v="${v}">${ICONOS[v]}<span>${t}</span></button></li>`).join('') + '</ul>';
+  barra.querySelectorAll('button').forEach(b => b.onclick = () => ir(b.dataset.v));
+}
+
+function marcarBarra(v){
+  barra.querySelectorAll('button').forEach(b =>
+    b.dataset.v === v ? b.setAttribute('aria-current','page') : b.removeAttribute('aria-current'));
+}
+
+function ir(vista, arg){
+  S.vista = vista;
+  marcarBarra(vista);
+  window.scrollTo(0,0);
+  ({ inicio:vInicio, material:vMaterial, ministerio:vMinisterio, yo:vYo,
+     ficha:vFicha, registrar:vRegistrar }[vista])(arg);
+}
+
+/* ============================================================
+   Una fila del registro
+   ============================================================ */
+function fila(p){
+  const c = claseEstado(p.situacion);
+  const tope = Math.min(100, Math.round((p.dias / 90) * 100));
+  const cuando = p.ultima_reunion ? haceCuanto(p.dias) : 'Sin registro';
+  const gestion = (p.situacion !== 'cuidado' && p.gestion === 'con intentos')
+    ? ' · lo han buscado' : '';
+  return `
+  <li><button class="fila" data-id="${p.persona_id}">
+    <span class="fila-alto">
+      <span class="nombre">${esc(p.nombre)}</span>
+      <span class="cuenta ${c}">${p.dias}<small>días</small></span>
+    </span>
+    <span class="sub">
+      <span class="marca m-${c.slice(2)}">${esc(p.situacion)}</span>
+      <span>${cuando}${gestion}</span>
+    </span>
+    <span class="medida ${c}"><i style="width:${tope}%"></i><b style="left:33.3%"></b></span>
+  </button></li>`;
+}
+
+function enlazarFilas(){
+  app.querySelectorAll('.fila').forEach(b => b.onclick = () => ir('ficha', b.dataset.id));
+}
+
+/* ============================================================
+   Inicio
+   ============================================================ */
+async function vInicio(){
+  cargando();
+  const { data, error } = await SB.from('mi_gente').select('*').order('dias', { ascending:false });
+  if (error) return app.innerHTML = `<div class="envoltura"><div class="error">${esc(error.message)}</div></div>`;
+
+  const { data:aperturas } = await SB.from('accesos_a_mis_notas')
+    .select('*').order('cuando', { ascending:false }).limit(3);
+
+  const primero = (S.yo.nombre || '').split(' ')[0];
+  let html = `<div class="envoltura">
+    <div class="cabeza"><h1>Hola, ${esc(primero)}</h1>
+      <p>${data.length ? `${data.length} ${data.length===1?'hombre':'hombres'} a tu cargo, el que más lleva sin verse va primero` : 'Tu espacio en el ministerio'}</p>
+    </div>`;
+
+  if (aperturas && aperturas.length){
+    html += `<div class="bloque"><h2>Abrieron una nota tuya</h2>` +
+      aperturas.map(a => `<p class="ayuda" style="margin:0 0 6px">
+        <b style="color:var(--texto)">${esc(a.abierto_por)}</b> abrió la nota reservada sobre
+        ${esc(a.sobre_quien)} · ${esc(a.motivo)}</p>`).join('') + `</div>`;
+  }
+
+  if (!data.length){
+    html += `<div class="vacio"><strong>Todavía no cuidas a nadie</strong>
+      Cuando te asignen hombres, aquí vas a ver cómo va cada uno y cuánto lleva sin que se vean.
+      Mientras tanto, en Material están las prédicas y lecturas del ministerio.</div>
+      <button class="btn seco" id="aMat">Ver el material</button>`;
+  } else {
+    html += `<ul class="registro">${data.map(fila).join('')}</ul>`;
+    const flojos = data.filter(p => p.situacion !== 'cuidado').length;
+    if (flojos) html += `<p class="ayuda" style="margin-top:16px">
+      ${flojos === 1 ? 'Uno lleva' : `${flojos} llevan`} más de un mes sin que se vean.</p>`;
+  }
+
+  app.innerHTML = html + '</div>';
+  enlazarFilas();
+  const m = document.getElementById('aMat');
+  if (m) m.onclick = () => ir('material');
+}
+
+/* ============================================================
+   Ficha de un hombre
+   ============================================================ */
+async function vFicha(id){
+  cargando();
+  S.persona = id;
+
+  const [{ data:p, error }, { data:areas }, { data:notas }] = await Promise.all([
+    SB.from('ficha_persona').select('*').eq('id', id).maybeSingle(),
+    SB.from('persona_area').select('rol_en_area, areas(nombre)').eq('persona_id', id).is('hasta', null),
+    SB.from('contactos_visibles').select('*').eq('persona_id', id).order('fecha', { ascending:false })
+  ]);
+
+  if (error || !p) return app.innerHTML =
+    `<div class="envoltura"><div class="error">No se encontró a esa persona, o está fuera de lo que puedes ver.</div></div>`;
+
+  const c = claseEstado(p.situacion);
+  const puedoRegistrar = S.yo.puede_cuidar && p.id !== S.yo.persona_id;
+
+  let html = `<div class="envoltura">
+    <button class="volver" id="atras">← Volver</button>
+    <div class="cabeza">
+      <h1>${esc(p.nombre)}</h1>
+      <p>${esc(p.rango || 'sin rango')}${p.lider ? ` · cuidado por ${esc(p.lider)}` : ''}</p>
+    </div>
+
+    <div class="bloque">
+      <span class="fila-alto">
+        <span style="flex:1">
+          <span class="marca m-${c.slice(2)}">${esc(p.situacion)}</span>
+          <div class="ayuda" style="margin-top:7px">
+            ${p.ultima_reunion
+              ? `Se vieron ${haceCuanto(p.dias)}, el ${fechaCorta(p.ultima_reunion)}.`
+              : 'Nunca se ha registrado una reunión. El conteo corre desde que entró al ministerio.'}
+            ${p.situacion !== 'cuidado' && p.gestion === 'con intentos'
+              ? ' Lo han buscado en el último mes y no ha respondido.' : ''}
+          </div>
+        </span>
+        <span class="cuenta ${c}">${p.dias}<small>días</small></span>
+      </span>
+      <span class="medida ${c}" style="margin-top:14px"><i style="width:${Math.min(100,Math.round(p.dias/90*100))}%"></i><b style="left:33.3%"></b></span>
+    </div>`;
+
+  if (puedoRegistrar)
+    html += `<button class="btn" id="reg">Registrar un encuentro</button>`;
+
+  html += `<div class="bloque"><h2>Datos</h2><ul class="datos">
+      ${areas && areas.length ? `<li><span>Áreas</span><b>${areas.map(a =>
+        esc(a.areas.nombre) + (a.rol_en_area === 'lider' ? ' (líder)' : '')).join('<br>')}</b></li>` : ''}
+      ${p.celular ? `<li><span>Celular</span><b><a href="https://wa.me/57${esc(p.celular)}" style="color:var(--verde)">${esc(p.celular)}</a></b></li>` : ''}
+      ${p.correo ? `<li><span>Correo</span><b style="word-break:break-all">${esc(p.correo)}</b></li>` : ''}
+      <li><span>En el ministerio desde</span><b>${fechaCorta(p.fecha_ingreso)}</b></li>
+      <li><span>Encuentros registrados</span><b>${p.total_reuniones}</b></li>
+    </ul></div>`;
+
+  html += `<div class="bloque"><h2>Registro de cuidado</h2>`;
+  if (!notas || !notas.length){
+    html += `<p class="ayuda" style="margin:0">Todavía no hay nada escrito.</p>`;
+  } else {
+    html += '<ul class="hilo">' + notas.map(n => {
+      const autor = S.nombres.get(n.lider_id) || 'Otro líder';
+      return `<li class="anota ${n.tipo === 'reunion' ? 'es-reunion' : ''}">
+        <div class="anota-alto">
+          <span class="anota-fecha">${fechaCorta(n.fecha)}</span>
+          <span class="sello">${n.tipo === 'reunion' ? 'Se vieron' : 'Lo buscó'}</span>
+          ${n.medio ? `<span class="anota-fecha">${esc(n.medio)}</span>` : ''}
+          <span class="anota-fecha">· ${esc(autor)}</span>
+        </div>
+        <p class="anota-tema">${esc(n.tema || 'Sin tema')}</p>
+        ${n.oculta
+          ? `<p class="anota-cuerpo">Esta nota es reservada. Puedes abrirla, y al autor le va a quedar el registro de que fuiste tú.</p>
+             <button class="btn seco chico" data-abrir="${n.id}" style="margin-top:8px">Abrir con registro</button>`
+          : (n.resumen ? `<p class="anota-cuerpo">${esc(n.resumen)}</p>` : '')}
+      </li>`;
+    }).join('') + '</ul>';
+  }
+  html += '</div>';
+
+  app.innerHTML = html + '</div>';
+  document.getElementById('atras').onclick = () => ir(S.yo.a_cargo > 0 ? 'inicio' : 'ministerio');
+  const r = document.getElementById('reg');
+  if (r) r.onclick = () => ir('registrar', { id:p.id, nombre:p.nombre });
+  app.querySelectorAll('[data-abrir]').forEach(b => b.onclick = () => abrirReservada(b.dataset.abrir, id));
+}
+
+async function abrirReservada(contactoId, personaId){
+  const motivo = prompt('¿Por qué necesitas abrir esta nota? Queda registrado junto con tu nombre.');
+  if (motivo === null) return;
+  if (!motivo.trim()) return avisar('Escribe el motivo para poder abrirla.', true);
+
+  const { data, error } = await SB.rpc('abrir_reservada', { p_contacto:contactoId, p_motivo:motivo.trim() });
+  if (error) return avisar(error.message, true);
+  avisar('Nota abierta. Le queda el registro al autor.');
+  const n = (data && data[0]) || {};
+  alert(`${n.tema || ''}\n\n${n.resumen || ''}`);
+  ir('ficha', personaId);
+}
+
+/* ============================================================
+   Registrar un encuentro
+   ============================================================ */
+function vRegistrar(quien){
+  let tipo = 'reunion', medio = 'presencial';
+
+  app.innerHTML = `<div class="envoltura">
+    <button class="volver" id="atras">← Volver</button>
+    <div class="cabeza"><h1>${esc(quien.nombre)}</h1><p>Cuéntanos cómo fue</p></div>
+    <form id="f">
+      <div class="opciones">
+        <button type="button" class="opcion" data-tipo="reunion" aria-pressed="true">
+          <b>Nos vimos</b><span>Reinicia el conteo de días</span></button>
+        <button type="button" class="opcion" data-tipo="intento" aria-pressed="false">
+          <b>Lo busqué</b><span>Queda guardado, pero el conteo sigue corriendo</span></button>
+      </div>
+
+      <label for="fecha">¿Cuándo?</label>
+      <input id="fecha" type="date" value="${hoy()}" max="${hoy()}" required>
+
+      <label>¿Cómo?</label>
+      <div class="chips" id="medios">
+        ${[['presencial','En persona'],['llamada','Llamada'],['videollamada','Videollamada'],['mensaje','Mensaje'],['otro','Otro']]
+          .map(([v,t]) => `<button type="button" class="chip" data-medio="${v}" aria-pressed="${v==='presencial'}">${t}</button>`).join('')}
+      </div>
+
+      <label for="tema">¿De qué hablaron?</label>
+      <input id="tema" type="text" maxlength="120" placeholder="Su trabajo, la familia, cómo va con Dios…">
+
+      <label for="resumen">Cómo lo viste</label>
+      <textarea id="resumen" placeholder="Lo que valga la pena recordar la próxima vez que se vean."></textarea>
+
+      <label class="casilla">
+        <input type="checkbox" id="reservada">
+        <div><b>Guardar como reservada</b>
+        <span>Quien está arriba va a ver que escribiste algo y cuándo, pero no el contenido.
+              Si de verdad necesita leerlo puede abrirlo, y a ti te queda el aviso de quién fue.</span></div>
+      </label>
+
+      <div id="err"></div>
+      <div style="margin:22px 0 10px"><button class="btn" type="submit" id="b">Guardar</button></div>
+    </form>
+  </div>`;
+
+  document.getElementById('atras').onclick = () => ir('ficha', quien.id);
+
+  app.querySelectorAll('[data-tipo]').forEach(b => b.onclick = () => {
+    tipo = b.dataset.tipo;
+    app.querySelectorAll('[data-tipo]').forEach(o => o.setAttribute('aria-pressed', o === b));
+  });
+  app.querySelectorAll('[data-medio]').forEach(b => b.onclick = () => {
+    medio = b.dataset.medio;
+    app.querySelectorAll('[data-medio]').forEach(o => o.setAttribute('aria-pressed', o === b));
+  });
+
+  document.getElementById('f').onsubmit = async (e) => {
+    e.preventDefault();
+    const b = document.getElementById('b');
+    b.disabled = true; b.textContent = 'Guardando…';
+
+    const { error } = await SB.from('contactos').insert({
+      persona_id: quien.id,
+      lider_id:   S.yo.persona_id,
+      fecha:      document.getElementById('fecha').value,
+      tipo, medio,
+      tema:       document.getElementById('tema').value.trim() || null,
+      resumen:    document.getElementById('resumen').value.trim() || null,
+      reservada:  document.getElementById('reservada').checked
+    });
+
+    if (error){
+      document.getElementById('err').innerHTML = `<div class="error">No se pudo guardar: ${esc(error.message)}</div>`;
+      b.disabled = false; b.textContent = 'Guardar';
+      return;
+    }
+    avisar(tipo === 'reunion' ? 'Encuentro guardado.' : 'Intento guardado.');
+    ir('ficha', quien.id);
+  };
+}
+
+/* ============================================================
+   Material
+   ============================================================ */
+const TIPOS_MAT = { predica:'Prédica', libro:'Libro', escrito:'Escrito', audio:'Audio', video:'Video', otro:'Otro' };
+
+async function vMaterial(){
+  cargando();
+  const { data, error } = await SB.from('materiales').select('*').order('creado_en', { ascending:false });
+  if (error) return app.innerHTML = `<div class="envoltura"><div class="error">${esc(error.message)}</div></div>`;
+
+  const puedeAgregar = S.yo.es_admin || S.yo.ve_todo || S.yo.puede_cuidar;
+
+  let html = `<div class="envoltura">
+    <div class="cabeza"><h1>Material</h1><p>Prédicas, libros y escritos del ministerio</p></div>`;
+
+  if (puedeAgregar) html += `<button class="btn seco" id="nuevo" style="margin-bottom:6px">Agregar material</button>
+    <div id="formNuevo" hidden class="bloque">
+      <label for="mt">Título</label><input id="mt" type="text" required>
+      <label for="mtipo">Tipo</label>
+      <select id="mtipo">${Object.entries(TIPOS_MAT).map(([v,t]) => `<option value="${v}">${t}</option>`).join('')}</select>
+      <label for="mtema">Tema</label><input id="mtema" type="text" placeholder="Integridad, paternidad, trabajo…">
+      <label for="mautor">Autor</label><input id="mautor" type="text">
+      <label for="menlace">Enlace</label><input id="menlace" type="url" placeholder="https://">
+      <p class="ayuda">Por ahora el material se enlaza (Drive, YouTube, un PDF en línea). Subir archivos lo dejamos para después.</p>
+      <div style="margin-top:16px"><button class="btn" id="guardarMat">Guardar material</button></div>
+    </div>`;
+
+  if (!data.length){
+    html += `<div class="vacio"><strong>Todavía no hay material</strong>
+      Aquí van a estar las prédicas, los libros y los escritos que los líderes quieran tener a la mano.</div>`;
+  } else {
+    html += '<ul class="registro">' + data.map(m => `
+      <li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(m.titulo)}</span></span>
+        <span class="sub">
+          <span class="sello">${esc(TIPOS_MAT[m.tipo] || m.tipo)}</span>
+          ${m.tema ? `<span>${esc(m.tema)}</span>` : ''}
+          ${m.autor ? `<span>· ${esc(m.autor)}</span>` : ''}
+        </span>
+        ${m.enlace ? `<a href="${esc(m.enlace)}" target="_blank" rel="noopener"
+           style="color:var(--verde);font-size:14px;font-weight:600;display:inline-block;margin-top:8px">Abrir →</a>` : ''}
+      </div></li>`).join('') + '</ul>';
+  }
+
+  app.innerHTML = html + '</div>';
+
+  const n = document.getElementById('nuevo');
+  if (n) n.onclick = () => {
+    const f = document.getElementById('formNuevo');
+    f.hidden = !f.hidden;
+    n.textContent = f.hidden ? 'Agregar material' : 'Cancelar';
+  };
+  const g = document.getElementById('guardarMat');
+  if (g) g.onclick = async () => {
+    const titulo = document.getElementById('mt').value.trim();
+    if (!titulo) return avisar('Ponle un título.', true);
+    g.disabled = true;
+    const { error } = await SB.from('materiales').insert({
+      titulo,
+      tipo:   document.getElementById('mtipo').value,
+      tema:   document.getElementById('mtema').value.trim()  || null,
+      autor:  document.getElementById('mautor').value.trim() || null,
+      enlace: document.getElementById('menlace').value.trim()|| null,
+      creado_por: S.yo.persona_id
+    });
+    if (error){ avisar(error.message, true); g.disabled = false; return; }
+    avisar('Material guardado.');
+    ir('material');
+  };
+}
+
+/* ============================================================
+   Ministerio (admin y pastores)
+   ============================================================ */
+async function vMinisterio(){
+  cargando();
+  const [{ data:todos, error }, { data:fichas }, { data:areas }] = await Promise.all([
+    SB.from('estado_cuidado').select('*').order('dias', { ascending:false }),
+    SB.from('ficha_persona').select('id,nombre,rango'),
+    SB.from('areas').select('*').eq('activa', true).order('nombre')
+  ]);
+  if (error) return app.innerHTML = `<div class="envoltura"><div class="error">${esc(error.message)}</div></div>`;
+
+  const cuenta = e => todos.filter(p => p.situacion === e).length;
+  const lideres = (fichas || []).filter(f => f.rango === 'escudero' || f.rango === 'caballero')
+                                .sort((a,b) => a.nombre.localeCompare(b.nombre,'es'));
+
+  let html = `<div class="envoltura">
+    <div class="cabeza"><h1>Ministerio</h1><p>${todos.length} hombres registrados</p></div>
+    <div class="panorama">
+      <div><b style="color:var(--verde)">${cuenta('cuidado')}</b><span>cuidados</span></div>
+      <div><b style="color:var(--ambar)">${cuenta('en alerta')}</b><span>en alerta</span></div>
+      <div><b style="color:var(--barro)">${cuenta('desconectado')}</b><span>desconectados</span></div>
+    </div>`;
+
+  if (S.yo.es_admin){
+    html += `<button class="btn seco" id="nuevo" style="margin-bottom:6px">Agregar un hombre</button>
+    <div id="formNuevo" hidden class="bloque">
+      <label for="pn">Nombre</label><input id="pn" type="text" required placeholder="Como lo llaman">
+      <label for="pc">Correo</label><input id="pc" type="email" placeholder="Con este entra a la plataforma">
+      <label for="pt">Celular</label><input id="pt" type="text" inputmode="numeric">
+      <label for="pr">Rango</label>
+      <select id="pr"><option value="paje">Paje</option><option value="escudero">Escudero</option><option value="caballero">Caballero</option></select>
+      <label for="pl">¿Quién lo cuida?</label>
+      <select id="pl">${lideres.map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}</select>
+      <label for="pa">Área</label>
+      <select id="pa"><option value="">Ninguna por ahora</option>${(areas||[]).map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}</select>
+      <p class="ayuda">El correo tiene que ser el mismo con el que va a iniciar sesión. Si no se lo sabes, déjalo vacío y lo agregas después.</p>
+      <div style="margin-top:16px"><button class="btn" id="guardarP">Guardar</button></div>
+    </div>`;
+  }
+
+  html += `<ul class="registro">${todos.map(fila).join('')}</ul></div>`;
+  app.innerHTML = html;
+  enlazarFilas();
+
+  const n = document.getElementById('nuevo');
+  if (n) n.onclick = () => {
+    const f = document.getElementById('formNuevo');
+    f.hidden = !f.hidden;
+    n.textContent = f.hidden ? 'Agregar un hombre' : 'Cancelar';
+  };
+
+  const g = document.getElementById('guardarP');
+  if (g) g.onclick = async () => {
+    const nombre = document.getElementById('pn').value.trim();
+    if (!nombre) return avisar('Falta el nombre.', true);
+    g.disabled = true; g.textContent = 'Guardando…';
+
+    const { data:creada, error:e1 } = await SB.from('personas').insert({
+      nombre,
+      correo:  document.getElementById('pc').value.trim() || null,
+      celular: document.getElementById('pt').value.trim() || null
+    }).select('id').single();
+
+    if (e1){ avisar('No se pudo crear: ' + e1.message, true); g.disabled = false; g.textContent = 'Guardar'; return; }
+
+    const { error:e2 } = await SB.from('rangos').insert({
+      persona_id: creada.id, rango: document.getElementById('pr').value, asignado_por: S.yo.persona_id
+    });
+    if (e2){ avisar('Quedó creado, pero sin rango: ' + e2.message, true); g.disabled = false; g.textContent = 'Guardar'; return; }
+
+    const { error:e3 } = await SB.from('coberturas').insert({
+      persona_id: creada.id, lider_id: document.getElementById('pl').value, asignado_por: S.yo.persona_id
+    });
+    if (e3){ avisar('Quedó creado, pero sin líder: ' + e3.message, true); g.disabled = false; g.textContent = 'Guardar'; return; }
+
+    const area = document.getElementById('pa').value;
+    if (area) await SB.from('persona_area').insert({ persona_id: creada.id, area_id: area });
+
+    avisar(`${nombre.split(' ')[0]} quedó registrado.`);
+    ir('ministerio');
+  };
+}
+
+/* ============================================================
+   Yo
+   ============================================================ */
+async function vYo(){
+  cargando();
+  const { data:p } = await SB.from('ficha_persona').select('*').eq('id', S.yo.persona_id).maybeSingle();
+  const c = claseEstado(p?.situacion);
+
+  app.innerHTML = `<div class="envoltura">
+    <div class="cabeza"><h1>${esc(S.yo.nombre)}</h1>
+      <p>${esc(S.yo.rango || 'sin rango')}${p?.lider ? ` · cuidado por ${esc(p.lider)}` : ''}</p></div>
+
+    ${p ? `<div class="bloque">
+      <span class="fila-alto">
+        <span style="flex:1"><span class="marca m-${c.slice(2)}">${esc(p.situacion)}</span>
+          <div class="ayuda" style="margin-top:7px">${p.ultima_reunion
+            ? `Tu líder y tú se vieron ${haceCuanto(p.dias)}.`
+            : 'Todavía no hay un encuentro registrado contigo.'}</div></span>
+        <span class="cuenta ${c}">${p.dias}<small>días</small></span>
+      </span>
+      <span class="medida ${c}" style="margin-top:14px"><i style="width:${Math.min(100,Math.round(p.dias/90*100))}%"></i><b style="left:33.3%"></b></span>
+    </div>` : ''}
+
+    <div class="bloque"><h2>Lo que puedes hacer</h2><ul class="datos">
+      <li><span>Hombres a tu cargo</span><b>${S.yo.a_cargo}</b></li>
+      <li><span>Registrar cuidado</span><b>${S.yo.puede_cuidar ? 'Sí' : 'Todavía no'}</b></li>
+      ${S.yo.ve_todo  ? '<li><span>Ver todo el ministerio</span><b>Sí</b></li>' : ''}
+      ${S.yo.es_admin ? '<li><span>Administrar la plataforma</span><b>Sí</b></li>' : ''}
+    </ul>
+    <p class="ayuda">Lo que otros escriben sobre ti no se muestra aquí ni en ninguna parte de la plataforma.
+       Las notas de cuidado son para quien te cuida y para quien está sobre él.</p></div>
+
+    <button class="btn seco" id="salir">Cerrar sesión</button>
+    <p class="ayuda" style="text-align:center;margin:18px 0 28px">Semillas de Vida · Ministerio de hombres</p>
+  </div>`;
+
+  document.getElementById('salir').onclick = () => SB.auth.signOut();
+}
+
+arrancar();
+</script>
+</body>
+</html>
