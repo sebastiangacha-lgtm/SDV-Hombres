@@ -462,6 +462,8 @@ const I = {
   corte:'<svg viewBox="0 0 24 24"><path d="M9.5 6.5L6 10l3.5 3.5M14.5 17.5L18 14l-3.5-3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20L20 4" stroke-linecap="round"/></svg>',
   luz:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" stroke-linecap="round"/></svg>',
   eventos:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3" stroke-linecap="round"/></svg>',
+  servicio:'<svg viewBox="0 0 24 24"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8z" stroke-linejoin="round"/></svg>',
+  area:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
   puerta:'<svg viewBox="0 0 24 24"><path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" stroke-linecap="round"/><path d="M11 8l4 4-4 4M15 12H5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 };
 
@@ -547,7 +549,8 @@ function pintarNav(){
     ['Cuidado',  [['inicio','Inicio'], ...(mando ? [['ministerio','Ministerio']] : [])]],
     ['Procesos', [['procesos','Procesos']]],
     ['Encuentros', [['eventos','Eventos']]],
-    ['Recursos', [['material','Material']]]
+    ['Servicio',   [['servicio','Mi servicio']]],
+    ['Recursos',   [['material','Material']]]
   ];
 
   const opciones = rolesDisponibles();
@@ -557,8 +560,6 @@ function pintarNav(){
       <select id="selrol" style="font-size:13.5px;padding:8px 10px">
         ${opciones.map(r => `<option value="${r}"${r === S.rol ? ' selected' : ''}>${ROLES[r]}</option>`).join('')}
       </select>
-      ${S.rol !== 'real' ? `<p style="letter-spacing:0;font-weight:500;color:var(--ambar);margin-top:7px;text-transform:none">
-        Estás viendo la plataforma como la vería ese rol.</p>` : ''}
     </div>` : '';
 
   lado.hidden = false;
@@ -579,7 +580,7 @@ function pintarNav(){
     </div>`;
 
   const movil = [['inicio','Inicio'], ['procesos','Procesos'], ['eventos','Eventos'],
-                 ...(mando ? [['ministerio','Ministerio']] : []), ['yo','Yo']];
+                 ['servicio','Servicio'], ['yo','Yo']];
   barra.hidden = false;
   barra.innerHTML = '<ul>' + movil.map(([v,n]) =>
     `<li><button data-v="${v}">${I[v]}<span>${n}</span></button></li>`).join('') + '</ul>';
@@ -598,7 +599,8 @@ function marcar(v){
 function ir(vista, arg){
   S.vista = vista; marcar(vista); window.scrollTo(0,0);
   ({ inicio:vInicio, ministerio:vMinisterio, procesos:vProcesos, material:vMaterial,
-     eventos:vEventos, evento:vEvento, yo:vYo, ficha:vFicha, registrar:vRegistrar }[vista])(arg);
+     eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea,
+     yo:vYo, ficha:vFicha, registrar:vRegistrar }[vista])(arg);
 }
 
 function cabeza(titulo, bajada, acciones=''){
@@ -888,8 +890,7 @@ async function vProcesos(){
           ${f ? `<span style="font-size:11.5px;color:var(--tenue);font-weight:400">${fechaCorta(f.desde)}</span>` : ''}
         </span>`;
     }).join('')}
-    </div><p class="ayuda">Los ascensos los registran el pastor o el director. No se marcan desde aquí.</p>
-    </div></div>`;
+    </div></div></div>`;
 
   const bloques = [['libertad','Rutas de libertad','Acompañamiento en lo que está pesando'],
                    ['formacion','Formación','El proceso propio del ministerio'],
@@ -928,9 +929,7 @@ async function vProcesos(){
         if (marco && !r.auto_marca)
           html += `<label class="casilla" style="margin:13px 0 2px">
             <input type="checkbox" id="cuenta" ${S.contarEncuentro !== false ? 'checked' : ''}>
-            <div><b>Contar como encuentro</b><span>Al marcar un paso se guarda también un encuentro con
-              ${esc(primero)}, y el reloj de los 30 días vuelve a cero. Tiene sentido si le preguntaste
-              cómo le fue; quítalo si solo estás poniendo al día el registro.</span></div></label>`;
+            <div><b>Contar como encuentro</b></div></label>`;
 
         html += `<ul class="pasos">${ps.map((p,i) => {
           const a = porPaso.get(p.id);
@@ -947,11 +946,6 @@ async function vProcesos(){
           </li>`;
         }).join('')}</ul>`;
 
-        if (!marco)
-          html += `<p class="ayuda">${propio
-            ? 'Esta ruta la marca quien te acompaña. Si fuera una ruta de escuela, podrías marcarla tú mismo al terminar cada clase.'
-            : `Puedes ver cómo va ${esc(primero)}, pero marcar sus pasos solo lo hace su líder directo.`}</p>`;
-
         if (yo.es_admin)
           html += `<div style="margin-top:14px;padding-top:13px;border-top:1px solid var(--linea-suave)">
             <label style="margin-top:0" for="np-${r.id}">Agregar un paso a esta ruta</label>
@@ -962,8 +956,7 @@ async function vProcesos(){
               <button class="btn seco chico" data-auto="${r.id}" data-val="${r.auto_marca ? 'false' : 'true'}">
                 ${r.auto_marca ? 'Pasar a acompañada' : 'Pasar a escuela'}</button>
             </div>
-            <p class="ayuda">En una ruta de <b>escuela</b> la persona marca sus propios pasos al terminar una clase,
-              y eso no cuenta como cuidado. En una <b>acompañada</b> los marca su líder.</p></div>`;
+            </div>`;
       }
       html += `</div>`;
     }
@@ -982,8 +975,6 @@ async function vProcesos(){
             <option value="true">La persona misma (escuela)</option></select></div></div>
         <label for="rd">Descripción</label><input id="rd" type="text">
         <div style="margin-top:16px"><button class="btn" id="guardarRuta">Crear ruta</button></div>
-        <p class="ayuda">Las rutas que vienen cargadas son una estructura de ejemplo. Cuando el ministerio
-          defina su contenido real, reemplaza los pasos por los de ustedes.</p>
       </div></div>`;
 
   app.innerHTML = html;
@@ -1107,7 +1098,6 @@ async function vMaterial(){
         <div><label for="mtema">Tema</label><input id="mtema" type="text" placeholder="Integridad, paternidad…"></div></div>
       <div class="par"><div><label for="mautor">Autor</label><input id="mautor" type="text"></div>
         <div><label for="menlace">Enlace</label><input id="menlace" type="url" placeholder="https://"></div></div>
-      <p class="ayuda">Por ahora el material se enlaza (Drive, YouTube, un PDF en línea). Subir archivos queda para después.</p>
       <div style="margin-top:16px"><button class="btn" id="guardarMat">Guardar material</button></div>
     </div></div>`;
 
@@ -1187,8 +1177,6 @@ async function vMinisterio(){
         <select id="pl">${lideres.map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}</select></div></div>
       <label for="pa">Área</label>
       <select id="pa"><option value="">Ninguna por ahora</option>${(areas||[]).map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}</select>
-      <p class="ayuda">El correo tiene que ser el mismo con el que va a iniciar sesión. Si no te lo sabes, déjalo vacío.
-         La cédula sirve para cruzar con Redil más adelante y solo la ven el admin y los pastores.</p>
       <div style="margin-top:16px"><button class="btn" id="guardarP">Guardar</button></div>
     </div></div>`;
 
@@ -1309,9 +1297,7 @@ async function vEventos(){
         <span class="sub">${v.ultima_vez ? `<span>Última vez ${haceCuanto(v.dias_desde)}</span>` : '<span>Aún no ha venido</span>'}
           ${v.celular ? `<span>· <a href="https://wa.me/57${esc(v.celular)}">${esc(v.celular)}</a></span>` : ''}</span>
       </div></li>`).join('')}</ul>
-      <div class="tarjeta-cuerpo"><p class="ayuda" style="margin:0">Quien vuelve dos o tres veces ya está diciendo algo.
-        Cuando uno de estos entre al ministerio, agrégalo desde Ministerio con el mismo celular
-        y se conserva desde cuándo venía rondando.</p></div></div>`;
+      </div>`;
 
   app.innerHTML = html;
   app.querySelectorAll('[data-ev]').forEach(b => b.onclick = () => ir('evento', b.dataset.ev));
@@ -1344,16 +1330,24 @@ async function vEvento(id){
   const yo = V();
   const puede = yo.es_admin || yo.puede_cuidar;
 
-  const [{ data:e, error }, { data:asis }, { data:dir }] = await Promise.all([
+  const [{ data:e, error }, { data:asis }, { data:dir },
+         { data:equipo }, { data:cob }, { data:areasServ }, { data:disponibles }] = await Promise.all([
     SB.from('eventos_resumen').select('*').eq('id', id).maybeSingle(),
     SB.from('asistencias').select('*').eq('evento_id', id),
-    SB.from('directorio').select('*').order('nombre')
+    SB.from('directorio').select('*').order('nombre'),
+    SB.from('equipo_evento').select('*').eq('evento_id', id),
+    SB.from('cobertura_evento').select('*').eq('evento_id', id),
+    SB.from('areas').select('*').eq('tipo','servicio').eq('activa', true).order('nombre'),
+    SB.from('servidores_por_area').select('*').order('nombre')
   ]);
   if (error || !e) return app.innerHTML = `<div class="error">No se encontró ese evento.</div>`;
 
-  const marcados = new Map((asis || []).map(a => [a.persona_id, a]));
-  const miembros = (dir || []).filter(p => p.estado === 'activo');
-  const visitas  = (dir || []).filter(p => p.estado === 'visitante' && marcados.has(p.id));
+  const marcados   = new Map((asis || []).map(a => [a.persona_id, a]));
+  const miembros   = (dir || []).filter(p => p.estado === 'activo');
+  const visitas    = (dir || []).filter(p => p.estado === 'visitante' && marcados.has(p.id));
+  const encargados = (equipo || []).filter(x => x.rol === 'encargado');
+  const servidores = (equipo || []).filter(x => x.rol === 'servidor');
+  const faltan     = (cob || []).reduce((a,c) => a + Number(c.faltan), 0);
 
   let html = `<button class="volver" id="atras">← Volver a eventos</button>` +
     cabeza(esc(e.nombre),
@@ -1364,23 +1358,78 @@ async function vEvento(id){
     html += `<div class="tarjeta"><div class="tarjeta-cuerpo"><p style="margin:0">${esc(e.descripcion)}</p></div></div>`;
 
   html += cifras([
-    { icono:'ministerio', color:'verde', valor:e.asistieron, texto:'asistieron' },
-    { icono:'puerta',     color:'ambar', valor:e.visitantes, texto:e.visitantes === 1 ? 'visitante' : 'visitantes' },
-    { icono:'reloj',      color:'azul',  valor:miembros.length, texto:'en el ministerio' },
-    { icono:'alerta',     color:'barro', valor:Math.max(0, miembros.length - (asis||[]).filter(a => a.asistio && miembros.some(m => m.id === a.persona_id)).length), texto:'no marcados' }
+    { icono:'ministerio', color:'verde', valor:e.asistieron,      texto:'asistieron' },
+    { icono:'puerta',     color:'ambar', valor:e.visitantes,      texto:e.visitantes === 1 ? 'visitante' : 'visitantes' },
+    { icono:'servicio',   color:'azul',  valor:equipo?.length||0, texto:'en el equipo' },
+    { icono:'alerta',     color:faltan ? 'barro' : 'verde', valor:faltan, texto:'servidores por cubrir' }
   ]);
 
-  if (puede)
-    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quién llegó que no está en la lista</h2></div>
-      <div class="tarjeta-cuerpo"><div class="par">
+  /* ---------- Equipo ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Equipo del evento</h2>
+      ${puede ? `<button class="btn seco chico" id="armar">Armar equipo</button>` : ''}</div>`;
+
+  if (encargados.length || servidores.length){
+    html += `<ul class="registro">${[...encargados, ...servidores].map(x => `
+      <li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(x.nombre)}</span>
+          <span class="sello">${x.rol === 'encargado' ? 'Encargado' : esc(x.area || 'Servidor')}</span></span>
+        <span class="sub">${x.confirmado
+          ? '<span class="marca-est m-cuidado">confirmó</span>'
+          : '<span class="marca-est m-alerta">sin confirmar</span>'}</span>
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          ${x.celular ? `<button class="btn seco chico" data-wa="${x.id}">Avisarle por WhatsApp</button>` : ''}
+          ${puede ? `<button class="btn seco chico" data-quitar="${x.id}">Quitar</button>` : ''}</span>
+      </div></li>`).join('')}</ul>`;
+  } else {
+    html += `<div class="tarjeta-cuerpo"><p style="margin:0;color:var(--suave);font-size:14.5px">
+      Todavía no hay nadie asignado.</p></div>`;
+  }
+
+  if (cob && cob.length)
+    html += `<div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+      <ul class="datos">${cob.map(c => `<li><span>${esc(c.area)}</span>
+        <b style="color:var(--${c.faltan ? 'barro' : 'verde'})">${c.asignados} de ${c.requeridos}</b></li>`).join('')}</ul></div>`;
+  html += `</div>`;
+
+  /* ---------- Armar equipo ---------- */
+  if (puede){
+    const libres = (disponibles || []).filter(d =>
+      !servidores.some(x => x.persona_id === d.persona_id && x.area_id === d.area_id));
+
+    html += `<div id="formEquipo" hidden>
+      <div class="tarjeta"><div class="tarjeta-alto"><h2>¿Necesitas servidores?</h2></div>
+        <div class="tarjeta-cuerpo">
+          <div class="par"><div><label for="eaArea" style="margin-top:0">¿De qué área?</label>
+            <select id="eaArea">${(areasServ || []).map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}</select></div>
+            <div><label for="eaNum" style="margin-top:0">¿Cuántos?</label>
+            <input id="eaNum" type="text" inputmode="numeric" value="2"></div></div>
+          <div style="margin-top:14px"><button class="btn" id="pedirArea">Pedir servidores de esta área</button></div>
+        </div></div>
+
+      <div class="tarjeta"><div class="tarjeta-alto"><h2>Elegir a quién</h2></div>
+        <div class="tarjeta-cuerpo">
+          <label for="asArea" style="margin-top:0">Área</label>
+          <select id="asArea"><option value="">Elige un área</option>
+            ${(cob || []).map(c => `<option value="${c.area_id}">${esc(c.area)} · faltan ${c.faltan}</option>`).join('')}</select>
+          <div id="candidatos" style="margin-top:14px"></div>
+        </div></div>
+
+      <div class="tarjeta"><div class="tarjeta-alto"><h2>Encargados</h2></div>
+        <div class="tarjeta-cuerpo">
+          <div class="par"><div><label for="encP" style="margin-top:0">¿Quién queda a cargo?</label>
+            <select id="encP">${miembros.map(m => `<option value="${m.id}">${esc(m.nombre)}</option>`).join('')}</select></div>
+            <div style="display:flex;align-items:flex-end"><button class="btn" id="addEnc" style="width:100%">Poner como encargado</button></div></div>
+        </div></div>
+    </div>`;
+
+    html += `<div id="formVis" hidden class="tarjeta"><div class="tarjeta-cuerpo"><div class="par">
         <div><label for="vn" style="margin-top:0">Nombre</label><input id="vn" type="text" placeholder="Como se presentó"></div>
         <div><label for="vc" style="margin-top:0">Celular</label><input id="vc" type="text" inputmode="numeric" placeholder="Opcional"></div>
       </div>
-      <div style="margin-top:14px"><button class="btn" id="addVis">Registrar asistente</button></div>
-      <p class="ayuda">Entra como visitante, no como miembro. Así, si vuelve tres veces, lo vas a notar —
-        y el día que entre al ministerio no se crea de nuevo: cambia de estado y se conserva desde cuándo viene.
-        Si pones el celular y ya lo habías registrado antes, lo reconoce y no lo duplica.</p></div></div>`;
+      <div style="margin-top:14px"><button class="btn" id="addVis">Registrar asistente</button></div></div></div>`;
+  }
 
+  /* ---------- Asistencia ---------- */
   const filaAsis = p => {
     const a = marcados.get(p.id);
     const fue = a?.asistio;
@@ -1397,16 +1446,91 @@ async function vEvento(id){
   };
 
   html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Asistencia</h2>
-      <span class="ruta-conteo">${(asis||[]).filter(a=>a.asistio).length} de ${miembros.length + visitas.length} marcados</span></div>
+      <span class="ruta-conteo">${(asis||[]).filter(a=>a.asistio).length} marcados</span>
+      ${puede ? `<button class="btn seco chico" id="verVis">Agregar a alguien</button>` : ''}</div>
     <ul class="registro">${[...miembros, ...visitas].map(filaAsis).join('')}</ul></div>`;
-
-  if (!puede)
-    html += `<p class="ayuda">La asistencia la toman los escuderos y caballeros.</p>`;
 
   app.innerHTML = html;
   document.getElementById('atras').onclick = () => ir('eventos');
+  document.getElementById('ics').onclick = () => {
+    const mio = (equipo || []).find(x => x.persona_id === S.yo.persona_id);
+    descargarIcs(e, mio ? (mio.rol === 'encargado' ? 'Encargado' : (mio.area || 'Servidor')) : null);
+  };
 
-  document.getElementById('ics').onclick = () => descargarIcs(e);
+  const ar = document.getElementById('armar');
+  if (ar) ar.onclick = () => {
+    const f = document.getElementById('formEquipo');
+    f.hidden = !f.hidden; ar.textContent = f.hidden ? 'Armar equipo' : 'Cerrar';
+  };
+  const vv = document.getElementById('verVis');
+  if (vv) vv.onclick = () => {
+    const f = document.getElementById('formVis');
+    f.hidden = !f.hidden; vv.textContent = f.hidden ? 'Agregar a alguien' : 'Cancelar';
+  };
+
+  const pa = document.getElementById('pedirArea');
+  if (pa) pa.onclick = async () => {
+    const n = parseInt(document.getElementById('eaNum').value, 10);
+    if (!Number.isFinite(n) || n < 0) return avisar('Pon un número.', true);
+    const area_id = document.getElementById('eaArea').value;
+    const { error } = await SB.from('evento_areas')
+      .upsert({ evento_id:id, area_id, requeridos:n }, { onConflict:'evento_id,area_id' });
+    if (error) return avisar(error.message, true);
+    avisar('Listo, quedó pedido.');
+    ir('evento', id);
+  };
+
+  const sa = document.getElementById('asArea');
+  if (sa) sa.onchange = () => {
+    const areaId = sa.value;
+    const caja = document.getElementById('candidatos');
+    if (!areaId) return caja.innerHTML = '';
+    const gente = (disponibles || []).filter(d => d.area_id === areaId);
+    if (!gente.length) return caja.innerHTML =
+      `<p style="margin:0;color:var(--suave);font-size:14.5px">Nadie está en esa área todavía.
+       Agrégalos desde Mi servicio.</p>`;
+    caja.innerHTML = `<div class="chips">${gente.map(g => {
+      const ya = servidores.some(x => x.persona_id === g.persona_id && x.area_id === areaId);
+      return `<button type="button" class="chip" data-asig="${g.persona_id}" data-area3="${areaId}"
+        aria-pressed="${ya}">${esc(g.nombre)}</button>`;
+    }).join('')}</div>`;
+    caja.querySelectorAll('[data-asig]').forEach(b => b.onclick = async () => {
+      const pid = b.dataset.asig, aid = b.dataset.area3;
+      const ya = servidores.find(x => x.persona_id === pid && x.area_id === aid);
+      const { error } = ya
+        ? await SB.from('evento_equipo').delete().eq('id', ya.id)
+        : await SB.from('evento_equipo').insert({
+            evento_id:id, persona_id:pid, area_id:aid, rol:'servidor', creado_por:S.yo.persona_id });
+      if (error) return avisar(error.message, true);
+      ir('evento', id);
+    });
+  };
+
+  const ae = document.getElementById('addEnc');
+  if (ae) ae.onclick = async () => {
+    const { error } = await SB.from('evento_equipo').insert({
+      evento_id:id, persona_id:document.getElementById('encP').value,
+      rol:'encargado', creado_por:S.yo.persona_id });
+    if (error) return avisar(error.message, true);
+    avisar('Quedó como encargado.');
+    ir('evento', id);
+  };
+
+  app.querySelectorAll('[data-quitar]').forEach(b => b.onclick = async () => {
+    const { error } = await SB.from('evento_equipo').delete().eq('id', b.dataset.quitar);
+    if (error) return avisar(error.message, true);
+    ir('evento', id);
+  });
+
+  app.querySelectorAll('[data-wa]').forEach(b => b.onclick = () => {
+    const x = (equipo || []).find(q => q.id === b.dataset.wa);
+    if (!x || !x.celular) return;
+    const rol = x.rol === 'encargado' ? 'encargado' : (x.area ? `servidor de ${x.area}` : 'servidor');
+    const txt = `Hola ${x.nombre.split(' ')[0]}, quedaste como ${rol} en ${e.nombre}: `
+      + `${fechaCorta(e.fecha)}${e.hora ? ' a las ' + e.hora.slice(0,5) : ''}`
+      + `${e.lugar ? ' en ' + e.lugar : ''}. ¿Cuentas?`;
+    window.open(`https://wa.me/57${x.celular}?text=${encodeURIComponent(txt)}`, '_blank');
+  });
 
   app.querySelectorAll('[data-as]').forEach(b => b.onclick = async () => {
     const pid = b.dataset.as, fue = b.dataset.fue === '1';
@@ -1432,34 +1556,273 @@ async function vEvento(id){
     const { error } = await SB.rpc('sumar_visitante', {
       p_evento:id, p_nombre:nombre, p_celular:document.getElementById('vc').value.trim() || null });
     if (error){ avisar(error.message, true); av.disabled = false; return; }
-    avisar(`${nombre.split(' ')[0]} quedó registrado como asistente.`);
+    avisar(`${nombre.split(' ')[0]} quedó registrado.`);
     ir('evento', id);
   };
 }
 
 // Un archivo .ics: cada uno lo abre y el evento le queda en SU
-// calendario, use Google, Apple o lo que sea. Una página web no
-// puede mandar correos por su cuenta.
-function descargarIcs(e){
+// calendario. Si la persona tiene rol en el evento, va en el título.
+function descargarIcs(e, rol){
   const f = e.fecha.replace(/-/g,'');
   const h = (e.hora || '19:00').slice(0,5).replace(':','') + '00';
+  const limpio = t => String(t || '').replace(/[\n,;]/g,' ');
+  const titulo = rol ? `${e.nombre} — ${rol}` : e.nombre;
   const ics = [
     'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//SDV//Cuidado//ES','BEGIN:VEVENT',
-    `UID:${e.id}@sdv`,
+    `UID:${e.id}-${(rol||'asiste').replace(/\s/g,'')}@sdv`,
     `DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').slice(0,15)}Z`,
     `DTSTART;TZID=America/Bogota:${f}T${h}`,
-    `SUMMARY:${(e.nombre || '').replace(/[\n,;]/g,' ')}`,
-    e.lugar ? `LOCATION:${e.lugar.replace(/[\n,;]/g,' ')}` : '',
-    e.descripcion ? `DESCRIPTION:${e.descripcion.replace(/[\n,;]/g,' ')}` : '',
+    `SUMMARY:${limpio(titulo)}`,
+    e.lugar ? `LOCATION:${limpio(e.lugar)}` : '',
+    `DESCRIPTION:${limpio((rol ? 'Tu rol: ' + rol + '. ' : '') + (e.descripcion || ''))}`,
     'END:VEVENT','END:VCALENDAR'
   ].filter(Boolean).join('\r\n');
 
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([ics], { type:'text/calendar' }));
-  a.download = (e.nombre || 'evento').replace(/[^\wáéíóúñ ]/gi,'').trim() + '.ics';
+  a.download = limpio(e.nombre).replace(/[^\wáéíóúñ ]/gi,'').trim() + '.ics';
   a.click();
   URL.revokeObjectURL(a.href);
-  avisar('Archivo descargado. Ábrelo y el evento te queda en tu calendario.');
+  avisar('Archivo descargado.');
+}
+
+/* ============================================================
+   Mi servicio
+   ============================================================ */
+async function vServicio(){
+  cargando();
+  const yo = V();
+
+  const [{ data:mias }, { data:fechas, error }, { data:areas }] = await Promise.all([
+    SB.from('servidores_por_area').select('*').eq('persona_id', S.yo.persona_id),
+    SB.from('mis_fechas_servicio').select('*').order('fecha'),
+    SB.from('areas').select('*').eq('tipo','servicio').eq('activa', true).order('nombre')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const hoyF = hoy();
+  const proximas = (fechas || []).filter(f => f.fecha >= hoyF);
+  const pasadas  = (fechas || []).filter(f => f.fecha <  hoyF);
+  const misAreas = (mias || []).filter(m => (areas || []).some(a => a.id === m.area_id));
+  const sinConfirmar = proximas.filter(f => !f.confirmado).length;
+
+  let html = cabeza('Mi servicio', 'Tus áreas y las fechas en que sirves');
+
+  html += cifras([
+    { icono:'area',       color:'azul',  valor:misAreas.length,   texto:misAreas.length === 1 ? 'área' : 'áreas' },
+    { icono:'eventos',    color:'verde', valor:proximas.length,   texto:'fechas por venir' },
+    { icono:'alerta',     color:'ambar', valor:sinConfirmar,      texto:'por confirmar' },
+    { icono:'ministerio', color:'verde', valor:pasadas.length,    texto:'veces servidas' }
+  ]);
+
+  if (proximas.length){
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Cuándo sirves</h2></div>
+      <ul class="registro">${proximas.map(f => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(f.nombre)}</span>
+          <span class="sello">${f.rol === 'encargado' ? 'Encargado' : esc(f.area || 'Servidor')}</span></span>
+        <span class="sub"><span>${fechaCorta(f.fecha)}${f.hora ? ' · ' + esc(f.hora.slice(0,5)) : ''}</span>
+          ${f.lugar ? `<span>· ${esc(f.lugar)}</span>` : ''}
+          ${f.confirmado ? '<span class="marca-est m-cuidado">confirmado</span>' : ''}</span>
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          ${f.confirmado ? '' : `<button class="btn chico" data-conf="${f.asignacion_id}">Confirmar</button>`}
+          <button class="btn seco chico" data-ics="${f.evento_id}">Agregar a mi calendario</button></span>
+      </div></li>`).join('')}</ul></div>`;
+  } else {
+    html += `<div class="vacio"><strong>No tienes fechas por venir</strong>
+      Cuando te asignen a un evento, aquí vas a ver cuándo, dónde y con qué rol.</div>`;
+  }
+
+  if (misAreas.length){
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Tus áreas</h2></div>
+      <ul class="registro">${misAreas.map(m => `<li><button class="fila" data-area="${m.area_id}">
+        <span class="fila-alto"><span class="nombre">${esc(m.area)}</span>
+          ${m.rol_en_area === 'lider' ? '<span class="sello">Líder</span>' : ''}</span>
+        <span class="sub"><span>Novedades, material y capacitación</span></span>
+      </button></li>`).join('')}</ul></div>`;
+  } else {
+    html += `<div class="vacio"><strong>Todavía no estás en un área de servicio</strong>
+      ${yo.es_admin ? 'Asígnate una abajo.' : 'Pídele a quien administra que te agregue.'}</div>`;
+  }
+
+  if (areas && areas.length)
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Todas las áreas</h2></div>
+      <ul class="registro">${areas.filter(a => !misAreas.some(m => m.area_id === a.id)).map(a =>
+        `<li><button class="fila" data-area="${a.id}">
+          <span class="fila-alto"><span class="nombre">${esc(a.nombre)}</span></span>
+        </button></li>`).join('')}</ul></div>`;
+
+  if (yo.es_admin)
+    html += `<div style="margin-top:4px"><button class="btn seco" id="admAreas">Administrar áreas de servicio</button></div>
+      <div id="formArea" hidden class="tarjeta" style="margin-top:12px"><div class="tarjeta-cuerpo">
+        <label for="an" style="margin-top:0">Nombre del área</label>
+        <input id="an" type="text" placeholder="Multimedia, Logística…">
+        <div style="margin-top:14px"><button class="btn" id="guardarArea">Crear área</button></div>
+        <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--linea-suave)">
+          <label style="margin-top:0" for="aq">Agregar alguien a un área</label>
+          <div class="par"><div><select id="aq"></select></div>
+            <div><select id="ap"></select></div></div>
+          <div class="par" style="margin-top:10px"><div><select id="ar">
+            <option value="participante">Participante</option><option value="lider">Líder</option></select></div>
+            <div><button class="btn" id="guardarMiembro" style="width:100%">Agregar al área</button></div></div>
+        </div>
+      </div></div>`;
+
+  app.innerHTML = html;
+  app.querySelectorAll('[data-area]').forEach(b => b.onclick = () => ir('area', b.dataset.area));
+
+  app.querySelectorAll('[data-conf]').forEach(b => b.onclick = async () => {
+    const { error } = await SB.from('evento_equipo').update({ confirmado:true }).eq('id', b.dataset.conf);
+    if (error) return avisar(error.message, true);
+    avisar('Confirmado.');
+    ir('servicio');
+  });
+
+  app.querySelectorAll('[data-ics]').forEach(b => b.onclick = async () => {
+    const f = (fechas || []).find(x => x.evento_id === b.dataset.ics);
+    const { data:ev } = await SB.from('eventos').select('*').eq('id', b.dataset.ics).maybeSingle();
+    if (ev) descargarIcs(ev, f.rol === 'encargado' ? 'Encargado' : (f.area || 'Servidor'));
+  });
+
+  const aa = document.getElementById('admAreas');
+  if (aa){
+    aa.onclick = () => {
+      const f = document.getElementById('formArea');
+      f.hidden = !f.hidden;
+      aa.textContent = f.hidden ? 'Administrar áreas de servicio' : 'Cancelar';
+    };
+    const { data:dir } = await SB.from('directorio').select('*').order('nombre');
+    const selP = document.getElementById('aq'), selA = document.getElementById('ap');
+    if (selP) selP.innerHTML = (dir || []).map(d => `<option value="${d.id}">${esc(d.nombre)}</option>`).join('');
+    if (selA) selA.innerHTML = (areas || []).map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('');
+
+    document.getElementById('guardarArea').onclick = async () => {
+      const nombre = document.getElementById('an').value.trim();
+      if (!nombre) return avisar('Ponle nombre al área.', true);
+      const { error } = await SB.from('areas').insert({ nombre, tipo:'servicio' });
+      if (error) return avisar(error.message, true);
+      avisar('Área creada.');
+      ir('servicio');
+    };
+    document.getElementById('guardarMiembro').onclick = async () => {
+      const { error } = await SB.from('persona_area').insert({
+        persona_id: selP.value, area_id: selA.value,
+        rol_en_area: document.getElementById('ar').value });
+      if (error) return avisar(error.message, true);
+      avisar('Listo, quedó en el área.');
+      ir('servicio');
+    };
+  }
+}
+
+/* ============================================================
+   Un área de servicio
+   ============================================================ */
+async function vArea(id){
+  cargando();
+  const [{ data:area, error }, { data:novs }, { data:mats }, { data:equipo }] = await Promise.all([
+    SB.from('areas').select('*').eq('id', id).maybeSingle(),
+    SB.from('novedades').select('*').eq('area_id', id).order('creado_en', { ascending:false }),
+    SB.from('materiales').select('*').eq('area_id', id).order('creado_en', { ascending:false }),
+    SB.from('servidores_por_area').select('*').eq('area_id', id).order('nombre')
+  ]);
+  if (error || !area) return app.innerHTML = `<div class="error">No se encontró esa área.</div>`;
+
+  const soyLider = (equipo || []).some(e => e.persona_id === S.yo.persona_id && e.rol_en_area === 'lider');
+  const puede = V().es_admin || soyLider;
+
+  let html = `<button class="volver" id="atras">← Volver a mi servicio</button>` +
+    cabeza(esc(area.nombre), `${(equipo || []).length} ${(equipo || []).length === 1 ? 'persona' : 'personas'} en el área`,
+      puede ? `<button class="btn" id="nuevaNov">Publicar novedad</button>` : '');
+
+  if (puede) html += `<div id="formNov" hidden class="tarjeta"><div class="tarjeta-cuerpo">
+      <label for="nt" style="margin-top:0">Título</label><input id="nt" type="text" placeholder="Cambio de horario del domingo">
+      <label for="nc">Qué pasó</label><textarea id="nc"></textarea>
+      <div style="margin-top:16px"><button class="btn" id="guardarNov">Publicar</button></div>
+    </div></div>`;
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Novedades</h2></div>
+    <div class="tarjeta-cuerpo">`;
+  if (!novs || !novs.length){
+    html += `<p style="margin:0;color:var(--suave);font-size:14.5px">Todavía no hay novedades del área.</p>`;
+  } else {
+    html += '<ul class="hilo">' + novs.map(n => `<li class="anota es-reunion">
+      <div class="anota-alto"><span class="anota-fecha">${fechaCorta(n.creado_en.slice(0,10))}</span>
+        ${n.creado_por ? `<span class="anota-fecha">· ${esc(S.nombres.get(n.creado_por) || 'Un líder')}</span>` : ''}</div>
+      <p class="anota-tema">${esc(n.titulo)}</p>
+      ${n.cuerpo ? `<p class="anota-cuerpo">${esc(n.cuerpo)}</p>` : ''}</li>`).join('') + '</ul>';
+  }
+  html += `</div></div>`;
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Material del área</h2>
+      ${puede ? `<button class="btn seco chico" id="nuevoMat">Agregar</button>` : ''}</div>`;
+  if (puede) html += `<div id="formMatA" hidden class="tarjeta-cuerpo" style="border-bottom:1px solid var(--linea-suave)">
+      <div class="par"><div><label for="amt" style="margin-top:0">Título</label><input id="amt" type="text"></div>
+        <div><label for="amtipo" style="margin-top:0">Tipo</label><select id="amtipo">
+          ${Object.entries(TIPOS_MAT).map(([v,t]) => `<option value="${v}">${t}</option>`).join('')}</select></div></div>
+      <div class="par"><div><label for="amtema">Tema</label><input id="amtema" type="text" placeholder="Capacitación, manual…"></div>
+        <div><label for="amenlace">Enlace</label><input id="amenlace" type="url" placeholder="https://"></div></div>
+      <div style="margin-top:14px"><button class="btn" id="guardarMatA">Guardar</button></div>
+    </div>`;
+  if (!mats || !mats.length){
+    html += `<div class="tarjeta-cuerpo"><p style="margin:0;color:var(--suave);font-size:14.5px">
+      Todavía no hay material de esta área.</p></div>`;
+  } else {
+    html += '<ul class="registro">' + mats.map(m => `<li><div class="fila" style="cursor:default">
+      <span class="fila-alto"><span class="nombre">${esc(m.titulo)}</span></span>
+      <span class="sub"><span class="sello">${esc(TIPOS_MAT[m.tipo] || m.tipo)}</span>
+        ${m.tema ? `<span>${esc(m.tema)}</span>` : ''}${m.autor ? `<span>· ${esc(m.autor)}</span>` : ''}</span>
+      ${m.enlace ? `<a href="${esc(m.enlace)}" target="_blank" rel="noopener"
+         style="font-size:14px;font-weight:600;display:inline-block;margin-top:8px">Abrir →</a>` : ''}
+    </div></li>`).join('') + '</ul>';
+  }
+  html += `</div>`;
+
+  if (equipo && equipo.length)
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quiénes sirven aquí</h2></div>
+      <ul class="registro">${equipo.map(e => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(e.nombre)}</span>
+          ${e.rol_en_area === 'lider' ? '<span class="sello">Líder</span>' : ''}</span>
+      </div></li>`).join('')}</ul></div>`;
+
+  app.innerHTML = html;
+  document.getElementById('atras').onclick = () => ir('servicio');
+
+  const nn = document.getElementById('nuevaNov');
+  if (nn) nn.onclick = () => {
+    const f = document.getElementById('formNov');
+    f.hidden = !f.hidden; nn.textContent = f.hidden ? 'Publicar novedad' : 'Cancelar';
+  };
+  const gn = document.getElementById('guardarNov');
+  if (gn) gn.onclick = async () => {
+    const titulo = document.getElementById('nt').value.trim();
+    if (!titulo) return avisar('Ponle título.', true);
+    const { error } = await SB.from('novedades').insert({
+      area_id:id, titulo, cuerpo:document.getElementById('nc').value.trim() || null,
+      creado_por:S.yo.persona_id });
+    if (error) return avisar(error.message, true);
+    avisar('Novedad publicada.');
+    ir('area', id);
+  };
+
+  const nm = document.getElementById('nuevoMat');
+  if (nm) nm.onclick = () => {
+    const f = document.getElementById('formMatA');
+    f.hidden = !f.hidden; nm.textContent = f.hidden ? 'Agregar' : 'Cancelar';
+  };
+  const gm = document.getElementById('guardarMatA');
+  if (gm) gm.onclick = async () => {
+    const titulo = document.getElementById('amt').value.trim();
+    if (!titulo) return avisar('Ponle título.', true);
+    const { error } = await SB.from('materiales').insert({
+      titulo, area_id:id, tipo:document.getElementById('amtipo').value,
+      tema:  document.getElementById('amtema').value.trim()   || null,
+      enlace:document.getElementById('amenlace').value.trim() || null,
+      creado_por:S.yo.persona_id });
+    if (error) return avisar(error.message, true);
+    avisar('Material guardado.');
+    ir('area', id);
+  };
 }
 
 /* ============================================================
@@ -1482,13 +1845,6 @@ async function vYo(){
       <span class="medida ${c}" style="margin-top:14px"><i style="width:${Math.min(100,Math.round(p.dias/90*100))}%"></i><b style="left:33.3%"></b></span>
     </div></div>` : ''}
 
-    ${S.rol !== 'real' ? `<div class="tarjeta"><div class="tarjeta-cuerpo">
-      <p style="margin:0;font-size:14px"><b>Estás en vista de prueba:</b> ${esc(ROLES[S.rol])}.
-      La pantalla te muestra lo que vería ese rol. Tus permisos de verdad siguen siendo los de abajo,
-      y las reglas que protegen los datos se siguen aplicando con tu sesión real.</p>
-      <div style="margin-top:12px"><button class="btn seco chico" id="volverRol">Volver a mi rol real</button></div>
-    </div></div>` : ''}
-
     <div class="tarjeta"><div class="tarjeta-alto"><h2>Lo que puedes hacer</h2></div>
       <div class="tarjeta-cuerpo"><ul class="datos">
         <li><span>Hombres a tu cargo</span><b>${S.yo.a_cargo}</b></li>
@@ -1496,21 +1852,17 @@ async function vYo(){
         ${S.yo.ve_todo  ? '<li><span>Ver todo el ministerio</span><b>Sí</b></li>' : ''}
         ${S.yo.es_admin ? '<li><span>Administrar la plataforma</span><b>Sí</b></li>' : ''}
       </ul>
-      <p class="ayuda">Lo que otros escriben sobre ti no se muestra aquí ni en ninguna parte de la plataforma.
-         Las notas de cuidado son para quien te cuida y para quien está sobre él.</p></div></div>
+      </div></div>
 
     <div class="tarjeta"><div class="tarjeta-alto"><h2>Apariencia</h2>
       <button class="btn seco chico" id="cambiarTema">${
         document.documentElement.getAttribute('data-tema') === 'oscuro' ? 'Pasar a claro' : 'Pasar a oscuro'}</button></div>
-      <div class="tarjeta-cuerpo"><p class="ayuda" style="margin:0">Se guarda en este dispositivo.
-        Si entras desde otro teléfono o computador, vuelve a empezar con el modo que tenga el aparato.</p></div></div>
+      </div>
 
     <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:28px">
       <button class="btn seco" id="miProc">Ver mi proceso</button>
       <button class="btn seco" id="salir">Cerrar sesión</button></div>`;
 
-  const vr = document.getElementById('volverRol');
-  if (vr) vr.onclick = () => { S.rol = 'real'; pintarNav(); ir('yo'); };
   document.getElementById('cambiarTema').onclick = () => { girarTema(); ir('yo'); };
   document.getElementById('miProc').onclick = () => { S.procPersona = S.yo.persona_id; ir('procesos'); };
   document.getElementById('salir').onclick = () => SB.auth.signOut();
