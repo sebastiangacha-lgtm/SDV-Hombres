@@ -112,11 +112,59 @@ a{color:var(--verde);text-decoration-color:color-mix(in srgb, var(--verde) 35%, 
 .marca b{font-family:var(--serif);font-size:18px;font-weight:600;line-height:1.1;display:block}
 .marca span{font-size:11.5px;color:var(--tenue);display:block;line-height:1.2}
 
-.grupo-nav{margin-bottom:18px}
-.grupo-nav p{
+/* ---------- quién soy y en qué rol estoy ---------- */
+.yo-caja{
+  border:1px solid var(--linea-suave);border-radius:var(--r-chico);
+  padding:10px;margin:0 0 16px;background:var(--velo);
+}
+.yo-caja.previendo{
+  border-color:color-mix(in srgb, var(--ambar) 45%, transparent);
+  background:var(--ambar-tenue);
+}
+.yo-fila{display:flex;align-items:center;gap:9px;min-width:0}
+.yo-fila .inicial{width:30px;height:30px;font-size:12px}
+.yo-fila div{min-width:0;flex:1}
+.yo-fila b{display:block;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.yo-rol{
+  display:block;font-size:11.5px;font-weight:600;color:var(--verde);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.yo-caja.previendo .yo-rol{color:var(--ambar)}
+.yo-caja select{margin-top:9px;font-size:12.5px;padding:7px 9px}
+.yo-aviso{
+  display:block;margin-top:7px;font-size:11.5px;line-height:1.4;
+  color:var(--ambar);font-weight:600;
+}
+
+/* ---------- acordeón ---------- */
+.grupo-nav{margin-bottom:4px}
+.grupo-nav > p{
   font-size:10.5px;font-weight:700;color:var(--tenue);
   letter-spacing:.07em;margin:0 0 5px;padding:0 10px;
 }
+.grupo-nav > summary{
+  display:flex;align-items:center;gap:10px;
+  list-style:none;cursor:pointer;border-radius:var(--r-chico);
+  padding:9px 10px;color:var(--suave);font-size:14.5px;font-weight:500;
+  transition:background .22s var(--brinco), color .22s var(--brinco);
+}
+.grupo-nav > summary::-webkit-details-marker{display:none}
+.grupo-nav > summary:hover{background:var(--velo);color:var(--texto)}
+.grupo-nav > summary svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;flex:0 0 auto}
+.grupo-nav > summary .flecha{
+  margin-left:auto;width:14px;height:14px;opacity:.55;
+  transition:transform .22s var(--brinco);
+}
+.grupo-nav[open] > summary{color:var(--texto)}
+.grupo-nav[open] > summary .flecha{transform:rotate(90deg)}
+/* El grupo que tiene la página abierta se marca aunque esté plegado */
+.grupo-nav.aqui > summary{color:var(--verde);font-weight:600}
+.grupo-nav .dentro{padding:2px 0 6px 12px;margin-left:8px;border-left:1px solid var(--linea-suave)}
+.grupo-nav .dentro button{font-size:14px;padding:8px 10px}
+/* Si la barra se queda corta, que ruede ella y no la página */
+.nav-rollo{overflow-y:auto;overflow-x:hidden;flex:1;margin:0 -4px;padding:0 4px}
+.nav-rollo::-webkit-scrollbar{width:5px}
+.nav-rollo::-webkit-scrollbar-thumb{background:var(--linea);border-radius:3px}
 .grupo-nav button{
   display:flex;align-items:center;gap:10px;width:100%;
   background:none;border:0;border-radius:var(--r-chico);
@@ -701,6 +749,7 @@ const barra = document.getElementById('barra');
 const CLAVE_ARRANQUE = '123456';
 
 const S = { yo:null, vista:'inicio', nombres:new Map(), gente:[],
+            qUsuarios:'', qPermisos:'', qFusion:'', focoFusion:false,
             procPersona:null, rutaAbierta:null, evento:null, rol:'real',
             filtros:{ texto:'', excluir:'', situacion:'', rango:'', rangoNo:'',
                       area:'', areaNo:'', proceso:'', curso:'', estado:'',
@@ -865,6 +914,9 @@ const I = {
   listas:'<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.3"/><circle cx="4.5" cy="12" r="1.3"/><circle cx="4.5" cy="18" r="1.3"/></svg>',
   usuarios:'<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11" stroke-linecap="round"/></svg>',
   fusionar:'<svg viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="5"/><circle cx="15.5" cy="12" r="5"/></svg>',
+  flecha:'<svg class="flecha" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  salir:'<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M14 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2" stroke-linecap="round"/><path d="M18 15l3-3-3-3M21 12H9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  permisos:'<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 8.5-4.1-.9-7-4.3-7-8.5V6z" stroke-linejoin="round"/><path d="M9.3 12l1.9 1.9 3.5-3.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   registrar:'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.1A4 4 0 0 1 12 8a4 4 0 0 1 7 2.9C19 15.6 12 20 12 20z" stroke-linejoin="round"/></svg>',
   nuevaPersona:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.2"/><path d="M4 20c0-3.4 2.7-5.2 6-5.2 1 0 1.9.15 2.7.44" stroke-linecap="round"/><path d="M18 14v6M15 17h6" stroke-linecap="round"/></svg>',
   personas:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5" stroke-linecap="round"/><path d="M16 11a3 3 0 1 0 0-6M18 20c0-2.5-1-4-2.5-4.6" stroke-linecap="round"/></svg>',
@@ -1027,38 +1079,63 @@ function pantallaEntrada(){
 function pintarNav(){
   const mando = V().es_admin || V().ve_todo;
   const cuida = V().puede_cuidar && V().a_cargo > 0;
+
+  // Cada grupo: [titulo, icono del grupo, opciones]
   const grupos = [
-    ['Cuidado',  [...(cuida ? [['registrar','Cuidado']] : []), ['inicio','Inicio'],
-                  ...(mando ? [['personas','Personas'], ['listas','Listas'],
-                               ['nuevaPersona','Registrar']] : [])]],
-    ['Procesos', [['procesos','Procesos']]],
-    ['Encuentros', [['eventos','Eventos']]],
-    ['Servicio',   [['servicio','Mi servicio']]],
-    ['Recursos',   [['material','Material']]],
-    ...(mando ? [['Administrar', [['usuarios','Usuarios'], ['fusionar','Fusionar']]]] : [])
+    ['Cuidado', 'registrar',
+      [...(cuida ? [['registrar','Registrar cuidado']] : []), ['inicio','Inicio'],
+       ...(mando ? [['personas','Personas'], ['listas','Listas'],
+                    ['nuevaPersona','Registrar persona']] : [])]],
+    ['Procesos',   'procesos', [['procesos','Cursos y procesos']]],
+    ['Encuentros', 'eventos',  [['eventos','Eventos']]],
+    ['Servicio',   'servicio', [['servicio','Mi servicio']]],
+    ['Recursos',   'material', [['material','Material']]],
+    ...(mando ? [['Administrar', 'usuarios',
+      [['usuarios','Usuarios'], ['permisos','Permisos'], ['fusionar','Fusionar']]]] : [])
   ];
 
+  // El grupo que contiene la vista abierta arranca desplegado.
+  const aqui = t => grupos.find(([tt]) => tt === t)[2].some(([v]) => v === S.vista);
+
   const opciones = rolesDisponibles();
-  const selector = opciones.length > 2 ? `
-    <div class="grupo-nav" style="margin-bottom:14px">
-      <p>VISTA</p>
-      <select id="selrol" style="font-size:13.5px;padding:8px 10px">
-        ${opciones.map(r => `<option value="${r}"${r === S.rol ? ' selected' : ''}>${ROLES[r]}</option>`).join('')}
-      </select>
-    </div>` : '';
+  const previendo = S.rol !== 'real';
+  const rolReal = S.yo.es_admin ? 'Súper administrador'
+                : S.yo.ve_todo  ? 'Pastor o director'
+                : S.yo.a_cargo  ? `Líder · cuida a ${S.yo.a_cargo}`
+                : 'Hombre del ministerio';
+
+  const cajaYo = `
+    <div class="yo-caja${previendo ? ' previendo' : ''}">
+      <button class="yo-fila" data-v="yo" style="background:none;border:0;padding:0;width:100%;cursor:pointer;text-align:left">
+        <span class="inicial">${esc(iniciales(S.yo.nombre))}</span>
+        <div><b>${esc(S.yo.nombre)}</b>
+          <span class="yo-rol">${previendo ? 'Viendo como: ' + esc(ROLES[S.rol]) : esc(rolReal)}</span></div>
+      </button>
+      ${opciones.length > 2 ? `
+        <select id="selrol" aria-label="Cambiar la vista de rol">
+          ${opciones.map(r => `<option value="${r}"${r === S.rol ? ' selected' : ''}>${ROLES[r]}</option>`).join('')}
+        </select>
+        ${previendo ? `<span class="yo-aviso">Estás viendo la plataforma como otro rol. Vuelve a «Mi rol real» para trabajar.</span>` : ''}` : ''}
+    </div>`;
 
   lado.hidden = false;
   lado.innerHTML = `
     <div class="marca"><span class="marca-sello">${I.sello}</span>
       <span><b>Cuidado</b><span>Ministerio de hombres</span></span></div>
-    ${grupos.map(([t, items]) => `<div class="grupo-nav"><p>${t.toUpperCase()}</p>
-      ${items.map(([v,n]) => `<button data-v="${v}">${I[v]}<span>${n}</span></button>`).join('')}
-    </div>`).join('')}
-    ${selector}
+    ${cajaYo}
+    <div class="nav-rollo">
+      ${grupos.map(([t, ic, items]) => `
+        <details class="grupo-nav${aqui(t) ? ' aqui' : ''}" data-grupo="${t}"${aqui(t) ? ' open' : ''}>
+          <summary>${I[ic]}<span>${t}</span>${I.flecha}</summary>
+          <div class="dentro">
+            ${items.map(([v,n]) => `<button data-v="${v}">${I[v]}<span>${n}</span></button>`).join('')}
+          </div>
+        </details>`).join('')}
+    </div>
     <div class="pie-lado">
-      <button class="quien" data-v="yo">
-        <span class="inicial">${esc(iniciales(S.yo.nombre))}</span>
-        <div><b>${esc(S.yo.nombre)}</b><span>${esc(S.yo.rango || 'sin rango')}</span></div>
+      <button class="quien" id="salirSesion" style="flex:1">
+        <span class="inicial" style="background:var(--velo);color:var(--suave)">${I.salir}</span>
+        <div><b>Cerrar sesión</b><span>${esc((S.yo.nombre || '').split(' ')[0])}</span></div>
       </button>
       <button class="tema" id="btema" title="Cambiar entre claro y oscuro"
         aria-label="Cambiar entre claro y oscuro">${I.luz}</button>
@@ -1073,6 +1150,29 @@ function pintarNav(){
 
   document.querySelectorAll('[data-v]').forEach(b => b.onclick = () => ir(b.dataset.v));
   document.getElementById('btema').onclick = girarTema;
+
+  document.getElementById('salirSesion').onclick = async () => {
+    if (!await confirmar('¿Cerrar sesión?', 'Vas a tener que entrar otra vez con tu correo y tu clave.', false)) return;
+    await SB.auth.signOut();
+  };
+
+  // Con cursor, el grupo se abre al pasarle por encima y el clic en el
+  // título no hace nada: si dejara el toggle nativo, pasar el mouse
+  // abriría y el clic siguiente cerraría, que se siente roto.
+  // Sin cursor (celular, tablet) manda el toque, que es lo único que hay.
+  const hayCursor = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  lado.querySelectorAll('.grupo-nav').forEach(d => {
+    if (!hayCursor) return;
+    let reloj;
+    d.querySelector('summary').onclick = e => e.preventDefault();
+    d.onmouseenter = () => { clearTimeout(reloj); d.open = true; };
+    d.onmouseleave = () => {
+      // El que tiene la página abierta se queda abierto.
+      if (d.classList.contains('aqui')) return;
+      reloj = setTimeout(() => { d.open = false; }, 260);
+    };
+  });
+
   const sr = document.getElementById('selrol');
   if (sr) sr.onchange = e => { S.rol = e.target.value; pintarNav(); ir('inicio'); };
 }
@@ -1088,7 +1188,7 @@ function ir(vista, arg){
      eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCurso, listas:vListas,
      yo:vYo, ficha:vFicha, registrar:vRegistrar,
      nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
-     usuarios:vUsuarios, fusionar:vFusionar }[vista])(arg);
+     usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar }[vista])(arg);
 }
 
 function cabeza(titulo, bajada, acciones=''){
@@ -2911,6 +3011,16 @@ async function vNuevaLista(){
 /* ============================================================
    Usuarios — quien puede entrar
    ============================================================ */
+/* Filtro común de las pantallas de administrar: nombre, correo,
+   celular, cédula, área, rango. Sin tildes, por partes. */
+function calza(u, q){
+  if (!q) return true;
+  const N = t => String(t ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const todo = N([u.nombre, u.nombre_completo, u.correo, u.celular,
+                  u.documento, u.areas, u.rango, u.rol_institucional].join(' '));
+  return N(q).split(/\s+/).filter(Boolean).every(t => todo.includes(t));
+}
+
 async function vUsuarios(){
   cargando();
   const yo = V();
@@ -2919,10 +3029,8 @@ async function vUsuarios(){
 
   const { data:us, error } = await SB.from('usuarios').select('*').order('nombre');
   if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
-
-  const sin    = (us || []).filter(u => !u.tiene_entrada);
-  const deben  = (us || []).filter(u =>  u.tiene_entrada &&  u.debe_cambiar_clave);
-  const listos = (us || []).filter(u =>  u.tiene_entrada && !u.debe_cambiar_clave);
+  const todos = us || [];
+  if (S.qUsuarios == null) S.qUsuarios = '';
 
   const fila = u => `<li><div class="fila" style="cursor:default">
     <span class="fila-alto">
@@ -2943,16 +3051,35 @@ async function vUsuarios(){
         : `<button class="btn seco chico" data-reiniciar="${u.id}" data-nom="${esc(u.nombre)}">Reiniciar clave</button>`}
     </span></div></li>`;
 
-  const bloque = (titulo, lista) => lista.length
-    ? `<div class="tarjeta"><div class="tarjeta-alto"><h2>${titulo}</h2>
-         <span class="sello">${lista.length}</span></div>
-       <div class="tarjeta-cuerpo" style="padding-top:4px">
-         <ul class="registro">${lista.map(fila).join('')}</ul></div></div>` : '';
+  app.innerHTML = cabeza('Usuarios', `Todos entran con la clave ${CLAVE_ARRANQUE} y la cambian al entrar`) + `
+    <div class="buscador">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5" stroke-linecap="round"/></svg>
+      <input id="qu" type="text" autocomplete="off" placeholder="Buscar por nombre, correo, celular…" value="${esc(S.qUsuarios)}">
+      <button class="limpiar" id="limpiarU" ${S.qUsuarios ? '' : 'hidden'} aria-label="Limpiar">✕</button>
+    </div>
+    <div id="listaU"></div>`;
 
-  app.innerHTML = cabeza('Usuarios', `Todos entran con la clave ${CLAVE_ARRANQUE} y la cambian al entrar`) +
-    bloque('Todavía no pueden entrar', sin) +
-    bloque('Siguen con la clave de arranque', deben) +
-    bloque('Ya tienen su propia clave', listos);
+  const pintar = () => {
+    const q = S.qUsuarios;
+    const v = todos.filter(u => calza(u, q));
+    const sin    = v.filter(u => !u.tiene_entrada);
+    const deben  = v.filter(u =>  u.tiene_entrada &&  u.debe_cambiar_clave);
+    const listos = v.filter(u =>  u.tiene_entrada && !u.debe_cambiar_clave);
+
+    const bloque = (titulo, lista) => lista.length
+      ? `<div class="tarjeta"><div class="tarjeta-alto"><h2>${titulo}</h2>
+           <span class="sello">${lista.length}</span></div>
+         <div class="tarjeta-cuerpo" style="padding-top:4px">
+           <ul class="registro">${lista.map(fila).join('')}</ul></div></div>` : '';
+
+    document.getElementById('listaU').innerHTML = v.length
+      ? bloque('Todavía no pueden entrar', sin) +
+        bloque('Siguen con la clave de arranque', deben) +
+        bloque('Ya tienen su propia clave', listos)
+      : `<div class="vacio"><strong>Nadie con «${esc(q)}»</strong>
+           Prueba con otra parte del nombre o del correo.</div>`;
+    enlazarU();
+  };
 
   const llamar = async (accion, id, nombre, b) => {
     const ant = b.textContent;
@@ -2970,17 +3097,159 @@ async function vUsuarios(){
     ir('usuarios');
   };
 
-  app.querySelectorAll('[data-abrir]').forEach(b => b.onclick = async () => {
-    if (!await confirmar(`¿Darle entrada a ${b.dataset.nom}?`,
-      `Va a poder entrar con su correo y la clave ${CLAVE_ARRANQUE}, y la plataforma le va a pedir que la cambie.`, false)) return;
-    llamar('crear', b.dataset.abrir, b.dataset.nom, b);
-  });
+  function enlazarU(){
+    app.querySelectorAll('[data-abrir]').forEach(b => b.onclick = async () => {
+      if (!await confirmar(`¿Darle entrada a ${b.dataset.nom}?`,
+        `Va a poder entrar con su correo y la clave ${CLAVE_ARRANQUE}, y la plataforma le va a pedir que la cambie.`, false)) return;
+      llamar('crear', b.dataset.abrir, b.dataset.nom, b);
+    });
+    app.querySelectorAll('[data-reiniciar]').forEach(b => b.onclick = async () => {
+      if (!await confirmar(`¿Reiniciar la clave de ${b.dataset.nom}?`,
+        `Su clave vuelve a ser ${CLAVE_ARRANQUE} y tendrá que cambiarla la próxima vez que entre.`)) return;
+      llamar('reiniciar', b.dataset.reiniciar, b.dataset.nom, b);
+    });
+  }
 
-  app.querySelectorAll('[data-reiniciar]').forEach(b => b.onclick = async () => {
-    if (!await confirmar(`¿Reiniciar la clave de ${b.dataset.nom}?`,
-      `Su clave vuelve a ser ${CLAVE_ARRANQUE} y tendrá que cambiarla la próxima vez que entre.`)) return;
-    llamar('reiniciar', b.dataset.reiniciar, b.dataset.nom, b);
-  });
+  const caja = document.getElementById('qu');
+  caja.oninput = e => {
+    S.qUsuarios = e.target.value;
+    document.getElementById('limpiarU').hidden = !S.qUsuarios;
+    pintar();
+  };
+  document.getElementById('limpiarU').onclick = () => {
+    S.qUsuarios = ''; caja.value = ''; caja.focus();
+    document.getElementById('limpiarU').hidden = true; pintar();
+  };
+  pintar();
+}
+
+/* ============================================================
+   Permisos — quién manda qué
+   ============================================================ */
+const ROLES_INST = { ninguno:'Sin rol', director:'Director', pastor:'Pastor' };
+
+async function vPermisos(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+
+  const { data:us, error } = await SB.from('usuarios').select('*').order('nombre');
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+  const todos = us || [];
+  if (S.qPermisos == null) S.qPermisos = '';
+
+  // Solo un admin de verdad reparte el permiso de administrar.
+  const soyAdminReal = !!S.yo.es_admin && S.rol === 'real';
+
+  const fila = u => {
+    const yoMismo = u.soy_yo;
+    return `<li><div class="fila" style="cursor:default">
+      <span class="fila-alto">
+        <span class="nombre">${esc(u.nombre)}</span>
+        ${u.es_admin ? `<span class="marca-est m-cuidado">administrador</span>` : ''}
+        ${u.rol_institucional !== 'ninguno'
+          ? `<span class="marca-est m-alerta">${esc(ROLES_INST[u.rol_institucional] || u.rol_institucional)}</span>` : ''}
+      </span>
+      <span class="sub">
+        <span>${u.correo ? esc(u.correo) : 'sin correo'}</span>
+        ${u.a_cargo ? `<span>· cuida a ${u.a_cargo}</span>` : ''}
+        ${u.rango ? `<span class="sello">${esc(mayus(u.rango))}</span>` : ''}
+      </span>
+      ${yoMismo
+        ? `<span class="sub"><span>Tus propios permisos los cambia otro administrador.</span></span>`
+        : `<span class="avanzada" style="margin-top:12px">
+            <span><label style="margin-top:0">Rol</label>
+              <select data-rol="${u.id}" data-nom="${esc(u.nombre)}">
+                ${Object.entries(ROLES_INST).map(([v,t]) =>
+                  `<option value="${v}"${v === u.rol_institucional ? ' selected' : ''}>${t}</option>`).join('')}
+              </select></span>
+            <span><label style="margin-top:0">Administrador</label>
+              <select data-adm="${u.id}" data-nom="${esc(u.nombre)}"${soyAdminReal ? '' : ' disabled'}>
+                <option value="no"${u.es_admin ? '' : ' selected'}>No</option>
+                <option value="si"${u.es_admin ? ' selected' : ''}>Sí</option>
+              </select></span>
+          </span>`}
+    </div></li>`;
+  };
+
+  app.innerHTML = cabeza('Permisos', 'Quién ve todo y quién administra la plataforma') + `
+    <div class="buscador">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5" stroke-linecap="round"/></svg>
+      <input id="qp" type="text" autocomplete="off" placeholder="Buscar por nombre, correo, área…" value="${esc(S.qPermisos)}">
+      <button class="limpiar" id="limpiarP" ${S.qPermisos ? '' : 'hidden'} aria-label="Limpiar">✕</button>
+    </div>
+    <div id="listaP"></div>`;
+
+  const pintar = () => {
+    const q = S.qPermisos;
+    const v = todos.filter(u => calza(u, q));
+    const conMando = v.filter(u => u.es_admin || u.rol_institucional !== 'ninguno');
+    const resto    = v.filter(u => !u.es_admin && u.rol_institucional === 'ninguno');
+
+    const bloque = (titulo, lista) => lista.length
+      ? `<div class="tarjeta"><div class="tarjeta-alto"><h2>${titulo}</h2>
+           <span class="sello">${lista.length}</span></div>
+         <div class="tarjeta-cuerpo" style="padding-top:4px">
+           <ul class="registro">${lista.map(fila).join('')}</ul></div></div>` : '';
+
+    document.getElementById('listaP').innerHTML = v.length
+      ? bloque('Con mando', conMando) + bloque('Los demás', resto)
+      : `<div class="vacio"><strong>Nadie con «${esc(q)}»</strong>
+           Prueba con otra parte del nombre o del correo.</div>`;
+    enlazarP();
+  };
+
+  const mandar = async (id, nombre, campos, sel, antes) => {
+    sel.disabled = true;
+    const { error } = await SB.rpc('cambiar_permisos',
+      { p_persona:id, p_rol:campos.rol ?? null, p_es_admin:campos.admin ?? null });
+    sel.disabled = false;
+    if (error){ sel.value = antes; return mostrar('No se pudo', error.message); }
+    avisar(`${nombre.split(' ')[0]}: permisos actualizados.`);
+    ir('permisos');
+  };
+
+  function enlazarP(){
+    app.querySelectorAll('[data-rol]').forEach(sel => {
+      const antes = sel.value;
+      sel.onchange = async () => {
+        const t = ROLES_INST[sel.value];
+        if (!await confirmar(`¿${sel.value === 'ninguno' ? 'Quitarle el rol' : 'Poner como ' + t.toLowerCase()} a ${sel.dataset.nom}?`,
+          sel.value === 'ninguno'
+            ? 'Va a dejar de ver a todo el ministerio y solo verá a su gente.'
+            : 'Va a poder ver a todo el ministerio, no solo a su gente.', false)){
+          sel.value = antes; return;
+        }
+        mandar(sel.dataset.rol, sel.dataset.nom, { rol:sel.value }, sel, antes);
+      };
+    });
+
+    app.querySelectorAll('[data-adm]').forEach(sel => {
+      const antes = sel.value;
+      sel.onchange = async () => {
+        const dar = sel.value === 'si';
+        if (!await confirmar(`¿${dar ? 'Hacer administrador' : 'Quitarle el administrador'} a ${sel.dataset.nom}?`,
+          dar ? 'Va a poder manejar claves, permisos y fusiones de todo el ministerio.'
+              : 'Deja de poder manejar claves, permisos y fusiones.', !dar)){
+          sel.value = antes; return;
+        }
+        mandar(sel.dataset.adm, sel.dataset.nom, { admin:dar }, sel, antes);
+      };
+    });
+  }
+
+  const caja = document.getElementById('qp');
+  caja.oninput = e => {
+    S.qPermisos = e.target.value;
+    document.getElementById('limpiarP').hidden = !S.qPermisos;
+    pintar();
+  };
+  document.getElementById('limpiarP').onclick = () => {
+    S.qPermisos = ''; caja.value = ''; caja.focus();
+    document.getElementById('limpiarP').hidden = true; pintar();
+  };
+  pintar();
 }
 
 /* ============================================================
@@ -3005,21 +3274,32 @@ async function vFusionar(arg){
 
   const quien = id => todos.find(g => g.id === id);
   const A = quien(F.a), B = quien(F.b);
+  if (S.qFusion == null) S.qFusion = '';
 
-  const opciones = (sel, excluir) => todos
+  // Con 14 hombres una lista desplegable alcanza; con 300 no. El
+  // buscador recorta las dos listas a la vez.
+  const visibles = todos.filter(g => calza(g, S.qFusion) || g.id === F.a || g.id === F.b);
+  const opciones = (sel, excluir) => visibles
     .filter(g => g.id !== excluir)
     .map(g => `<option value="${g.id}"${g.id === sel ? ' selected' : ''}>${esc(g.nombre)}${g.correo ? ' · ' + esc(g.correo) : ''}</option>`)
     .join('');
 
   let html = `<button class="volver" id="atras">← Volver</button>` +
     cabeza('Fusionar', 'Dos fichas de la misma persona se vuelven una') + `
+    <div class="buscador">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5" stroke-linecap="round"/></svg>
+      <input id="qf" type="text" autocomplete="off" placeholder="Buscar para acortar las listas…" value="${esc(S.qFusion)}">
+      <button class="limpiar" id="limpiarF" ${S.qFusion ? '' : 'hidden'} aria-label="Limpiar">✕</button>
+    </div>
     <div class="tarjeta"><div class="tarjeta-cuerpo">
       <div class="par">
         <div><label for="fa" style="margin-top:0">La ficha que queda</label>
           <select id="fa"><option value="">Elige…</option>${opciones(F.a, F.b)}</select></div>
         <div><label for="fb" style="margin-top:0">La que se va</label>
           <select id="fb"><option value="">Elige…</option>${opciones(F.b, F.a)}</select></div>
-      </div></div></div>`;
+      </div>
+      ${S.qFusion ? `<p style="margin:12px 0 0;font-size:13px;color:var(--suave)">${visibles.length} de ${todos.length}</p>` : ''}
+      </div></div>`;
 
   if (A && B){
     const distinto = CAMPOS_FUSION.filter(([k]) =>
@@ -3058,6 +3338,22 @@ async function vFusionar(arg){
 
   document.getElementById('fa').onchange = e => { F.a = e.target.value; ir('fusionar'); };
   document.getElementById('fb').onchange = e => { F.b = e.target.value; ir('fusionar'); };
+
+  const cajaF = document.getElementById('qf');
+  // La vista se repinta entera al filtrar, así que hay que devolverle
+  // el foco y dejar el cursor al final; si no, se escribe una letra
+  // y se pierde el teclado.
+  if (S.focoFusion){ cajaF.focus(); cajaF.setSelectionRange(cajaF.value.length, cajaF.value.length); }
+  let reloj;
+  cajaF.oninput = e => {
+    S.qFusion = e.target.value; S.focoFusion = true;
+    clearTimeout(reloj);
+    reloj = setTimeout(() => ir('fusionar'), 280);
+  };
+  cajaF.onblur = () => { if (!reloj) S.focoFusion = false; };
+  document.getElementById('limpiarF').onclick = () => {
+    S.qFusion = ''; S.focoFusion = true; ir('fusionar');
+  };
 
   const elegidos = {};
   app.querySelectorAll('[data-campo]').forEach(b => b.onclick = () => {
