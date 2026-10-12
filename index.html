@@ -861,6 +861,7 @@ const mostrar = (titulo, texto) =>
 const I = {
   inicio:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg>',
   listas:'<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.3"/><circle cx="4.5" cy="12" r="1.3"/><circle cx="4.5" cy="18" r="1.3"/></svg>',
+  nuevaPersona:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.2"/><path d="M4 20c0-3.4 2.7-5.2 6-5.2 1 0 1.9.15 2.7.44" stroke-linecap="round"/><path d="M18 14v6M15 17h6" stroke-linecap="round"/></svg>',
   personas:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5" stroke-linecap="round"/><path d="M16 11a3 3 0 1 0 0-6M18 20c0-2.5-1-4-2.5-4.6" stroke-linecap="round"/></svg>',
   procesos:'<svg viewBox="0 0 24 24"><path d="M5 19V5M5 19h14" stroke-linecap="round"/><path d="M9 15l3.5-4 3 2.5L19 8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   material:'<svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z" stroke-linejoin="round"/></svg>',
@@ -955,7 +956,8 @@ function pantallaEntrada(){
 function pintarNav(){
   const mando = V().es_admin || V().ve_todo;
   const grupos = [
-    ['Cuidado',  [['inicio','Inicio'], ...(mando ? [['personas','Personas'], ['listas','Listas']] : [])]],
+    ['Cuidado',  [['inicio','Inicio'], ...(mando ? [['personas','Personas'], ['listas','Listas'],
+                                                    ['nuevaPersona','Registrar']] : [])]],
     ['Procesos', [['procesos','Procesos']]],
     ['Encuentros', [['eventos','Eventos']]],
     ['Servicio',   [['servicio','Mi servicio']]],
@@ -1009,7 +1011,8 @@ function ir(vista, arg){
   S.vista = vista; marcar(vista); window.scrollTo(0,0);
   ({ inicio:vInicio, personas:vPersonas, procesos:vProcesos, material:vMaterial,
      eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCurso, listas:vListas,
-     yo:vYo, ficha:vFicha, registrar:vRegistrar }[vista])(arg);
+     yo:vYo, ficha:vFicha, registrar:vRegistrar,
+     nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista }[vista])(arg);
 }
 
 function cabeza(titulo, bajada, acciones=''){
@@ -2276,22 +2279,6 @@ async function vPersonas(){
       </div>
     </div></div>
 
-    ${yo.es_admin ? `<div id="formNuevo" hidden class="tarjeta"><div class="tarjeta-cuerpo">
-      <div class="par"><div><label for="pn" style="margin-top:0">Nombre</label><input id="pn" type="text" placeholder="Como lo llaman"></div>
-        <div><label for="pdoc" style="margin-top:0">Cédula</label><input id="pdoc" type="text" inputmode="numeric"></div></div>
-      <div class="par"><div><label for="pc">Correo</label><input id="pc" type="email"></div>
-        <div><label for="pt">Celular</label><input id="pt" type="text" inputmode="numeric"></div></div>
-      <div class="par"><div><label for="pfijo">Teléfono fijo</label><input id="pfijo" type="text" inputmode="numeric"></div>
-        <div><label for="pnac">Fecha de nacimiento</label><input id="pnac" type="date"></div></div>
-      <div class="par"><div><label for="pr">Rango</label>
-        <select id="pr"><option value="paje">Paje</option><option value="escudero">Escudero</option><option value="caballero">Caballero</option></select></div>
-        <div><label for="pl">¿Quién lo cuida?</label>
-        <select id="pl">${lideres.map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}</select></div></div>
-      <label for="pa">Área</label>
-      <select id="pa"><option value="">Ninguna por ahora</option>${(areas || []).map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}</select>
-      <div style="margin-top:16px"><button class="btn" id="guardarP">Guardar</button></div>
-    </div></div>` : ''}
-
     <p class="conteo-res" id="conteo"></p>
     <div class="personas" id="lista"></div>`;
 
@@ -2423,43 +2410,8 @@ async function vPersonas(){
 
   if (hayFiltros()) document.getElementById('panelAvanzada').hidden = false;
 
-  /* ---------- agregar persona ---------- */
   const nb = document.getElementById('nuevo');
-  if (nb) nb.onclick = () => {
-    const f = document.getElementById('formNuevo');
-    f.hidden = !f.hidden; nb.textContent = f.hidden ? 'Agregar persona' : 'Cancelar';
-  };
-
-  const g = document.getElementById('guardarP');
-  if (g) g.onclick = async () => {
-    const nombre = document.getElementById('pn').value.trim();
-    if (!nombre) return avisar('Falta el nombre.', true);
-    g.disabled = true; g.textContent = 'Guardando…';
-
-    const { data:creada, error:e1 } = await SB.from('personas').insert({
-      nombre,
-      documento:        document.getElementById('pdoc').value.trim()  || null,
-      correo:           document.getElementById('pc').value.trim()    || null,
-      celular:          document.getElementById('pt').value.trim()    || null,
-      telefono:         document.getElementById('pfijo').value.trim() || null,
-      fecha_nacimiento: document.getElementById('pnac').value         || null
-    }).select('id').single();
-    if (e1){ avisar('No se pudo crear: ' + e1.message, true); g.disabled = false; g.textContent = 'Guardar'; return; }
-
-    const { error:e2 } = await SB.from('rangos').insert({
-      persona_id:creada.id, rango:document.getElementById('pr').value, asignado_por:S.yo.persona_id });
-    if (e2){ avisar('Quedó creado, pero sin rango: ' + e2.message, true); g.disabled = false; g.textContent = 'Guardar'; return; }
-
-    const { error:e3 } = await SB.from('coberturas').insert({
-      persona_id:creada.id, lider_id:document.getElementById('pl').value, asignado_por:S.yo.persona_id });
-    if (e3){ avisar('Quedó creado, pero sin líder: ' + e3.message, true); g.disabled = false; g.textContent = 'Guardar'; return; }
-
-    const area = document.getElementById('pa').value;
-    if (area) await SB.from('persona_area').insert({ persona_id:creada.id, area_id:area });
-
-    avisar(`${nombre.split(' ')[0]} quedó registrado.`);
-    ir('personas');
-  };
+  if (nb) nb.onclick = () => ir('nuevaPersona');
 }
 
 const FILTROS_VACIOS = { texto:'', excluir:'', situacion:'', rango:'', rangoNo:'',
@@ -2550,6 +2502,276 @@ function descargar(filas){
 }
 
 /* ============================================================
+   Registrar una persona
+   ============================================================ */
+const TEXTO_DATOS = 'v1';
+
+const AUTORIZACION = `Autorizo a la Iglesia Semillas de Vida a recoger, guardar y usar mis datos
+personales con el fin de acompañarme pastoralmente, invitarme a las actividades del ministerio
+y llevar el registro de mi participación. Entiendo que puedo pedir que se corrijan o se eliminen
+en cualquier momento.`;
+
+const AUTORIZACION_MENOR = `Como acudiente autorizo la participación del menor en las actividades
+del ministerio de hombres, y autorizo a la Iglesia Semillas de Vida a recoger, guardar y usar sus
+datos personales con ese fin. Entiendo que puedo retirar esta autorización en cualquier momento.`;
+
+async function vRegistrarPersona(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo hacen la dirección y el pastorado.</div>`;
+  if (!S.tipoReg) S.tipoReg = 'adulto';
+
+  const [{ data:dir }, { data:areas }] = await Promise.all([
+    SB.from('buscador').select('id,nombre,rango').order('nombre'),
+    SB.from('areas').select('*').eq('activa', true).order('nombre')
+  ]);
+  const lideres = (dir || []).filter(d => d.rango === 'escudero' || d.rango === 'caballero');
+  const menor = S.tipoReg === 'menor';
+
+  app.innerHTML = cabeza('Registrar', 'Agregar a alguien al ministerio') + `
+    <div class="opciones" style="margin-bottom:16px">
+      <button type="button" class="opcion" data-tipo-reg="adulto" aria-pressed="${!menor}">Adulto</button>
+      <button type="button" class="opcion" data-tipo-reg="menor"  aria-pressed="${menor}">Menor de edad</button>
+    </div>
+
+    <div class="tarjeta"><div class="tarjeta-alto"><h2>Datos</h2></div>
+      <div class="tarjeta-cuerpo">
+        <div class="par"><div><label for="rn" style="margin-top:0">Nombre</label>
+          <input id="rn" type="text" placeholder="Como lo llaman"></div>
+          <div><label for="rnc" style="margin-top:0">Nombre completo</label><input id="rnc" type="text"></div></div>
+        <div class="par"><div><label for="rnac">Fecha de nacimiento${menor ? '' : ' (opcional)'}</label>
+          <input id="rnac" type="date" max="${hoy()}"></div>
+          <div><label for="rdoc">${menor ? 'Documento' : 'Cédula'}</label>
+          <input id="rdoc" type="text" inputmode="numeric"></div></div>
+        <div class="par"><div><label for="rcel">Celular</label><input id="rcel" type="text" inputmode="numeric"></div>
+          <div><label for="rfijo">Teléfono fijo</label><input id="rfijo" type="text" inputmode="numeric"></div></div>
+        <label for="rcor">Correo</label><input id="rcor" type="email">
+        <div class="par"><div><label for="rcomo">¿Cómo llegó?</label>
+          <input id="rcomo" type="text" placeholder="Un amigo, un evento, el grupo de vida…"></div>
+          <div><label for="rar">Área</label>
+          <select id="rar"><option value="">Ninguna por ahora</option>
+            ${(areas || []).map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}</select></div></div>
+      </div></div>
+
+    ${menor ? `<div class="tarjeta"><div class="tarjeta-alto"><h2>Acudiente</h2></div>
+      <div class="tarjeta-cuerpo">
+        <div class="par"><div><label for="an" style="margin-top:0">Nombre del acudiente</label>
+          <input id="an" type="text"></div>
+          <div><label for="ap" style="margin-top:0">Parentesco</label>
+          <select id="ap"><option>Madre</option><option>Padre</option><option>Abuelo o abuela</option>
+            <option>Tío o tía</option><option>Hermano mayor</option><option>Otro</option></select></div></div>
+        <div class="par"><div><label for="acel">Celular del acudiente</label>
+          <input id="acel" type="text" inputmode="numeric"></div>
+          <div><label for="acor">Correo del acudiente</label><input id="acor" type="email"></div></div>
+        <label for="amed">¿Cómo autorizó?</label>
+        <select id="amed"><option>WhatsApp</option><option>Firmó en papel</option>
+          <option>Correo</option><option>En persona</option></select>
+        <div class="tarjeta" style="margin:16px 0 0;box-shadow:none;background:var(--alto)">
+          <div class="tarjeta-cuerpo"><p style="margin:0;font-size:14px;line-height:1.6">${esc(AUTORIZACION_MENOR)}</p></div></div>
+        <label class="casilla"><input type="checkbox" id="aok">
+          <div><b>El acudiente autorizó</b></div></label>
+      </div></div>` : ''}
+
+    <div class="tarjeta"><div class="tarjeta-alto"><h2>Tratamiento de datos</h2></div>
+      <div class="tarjeta-cuerpo">
+        <div class="tarjeta" style="margin:0;box-shadow:none;background:var(--alto)">
+          <div class="tarjeta-cuerpo"><p style="margin:0;font-size:14px;line-height:1.6">${esc(AUTORIZACION)}</p></div></div>
+        <div class="par" style="margin-top:14px"><div><label for="dmed" style="margin-top:0">¿Cómo autorizó?</label>
+          <select id="dmed"><option>En persona</option><option>WhatsApp</option>
+            <option>Firmó en papel</option><option>Correo</option><option>Formulario</option></select></div></div>
+        <label class="casilla"><input type="checkbox" id="dok">
+          <div><b>${menor ? 'El acudiente autorizó el tratamiento de datos' : 'Autorizó el tratamiento de datos'}</b></div></label>
+      </div></div>
+
+    <div class="tarjeta"><div class="tarjeta-alto"><h2>En el ministerio</h2></div>
+      <div class="tarjeta-cuerpo">
+        <div class="par"><div><label for="rr" style="margin-top:0">Rango</label>
+          <select id="rr"><option value="paje">Paje</option><option value="escudero">Escudero</option>
+            <option value="caballero">Caballero</option></select></div>
+          <div><label for="rl" style="margin-top:0">¿Quién lo cuida?</label>
+          <select id="rl">${lideres.map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}</select></div></div>
+      </div></div>
+
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:28px">
+      <button class="btn" id="guardarReg">Registrar</button>
+      <button class="btn seco" id="cancelarReg">Cancelar</button></div>`;
+
+  app.querySelectorAll('[data-tipo-reg]').forEach(b => b.onclick = () => {
+    S.tipoReg = b.dataset.tipoReg; ir('nuevaPersona');
+  });
+  document.getElementById('cancelarReg').onclick = () => ir('personas');
+
+  document.getElementById('guardarReg').onclick = async () => {
+    const g = document.getElementById('guardarReg');
+    const val = x => (document.getElementById(x)?.value || '').trim();
+    const nombre = val('rn');
+    if (!nombre) return avisar('Falta el nombre.', true);
+
+    if (menor){
+      if (!val('rnac'))  return avisar('Para un menor necesitamos la fecha de nacimiento.', true);
+      if (!val('an'))    return avisar('Falta el nombre del acudiente.', true);
+      if (!val('acel'))  return avisar('Falta el celular del acudiente.', true);
+      if (!document.getElementById('aok').checked)
+        return avisar('Falta marcar que el acudiente autorizó.', true);
+      const e = edadDe(val('rnac'));
+      if (e >= 18 && !await confirmar('Esa fecha da ' + e + ' años',
+          'Lo estás registrando como menor pero ya es mayor de edad. ¿Sigo de todas formas?', false)) return;
+    }
+
+    g.disabled = true; g.textContent = 'Guardando…';
+    const autoriza = document.getElementById('dok').checked;
+
+    const { data:creada, error:e1 } = await SB.from('personas').insert({
+      nombre,
+      nombre_completo:  val('rnc')   || null,
+      documento:        val('rdoc')  || null,
+      celular:          val('rcel')  || null,
+      telefono:         val('rfijo') || null,
+      correo:           val('rcor')  || null,
+      como_llego:       val('rcomo') || null,
+      fecha_nacimiento: val('rnac')  || null,
+      acudiente_nombre:     menor ? val('an')   || null : null,
+      acudiente_parentesco: menor ? val('ap')   || null : null,
+      acudiente_celular:    menor ? val('acel') || null : null,
+      acudiente_correo:     menor ? val('acor') || null : null,
+      permiso_acudiente:    menor,
+      permiso_medio:        menor ? val('amed') || null : null,
+      datos_autoriza:  autoriza,
+      datos_medio:     autoriza ? val('dmed') || null : null,
+      datos_version:   autoriza ? TEXTO_DATOS : null
+    }).select('id').single();
+
+    if (e1){ avisar('No se pudo crear: ' + e1.message, true); g.disabled = false; g.textContent = 'Registrar'; return; }
+
+    const { error:e2 } = await SB.from('rangos').insert({
+      persona_id:creada.id, rango:val('rr'), asignado_por:S.yo.persona_id });
+    if (e2) avisar('Quedó creado, pero sin rango: ' + e2.message, true);
+
+    const { error:e3 } = await SB.from('coberturas').insert({
+      persona_id:creada.id, lider_id:val('rl'), asignado_por:S.yo.persona_id });
+    if (e3) avisar('Quedó creado, pero sin líder: ' + e3.message, true);
+
+    if (val('rar')) await SB.from('persona_area').insert({ persona_id:creada.id, area_id:val('rar') });
+
+    avisar(`${nombre.split(' ')[0]} quedó registrado.`);
+    ir('ficha', creada.id);
+  };
+}
+
+/* ============================================================
+   Armar una lista
+   ============================================================ */
+async function vNuevaLista(){
+  cargando();
+  const [{ data:areas }, { data:cursos }, { data:gente }] = await Promise.all([
+    SB.from('areas').select('*').eq('activa', true).order('nombre'),
+    SB.from('rutas').select('id,nombre').order('nombre'),
+    SB.from('buscador').select('id,nombre,rango,anios').order('nombre')
+  ]);
+  const lideres = (gente || []).filter(g => g.rango === 'escudero' || g.rango === 'caballero');
+  const anios = [...new Set((gente || []).flatMap(g => String(g.anios || '').split(' ')))]
+                  .filter(Boolean).sort().reverse();
+  const F = S.filtroLista || { ...FILTROS_VACIOS };
+  S.filtroLista = F;
+
+  app.innerHTML = `<button class="volver" id="atras">← Volver a listas</button>` +
+    cabeza('Nueva lista', 'Define la regla; después la abres y te da los resultados') + `
+
+    <div class="tarjeta"><div class="tarjeta-cuerpo">
+      <label for="ln" style="margin-top:0">¿Cómo se va a llamar?</label>
+      <input id="ln" type="text" placeholder="Legendarios sin caballeros" value="${esc(S.nombreLista || '')}">
+    </div></div>
+
+    <div class="tarjeta"><div class="tarjeta-alto"><h2>Incluir</h2></div>
+      <div class="tarjeta-cuerpo"><div class="avanzada">
+        <div><label for="nTex" style="margin-top:0">Dice</label>
+          <input id="nTex" type="text" data-nf="texto" value="${esc(F.texto)}" placeholder="apellido, correo…"></div>
+        <div><label for="nSit" style="margin-top:0">Cuidado</label>
+          <select id="nSit" data-nf="situacion"><option value="">Cualquiera</option>
+            <option value="cuidado">Cuidado</option><option value="en alerta">En alerta</option>
+            <option value="desconectado">Desconectado</option></select></div>
+        <div><label for="nRan" style="margin-top:0">Rango</label>
+          <select id="nRan" data-nf="rango"><option value="">Cualquiera</option>
+            <option value="paje">Paje</option><option value="escudero">Escudero</option>
+            <option value="caballero">Caballero</option><option value="__sin">Sin rango</option></select></div>
+        <div><label for="nAre">Área</label>
+          <select id="nAre" data-nf="area"><option value="">Cualquiera</option>
+            ${(areas || []).map(a => `<option value="${esc(a.nombre)}">${esc(a.nombre)}</option>`).join('')}
+            <option value="__sin">Sin área</option></select></div>
+        <div><label for="nPro">Proceso</label>
+          <select id="nPro" data-nf="proceso"><option value="">Cualquiera</option>
+            <option value="con">Empezado</option><option value="completo">Con alguno completo</option>
+            <option value="sin">Sin empezar</option></select></div>
+        <div><label for="nCur">Curso</label>
+          <select id="nCur" data-nf="curso"><option value="">Cualquiera</option>
+            ${(cursos || []).map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join('')}</select></div>
+        <div><label for="nEst">Estado</label>
+          <select id="nEst" data-nf="estado"><option value="">Cualquiera</option>
+            <option value="activo">Activo</option><option value="visitante">Visitante</option>
+            <option value="retirado">Retirado</option></select></div>
+        <div><label for="nLid">Lo cuida</label>
+          <select id="nLid" data-nf="lider"><option value="">Cualquiera</option>
+            ${lideres.map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}
+            <option value="__sin">Nadie todavía</option></select></div>
+        <div><label for="nAnio">Estuvo en el año</label>
+          <select id="nAnio" data-nf="anio"><option value="">Cualquiera</option>
+            ${anios.map(a => `<option value="${a}">${a}</option>`).join('')}</select></div>
+        <div><label for="nEmin">Edad desde</label>
+          <input id="nEmin" type="text" inputmode="numeric" data-nf="edadMin" value="${esc(F.edadMin)}"></div>
+        <div><label for="nEmax">Edad hasta</label>
+          <input id="nEmax" type="text" inputmode="numeric" data-nf="edadMax" value="${esc(F.edadMax)}"></div>
+      </div></div></div>
+
+    <div class="tarjeta"><div class="tarjeta-alto"><h2>Excluir</h2></div>
+      <div class="tarjeta-cuerpo"><div class="avanzada">
+        <div><label for="nEx" style="margin-top:0">Si dice</label>
+          <input id="nEx" type="text" data-nf="excluir" value="${esc(F.excluir)}" placeholder="caballero, sanchez…"></div>
+        <div><label for="nAreNo" style="margin-top:0">Área</label>
+          <select id="nAreNo" data-nf="areaNo"><option value="">Ninguna</option>
+            ${(areas || []).map(a => `<option value="${esc(a.nombre)}">${esc(a.nombre)}</option>`).join('')}</select></div>
+        <div><label for="nRanNo" style="margin-top:0">Rango</label>
+          <select id="nRanNo" data-nf="rangoNo"><option value="">Ninguno</option>
+            <option value="paje">Paje</option><option value="escudero">Escudero</option>
+            <option value="caballero">Caballero</option><option value="__sin">Sin rango</option></select></div>
+      </div></div></div>
+
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:28px;align-items:center">
+      <button class="btn" id="guardarL">Guardar lista</button>
+      <button class="btn seco" id="cancelarL">Cancelar</button>
+      <span class="ruta-conteo" id="resumenL"></span></div>`;
+
+  document.getElementById('atras').onclick = () => { S.filtroLista = null; S.nombreLista = ''; ir('listas'); };
+  document.getElementById('cancelarL').onclick = () => { S.filtroLista = null; S.nombreLista = ''; ir('listas'); };
+
+  const nombres = new Map((gente || []).map(g => [g.id, g.nombre]));
+  const resumen = () => document.getElementById('resumenL').textContent = resumenFiltros(F, nombres);
+
+  app.querySelectorAll('[data-nf]').forEach(el => {
+    const k = el.dataset.nf;
+    if (el.tagName === 'SELECT') el.value = F[k] || '';
+    const manejar = () => { F[k] = el.value; resumen(); };
+    el.onchange = manejar;
+    if (el.tagName === 'INPUT') el.oninput = manejar;
+  });
+  document.getElementById('ln').oninput = e => { S.nombreLista = e.target.value; };
+  resumen();
+
+  document.getElementById('guardarL').onclick = async () => {
+    const nombre = document.getElementById('ln').value.trim();
+    if (!nombre) return avisar('Ponle nombre a la lista.', true);
+    if (!Object.keys(FILTROS_VACIOS).some(k => F[k]))
+      return avisar('Pon al menos una regla.', true);
+    const { error } = await SB.from('listas').insert({
+      nombre, filtros: F, creado_por: S.yo.persona_id });
+    if (error) return avisar(error.message, true);
+    S.filtroLista = null; S.nombreLista = '';
+    avisar('Lista guardada.');
+    ir('listas');
+  };
+}
+
+/* ============================================================
    Listas
    ============================================================ */
 const NOMBRE_FILTRO = {
@@ -2578,6 +2800,8 @@ function resumenFiltros(f, nombres){
 async function vListas(){
   cargando();
   const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Las listas las manejan la dirección y el pastorado.</div>`;
   const [{ data:listas, error }, { data:gente }] = await Promise.all([
     SB.from('listas').select('*').order('nombre'),
     SB.from('buscador').select('*').order('nombre')
@@ -2596,12 +2820,13 @@ async function vListas(){
   };
 
   let html = cabeza('Listas', 'Búsquedas guardadas que se actualizan solas',
+    `<button class="btn" id="nuevaL">Crear lista</button>` +
     `<button class="btn seco" id="aPersonas2">Ir a Personas</button>`);
 
   if (!listas || !listas.length){
     html += `<div class="vacio"><strong>Todavía no hay listas</strong>
-      Arma una búsqueda en Personas y dale a «Guardar como lista».</div>
-      <button class="btn seco" id="aPersonas">Ir a Personas</button>`;
+      Crea una aquí con el botón de arriba, o arma una búsqueda en Personas
+      y dale a «Guardar como lista».</div>`;
   } else {
     html += `<div class="personas">${listas.map(l => {
       const n = cuantos(l);
@@ -2621,9 +2846,10 @@ async function vListas(){
   }
 
   app.innerHTML = html;
-  const ap = document.getElementById('aPersonas');
-  if (ap) ap.onclick = () => ir('personas');
   document.getElementById('aPersonas2').onclick = () => ir('personas');
+  document.getElementById('nuevaL').onclick = () => {
+    S.filtroLista = { ...FILTROS_VACIOS }; S.nombreLista = ''; ir('nuevaLista');
+  };
 
   app.querySelectorAll('[data-abrir-l]').forEach(b => b.onclick = () => {
     const l = listas.find(x => x.id === b.dataset.abrirL);
