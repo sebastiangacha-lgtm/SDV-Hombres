@@ -392,6 +392,75 @@ a{color:var(--verde);text-decoration-color:color-mix(in srgb, var(--verde) 35%, 
 .anillo i b{position:absolute;inset:0 auto 0 0;background:var(--verde);border-radius:3px}
 
 /* ============================================================
+   Cursos
+   ============================================================ */
+.cursos{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));margin-bottom:16px}
+.ccard{
+  background:var(--panel);border:1px solid var(--linea);border-radius:var(--r);
+  -webkit-backdrop-filter:blur(20px) saturate(165%); backdrop-filter:blur(20px) saturate(165%);
+  box-shadow:var(--sombra);cursor:pointer;text-align:left;overflow:hidden;
+  display:flex;flex-direction:column;padding:0;
+  transition:transform .22s var(--brinco), box-shadow .22s var(--brinco);
+  animation:surgir .42s var(--brinco) both;
+}
+.ccard:hover{transform:translateY(-3px);box-shadow:var(--sombra-alta)}
+.ccard-foto{
+  height:118px;background-size:cover;background-position:center;position:relative;flex:0 0 auto;
+  background-image:linear-gradient(140deg,
+    color-mix(in srgb, var(--verde) 30%, var(--panel-solido)),
+    color-mix(in srgb, var(--azul) 16%, var(--panel-solido)));
+}
+.ccard-foto span{
+  position:absolute;left:12px;bottom:11px;font-size:10.5px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:#fff;
+  background:rgba(0,0,0,.32);padding:3px 9px;border-radius:7px;
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+}
+.ccard-cuerpo{padding:14px 16px 15px;display:flex;flex-direction:column;gap:7px;flex:1}
+.ccard-cuerpo h3{
+  font-family:var(--serif);font-size:18px;font-weight:600;margin:0;line-height:1.22;letter-spacing:-.01em;
+}
+.ccard-cuerpo p{
+  font-size:13px;color:var(--suave);margin:0;line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.ccard-pie{
+  display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--tenue);
+  border-top:1px solid var(--linea-suave);padding-top:10px;margin-top:auto;
+}
+
+.portada{
+  height:190px;border-radius:var(--r);margin-bottom:16px;
+  background-size:cover;background-position:center;box-shadow:var(--sombra);
+  background-image:linear-gradient(140deg,
+    color-mix(in srgb, var(--verde) 30%, var(--panel-solido)),
+    color-mix(in srgb, var(--azul) 16%, var(--panel-solido)));
+}
+
+.sesion{
+  display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-top:1px solid var(--linea-suave);
+}
+.sesion:first-child{border-top:0}
+.sesion-n{
+  width:26px;height:26px;border-radius:9px;flex:0 0 auto;display:grid;place-items:center;
+  font-size:12px;font-weight:700;background:var(--verde-tenue);color:var(--verde);margin-top:1px;
+}
+.sesion-txt{flex:1;min-width:0}
+.sesion-txt b{display:block;font-size:15px;font-weight:600}
+.sesion-txt span{display:block;font-size:13px;color:var(--tenue);line-height:1.45;margin-top:2px}
+
+.asignar-lista{max-height:280px;overflow-y:auto;margin-top:12px;border:1px solid var(--linea-suave);
+  border-radius:var(--r-chico);padding:4px}
+.asignar-fila{
+  display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;cursor:pointer;
+  transition:background .18s var(--brinco);
+}
+.asignar-fila:hover{background:var(--velo)}
+.asignar-fila input{width:18px;height:18px;accent-color:var(--verde);flex:0 0 auto}
+.asignar-fila b{font-size:14.5px;font-weight:600;flex:1;min-width:0}
+.asignar-fila span{font-size:12.5px;color:var(--tenue)}
+
+/* ============================================================
    Procesos
    ============================================================ */
 .escala{display:flex;align-items:center;padding:4px 0 2px;overflow-x:auto}
@@ -594,8 +663,9 @@ const barra = document.getElementById('barra');
 
 const S = { yo:null, vista:'inicio', nombres:new Map(), gente:[],
             procPersona:null, rutaAbierta:null, evento:null, rol:'real',
-            filtros:{ texto:'', situacion:'', rango:'', area:'', proceso:'',
-                      estado:'', edadMin:'', edadMax:'', lider:'' } };
+            filtros:{ texto:'', excluir:'', situacion:'', rango:'', rangoNo:'',
+                      area:'', areaNo:'', proceso:'', curso:'', estado:'',
+                      edadMin:'', edadMax:'', lider:'', anio:'' } };
 
 /* ============================================================
    Vista de rol
@@ -845,7 +915,7 @@ function marcar(v){
 function ir(vista, arg){
   S.vista = vista; marcar(vista); window.scrollTo(0,0);
   ({ inicio:vInicio, personas:vPersonas, procesos:vProcesos, material:vMaterial,
-     eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea,
+     eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCurso,
      yo:vYo, ficha:vFicha, registrar:vRegistrar }[vista])(arg);
 }
 
@@ -1413,215 +1483,400 @@ function vRegistrar(quien){
    Procesos
    ============================================================ */
 const ESCALA = ['paje','escudero','caballero'];
+const TIPOS_CURSO = { clase:'Clase', proceso:'Proceso' };
 
+/* ============================================================
+   Procesos — el catálogo
+   ============================================================ */
 async function vProcesos(){
   cargando();
-  const quien = S.procPersona || S.yo.persona_id;
-  const yo    = V();
-  const mando = yo.es_admin || yo.ve_todo;
-  const propio = quien === S.yo.persona_id;
+  const yo = V();
+  if (!S.qCurso) S.qCurso = { texto:'', tipo:'' };
 
-  const [{ data:rutas }, { data:pasos }, { data:avances }, { data:rangos }, { data:lista }] = await Promise.all([
-    SB.from('rutas').select('*').eq('activa', true).order('orden'),
-    SB.from('pasos').select('*').order('orden'),
-    SB.from('avances').select('*').eq('persona_id', quien),
-    SB.from('rangos').select('*').eq('persona_id', quien).order('desde'),
-    S.rol === 'hombre' ? Promise.resolve({ data:[] })
-      : mando ? SB.from('estado_cuidado').select('persona_id,nombre').order('nombre')
-              : SB.from('mi_gente').select('persona_id,nombre').order('nombre')
+  const [{ data:cursos, error }, { data:dir }] = await Promise.all([
+    SB.from('cursos').select('*').order('tipo').order('nombre'),
+    SB.from('directorio').select('*').order('nombre')
   ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
 
-  const gente = [{ persona_id:S.yo.persona_id, nombre:S.yo.nombre + ' (tú)' },
-                 ...(lista || []).filter(p => p.persona_id !== S.yo.persona_id)];
-  const nombre = propio ? S.yo.nombre : (S.nombres.get(quien) || 'esa persona');
-  const primero = nombre.split(' ')[0];
+  app.innerHTML = cabeza('Procesos', 'Las clases y los procesos del ministerio',
+    yo.es_admin ? `<button class="btn" id="nuevo">Crear curso</button>` : '') + `
 
-  // Marcar pasos de OTRO exige ser su líder (o admin/pastor).
-  const puedoAjeno = !propio && (mando || (S.gente || []).some(g => g.persona_id === quien));
+    <div class="buscador">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5" stroke-linecap="round"/></svg>
+      <input id="qc" type="text" autocomplete="off" placeholder="Buscar un curso…" value="${esc(S.qCurso.texto)}">
+    </div>
 
-  const porPaso = new Map((avances || []).map(a => [a.paso_id, a]));
-  const rangoActual = (rangos && rangos.length) ? rangos[rangos.length-1].rango : null;
-  const iActual = ESCALA.indexOf(rangoActual);
+    <div class="chips" style="margin-bottom:16px">
+      ${[['','Todos'],['clase','Clases'],['proceso','Procesos']].map(([v,t]) =>
+        `<button class="chip" data-tc="${v}" aria-pressed="${S.qCurso.tipo === v}">${t}</button>`).join('')}
+    </div>
 
-  let html = cabeza('Procesos', propio ? 'Tu camino en el ministerio' : `El camino de ${esc(primero)}`);
+    ${yo.es_admin ? `<div id="formCurso" hidden class="tarjeta"><div class="tarjeta-cuerpo">
+      <div class="par"><div><label for="cn" style="margin-top:0">Nombre</label>
+        <input id="cn" type="text" placeholder="Escuela de hombría · módulo 1"></div>
+        <div><label for="ct" style="margin-top:0">Tipo</label><select id="ct">
+          <option value="clase">Clase</option><option value="proceso">Proceso</option></select></div></div>
+      <label for="cd">Descripción</label><textarea id="cd" style="min-height:70px"></textarea>
+      <div class="par"><div><label for="cdur">Duración</label>
+        <input id="cdur" type="text" placeholder="6 sesiones · 3 meses"></div>
+        <div><label for="cresp">Responsable</label><select id="cresp"><option value="">Sin asignar</option>
+          ${(dir || []).map(d => `<option value="${d.id}">${esc(d.nombre)}</option>`).join('')}</select></div></div>
+      <label for="cq">¿Quién marca los pasos?</label>
+      <select id="cq"><option value="false">Su líder</option><option value="true">La persona misma</option></select>
+      <div style="margin-top:16px"><button class="btn" id="guardarCurso">Crear curso</button></div>
+    </div></div>` : ''}
 
-  html += `<div class="tarjeta"><div class="tarjeta-cuerpo">
-    <label for="sel" style="margin-top:0">¿De quién?</label>
-    <select id="sel">${gente.map(g =>
-      `<option value="${g.persona_id}"${g.persona_id === quien ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('')}</select>
-  </div></div>`;
+    <p class="conteo-res" id="conteoC"></p>
+    <div class="cursos" id="listaC"></div>`;
 
-  // Escala del ministerio
-  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Camino en el ministerio</h2>
-      <span class="ruta-conteo">${rangoActual ? esc(rangoActual) : 'sin rango'}</span></div>
-    <div class="tarjeta-cuerpo"><div class="escala">
-    ${ESCALA.map((r,i) => {
-      const cls = i < iActual ? 'hecho' : (i === iActual ? 'actual' : '');
-      const f = (rangos || []).find(x => x.rango === r);
-      return (i ? `<span class="grada-raya${i <= iActual ? ' hecha' : ''}"></span>` : '') +
-        `<span class="grada-punto ${cls}"><span class="grada-bola">${i+1}</span>
-          <span>${r[0].toUpperCase()+r.slice(1)}</span>
-          ${f ? `<span style="font-size:11.5px;color:var(--tenue);font-weight:400">${fechaCorta(f.desde)}</span>` : ''}
-        </span>`;
-    }).join('')}
-    </div></div></div>`;
-
-  const bloques = [['libertad','Rutas de libertad','Acompañamiento en lo que está pesando'],
-                   ['formacion','Formación','El proceso propio del ministerio'],
-                   ['otro','Otras rutas','']];
-
-  for (const [tipo, titulo, bajada] of bloques){
-    const rs = (rutas || []).filter(r => r.tipo === tipo);
-    if (!rs.length) continue;
-    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>${titulo}</h2>
-      ${bajada ? `<span class="ruta-conteo">${bajada}</span>` : ''}</div>`;
-
-    for (const r of rs){
-      const ps = (pasos || []).filter(p => p.ruta_id === r.id);
-      const hechos = ps.filter(p => porPaso.get(p.id)?.estado === 'completado').length;
-      const curso  = ps.filter(p => porPaso.get(p.id)?.estado === 'en curso').length;
-      const pct = ps.length ? Math.round(hechos / ps.length * 100) : 0;
-      const abierta = S.rutaAbierta === r.id;
-      // En una ruta de escuela cada uno marca lo suyo; en una
-      // acompañada la marca su líder.
-      const marco = r.auto_marca ? (propio || puedoAjeno) : puedoAjeno;
-
-      html += `<div class="ruta">
-        <div class="ruta-alto" data-ruta="${r.id}" role="button" tabindex="0">
-          <h3>${esc(r.nombre)}</h3>
-          <span class="sello">${r.auto_marca ? 'Escuela' : 'Acompañada'}</span>
-          <span class="ruta-conteo">${hechos === 0 && curso === 0 ? 'sin empezar' : `${hechos} de ${ps.length}`}</span>
-        </div>
-        ${r.descripcion ? `<p>${esc(r.descripcion)}</p>` : ''}
-        <span class="barra-prog"><i style="width:${pct}%"></i></span>`;
-
-      if (abierta){
-        if (!ps.length){
-          html += `<p class="ayuda">Esta ruta todavía no tiene pasos.${
-            yo.es_admin ? ' Agrégalos abajo.' : ''}</p>`;
-        }
-        if (marco && !r.auto_marca)
-          html += `<label class="casilla" style="margin:13px 0 2px">
-            <input type="checkbox" id="cuenta" ${S.contarEncuentro !== false ? 'checked' : ''}>
-            <div><b>Contar como encuentro</b></div></label>`;
-
-        html += `<ul class="pasos">${ps.map((p,i) => {
-          const a = porPaso.get(p.id);
-          const est = a?.estado;
-          return `<li class="paso ${est === 'completado' ? 'hecho' : (est === 'en curso' ? 'curso' : '')}">
-            <span class="paso-num">${est === 'completado' ? '✓' : i+1}</span>
-            <span class="paso-txt"><b>${esc(p.nombre)}</b>
-              ${p.descripcion ? `<span>${esc(p.descripcion)}</span>` : ''}
-              ${a ? `<span>${est === 'completado' ? 'Completado' : 'En curso'} · ${fechaCorta(a.fecha)}</span>` : ''}</span>
-            ${marco ? `<span class="paso-acc">
-              <button class="btn ${est === 'en curso' ? '' : 'seco'} chico" data-paso="${p.id}" data-ruta2="${r.id}" data-est="en curso">En curso</button>
-              <button class="btn ${est === 'completado' ? '' : 'seco'} chico" data-paso="${p.id}" data-ruta2="${r.id}" data-est="completado">Hecho</button>
-            </span>` : ''}
-            ${yo.es_admin ? `<button class="btn rojo chico" data-borrarpaso="${p.id}">✕</button>` : ''}
-          </li>`;
-        }).join('')}</ul>`;
-
-        if (yo.es_admin)
-          html += `<div style="margin-top:14px;padding-top:13px;border-top:1px solid var(--linea-suave)">
-            <label style="margin-top:0" for="np-${r.id}">Agregar un paso a esta ruta</label>
-            <input type="text" id="np-${r.id}" placeholder="Nombre del paso">
-            <input type="text" id="nd-${r.id}" placeholder="Qué pasa en este paso (opcional)" style="margin-top:7px">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-              <button class="btn chico" data-nuevopaso="${r.id}" data-orden="${ps.length+1}">Agregar paso</button>
-              <button class="btn seco chico" data-auto="${r.id}" data-val="${r.auto_marca ? 'false' : 'true'}">
-                ${r.auto_marca ? 'Pasar a acompañada' : 'Pasar a escuela'}</button>
-              <button class="btn rojo chico" data-borrarruta="${r.id}" data-nomruta="${esc(r.nombre)}">Eliminar ruta</button>
-            </div>
-            </div>`;
-      }
-      html += `</div>`;
+  function pasa(c){
+    const f = S.qCurso;
+    if (f.tipo && c.tipo !== f.tipo) return false;
+    if (f.texto){
+      const t = normaliza([c.nombre, c.descripcion, TIPOS_CURSO[c.tipo], c.responsable_nombre].join(' '));
+      if (!normaliza(f.texto).split(/\s+/).filter(Boolean).every(x => t.includes(x))) return false;
     }
-    html += `</div>`;
+    return true;
   }
 
-  if (yo.es_admin)
-    html += `<div style="margin-top:4px"><button class="btn seco" id="admRutas">Crear una ruta nueva</button></div>
-      <div id="formRuta" hidden class="tarjeta" style="margin-top:12px"><div class="tarjeta-cuerpo">
-        <label for="rn">Nombre de la ruta</label><input id="rn" type="text" placeholder="Escuela de hombría, módulo 1">
-        <div class="par"><div><label for="rt">Tipo</label>
-          <select id="rt"><option value="libertad">Ruta de libertad</option>
-            <option value="formacion">Formación</option><option value="otro">Otra</option></select></div>
-          <div><label for="rm">¿Quién marca los pasos?</label>
-          <select id="rm"><option value="false">Su líder (cuenta como cuidado)</option>
-            <option value="true">La persona misma (escuela)</option></select></div></div>
-        <label for="rd">Descripción</label><input id="rd" type="text">
-        <div style="margin-top:16px"><button class="btn" id="guardarRuta">Crear ruta</button></div>
-      </div></div>`;
+  function pintarC(){
+    const res = (cursos || []).filter(pasa);
+    document.getElementById('listaC').innerHTML = res.length ? res.map(c => `
+      <button class="ccard" data-curso="${c.id}">
+        <span class="ccard-foto" ${c.imagen ? `style="background-image:url('${esc(c.imagen)}')"` : ''}>
+          <span>${esc(TIPOS_CURSO[c.tipo] || c.tipo)}</span></span>
+        <span class="ccard-cuerpo">
+          <h3>${esc(c.nombre)}</h3>
+          ${c.descripcion ? `<p>${esc(c.descripcion)}</p>` : ''}
+          <span class="ccard-pie">
+            <span>${c.sesiones} ${c.sesiones === 1 ? 'sesión' : 'sesiones'}</span>
+            <span>· ${c.inscritos} ${c.inscritos === 1 ? 'inscrito' : 'inscritos'}</span>
+            ${c.completados ? `<span style="color:var(--verde)">· ${c.completados} terminaron</span>` : ''}
+            ${c.activa ? '' : '<span class="sello">Inactivo</span>'}
+          </span></span>
+      </button>`).join('')
+      : `<div class="vacio" style="grid-column:1/-1"><strong>Ningún curso coincide</strong>
+         ${yo.es_admin ? 'Crea uno con el botón de arriba.' : ''}</div>`;
+    document.getElementById('conteoC').textContent =
+      `${res.length} de ${(cursos || []).length}`;
+    document.querySelectorAll('[data-curso]').forEach(b => b.onclick = () => ir('curso', b.dataset.curso));
+  }
+  pintarC();
+
+  const qc = document.getElementById('qc');
+  qc.oninput = () => { S.qCurso.texto = qc.value; pintarC(); };
+  app.querySelectorAll('[data-tc]').forEach(b => b.onclick = () => {
+    S.qCurso.tipo = b.dataset.tc;
+    app.querySelectorAll('[data-tc]').forEach(o => o.setAttribute('aria-pressed', o === b));
+    pintarC();
+  });
+
+  const nb = document.getElementById('nuevo');
+  if (nb) nb.onclick = () => {
+    const f = document.getElementById('formCurso');
+    f.hidden = !f.hidden; nb.textContent = f.hidden ? 'Crear curso' : 'Cancelar';
+  };
+  const gc = document.getElementById('guardarCurso');
+  if (gc) gc.onclick = async () => {
+    const nombre = document.getElementById('cn').value.trim();
+    if (!nombre) return avisar('Ponle nombre al curso.', true);
+    gc.disabled = true;
+    const { data, error } = await SB.from('rutas').insert({
+      nombre, tipo: document.getElementById('ct').value,
+      descripcion: document.getElementById('cd').value.trim()   || null,
+      duracion:    document.getElementById('cdur').value.trim() || null,
+      responsable: document.getElementById('cresp').value       || null,
+      auto_marca:  document.getElementById('cq').value === 'true',
+      orden: (cursos || []).length + 1
+    }).select('id').single();
+    if (error){ avisar(error.message, true); gc.disabled = false; return; }
+    avisar('Curso creado.');
+    ir('curso', data.id);
+  };
+}
+
+const normaliza = t => String(t ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+
+/* ============================================================
+   Un curso
+   ============================================================ */
+async function vCurso(id){
+  cargando();
+  const yo = V();
+
+  const [{ data:c, error }, { data:sesiones }, { data:gente }, { data:todos }, { data:dir }] = await Promise.all([
+    SB.from('cursos').select('*').eq('id', id).maybeSingle(),
+    SB.from('pasos').select('*').eq('ruta_id', id).order('orden'),
+    SB.from('inscritos').select('*').eq('ruta_id', id).order('nombre'),
+    SB.from('buscador').select('*').order('nombre'),
+    SB.from('directorio').select('*').order('nombre')
+  ]);
+  if (error || !c) return app.innerHTML = `<div class="error">No se encontró ese curso.</div>`;
+
+  const puedeEditar = yo.es_admin;
+  const yaDentro = new Set((gente || []).map(g => g.persona_id));
+
+  let html = `<button class="volver" id="atras">← Volver a procesos</button>
+    <div class="portada" ${c.imagen ? `style="background-image:url('${esc(c.imagen)}')"` : ''}></div>` +
+    cabeza(esc(c.nombre),
+      `${esc(TIPOS_CURSO[c.tipo] || c.tipo)}${c.duracion ? ' · ' + esc(c.duracion) : ''}${c.responsable_nombre ? ' · ' + esc(c.responsable_nombre) : ''}`,
+      `<button class="btn" id="asignar">Asignar</button>` +
+      (puedeEditar ? `<button class="btn seco" id="editarC">Editar</button>` : ''));
+
+  if (c.descripcion)
+    html += `<div class="tarjeta"><div class="tarjeta-cuerpo"><p style="margin:0;font-size:15.5px;line-height:1.6">${esc(c.descripcion)}</p></div></div>`;
+
+  html += cifras([
+    { icono:'procesos',  color:'azul',  valor:c.sesiones,    texto:c.sesiones === 1 ? 'sesión' : 'sesiones' },
+    { icono:'personas',  color:'verde', valor:c.inscritos,   texto:'inscritos' },
+    { icono:'reloj',     color:'ambar', valor:c.en_curso,    texto:'en curso' },
+    { icono:'servicio',  color:'verde', valor:c.completados, texto:'terminaron' }
+  ]);
+
+  /* ---------- editar ---------- */
+  if (puedeEditar) html += `<div id="formEd" hidden class="tarjeta"><div class="tarjeta-cuerpo">
+      <div class="par"><div><label for="en2" style="margin-top:0">Nombre</label>
+        <input id="en2" type="text" value="${esc(c.nombre)}"></div>
+        <div><label for="et2" style="margin-top:0">Tipo</label><select id="et2">
+          ${Object.entries(TIPOS_CURSO).map(([v,t]) => `<option value="${v}"${v===c.tipo?' selected':''}>${t}</option>`).join('')}</select></div></div>
+      <label for="ed2">Descripción</label><textarea id="ed2" style="min-height:70px">${esc(c.descripcion || '')}</textarea>
+      <div class="par"><div><label for="edur2">Duración</label><input id="edur2" type="text" value="${esc(c.duracion || '')}"></div>
+        <div><label for="eresp2">Responsable</label><select id="eresp2"><option value="">Sin asignar</option>
+          ${(dir || []).map(d => `<option value="${d.id}"${d.id===c.responsable?' selected':''}>${esc(d.nombre)}</option>`).join('')}</select></div></div>
+      <label for="eimg">Portada</label>
+      <input id="eimg" type="url" placeholder="https://… o súbela abajo" value="${esc(c.imagen || '')}">
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:9px;align-items:center">
+        <input type="file" id="efile" accept="image/*" style="font-size:13px;width:auto;border:0;background:none;padding:0">
+        <button class="btn seco chico" id="subirImg">Subir imagen</button></div>
+      <div class="par" style="margin-top:4px"><div><label for="eq2">¿Quién marca los pasos?</label>
+        <select id="eq2"><option value="false"${!c.auto_marca?' selected':''}>Su líder</option>
+          <option value="true"${c.auto_marca?' selected':''}>La persona misma</option></select></div>
+        <div><label for="eact">Estado</label><select id="eact">
+          <option value="true"${c.activa?' selected':''}>Activo</option>
+          <option value="false"${!c.activa?' selected':''}>Inactivo</option></select></div></div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:18px">
+        <button class="btn" id="guardarEd">Guardar cambios</button>
+        <button class="btn rojo" id="borrarCurso">Eliminar curso</button></div>
+    </div></div>`;
+
+  /* ---------- asignar ---------- */
+  html += `<div id="panelAsignar" hidden class="tarjeta">
+    <div class="tarjeta-alto"><h2>Asignar el curso</h2></div>
+    <div class="tarjeta-cuerpo">
+      <div class="buscador" style="margin-bottom:10px">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5" stroke-linecap="round"/></svg>
+        <input id="qa" type="text" autocomplete="off" placeholder="Buscar por nombre, área o rango…">
+      </div>
+      <div class="chips" style="margin-bottom:4px" id="reglas"></div>
+      <div class="asignar-lista" id="candidatos"></div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;align-items:center">
+        <button class="btn" id="confirmarAsig">Asignar a los marcados</button>
+        <span class="ruta-conteo" id="contSel">0 marcados</span></div>
+    </div></div>`;
+
+  /* ---------- sesiones ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Sesiones</h2>
+      <span class="ruta-conteo">${c.sesiones} en total</span></div>
+    <div class="tarjeta-cuerpo">`;
+  if (!sesiones || !sesiones.length){
+    html += `<p style="margin:0;color:var(--suave);font-size:14.5px">Este curso todavía no tiene sesiones.</p>`;
+  } else {
+    html += (sesiones || []).map((x,i) => `<div class="sesion">
+      <span class="sesion-n">${i+1}</span>
+      <span class="sesion-txt"><b>${esc(x.nombre)}</b>
+        ${x.descripcion ? `<span>${esc(x.descripcion)}</span>` : ''}</span>
+      ${puedeEditar ? `<button class="btn rojo chico" data-bs="${x.id}">✕</button>` : ''}
+    </div>`).join('');
+  }
+  if (puedeEditar) html += `<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--linea-suave)">
+      <label style="margin-top:0" for="sn">Agregar una sesión</label>
+      <input id="sn" type="text" placeholder="Nombre de la sesión">
+      <input id="sd" type="text" placeholder="De qué se trata (opcional)" style="margin-top:8px">
+      <div style="margin-top:11px"><button class="btn chico" id="addSesion">Agregar</button></div></div>`;
+  html += `</div></div>`;
+
+  /* ---------- inscritos ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quiénes lo están haciendo</h2>
+      <span class="ruta-conteo">${(gente || []).length}</span></div>`;
+  if (!gente || !gente.length){
+    html += `<div class="tarjeta-cuerpo"><p style="margin:0;color:var(--suave);font-size:14.5px">
+      Nadie inscrito todavía.</p></div>`;
+  } else {
+    html += `<ul class="registro">${gente.map(g => {
+      const pct = g.pasos_total ? Math.round(g.pasos_hechos / g.pasos_total * 100) : 0;
+      const col = g.estado === 'completado' ? 'cuidado' : (g.estado === 'retirado' ? 'desconectado' : 'alerta');
+      return `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto">
+          <button style="flex:1;min-width:0;background:none;border:0;text-align:left;cursor:pointer;padding:0"
+            data-persona="${g.persona_id}"><span class="nombre">${esc(g.nombre)}</span></button>
+          <span class="marca-est m-${col}">${esc(g.estado)}</span></span>
+        <span class="sub">
+          <span>${g.pasos_hechos} de ${g.pasos_total} sesiones</span>
+          ${g.fecha_fin ? `<span>· terminó el ${fechaCorta(g.fecha_fin)}</span>`
+                        : `<span>· empezó el ${fechaCorta(g.fecha_inicio)}</span>`}
+          ${g.rango ? `<span class="sello">${esc(mayus(g.rango))}</span>` : ''}</span>
+        <span class="barra-prog"><i style="width:${pct}%"></i></span>
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          ${g.estado !== 'completado' ? `<button class="btn seco chico" data-term="${g.id}">Marcar terminado</button>` : ''}
+          <button class="btn rojo chico" data-quitarins="${g.id}" data-nomq="${esc(g.nombre)}">Quitar del curso</button></span>
+      </div></li>`;
+    }).join('')}</ul>`;
+  }
+  html += `</div>`;
 
   app.innerHTML = html;
+  document.getElementById('atras').onclick = () => ir('procesos');
+  app.querySelectorAll('[data-persona]').forEach(b => b.onclick = () => ir('ficha', b.dataset.persona));
 
-  document.getElementById('sel').onchange = e => { S.procPersona = e.target.value; S.rutaAbierta = null; ir('procesos'); };
+  /* ---------- asignar: buscador + reglas ---------- */
+  const sel = new Set();
+  const panel = document.getElementById('panelAsignar');
+  document.getElementById('asignar').onclick = () => { panel.hidden = !panel.hidden; if (!panel.hidden) pintarCand(); };
 
-  app.querySelectorAll('[data-ruta]').forEach(b => {
-    const abrir = () => { S.rutaAbierta = S.rutaAbierta === b.dataset.ruta ? null : b.dataset.ruta; ir('procesos'); };
-    b.onclick = abrir;
-    b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); abrir(); } };
+  const REGLAS = [
+    ['Todos los que puedo ver', g => true],
+    ['Legendarios',             g => String(g.areas).includes('Legendarios')],
+    ['Mesas de Caballeros',     g => String(g.areas).includes('Mesas de Caballeros')],
+    ['Grupos de Vida',          g => String(g.areas).includes('Grupos de Vida')],
+    ['Pajes',                   g => g.rango === 'paje'],
+    ['Escuderos',               g => g.rango === 'escudero'],
+    ['Caballeros',              g => g.rango === 'caballero'],
+    ['Ya terminaron otro curso',g => !!g.cursos_hechos],
+    ['Sin ningún curso',        g => !g.cursos]
+  ];
+  document.getElementById('reglas').innerHTML = REGLAS.map((r,i) =>
+    `<button type="button" class="chip" data-regla="${i}">${esc(r[0])}</button>`).join('');
+
+  function candidatos(){
+    const q = normaliza(document.getElementById('qa').value);
+    return (todos || []).filter(g => {
+      if (yaDentro.has(g.id)) return false;
+      if (!q) return true;
+      const t = normaliza([g.nombre, g.areas, g.rango, g.correo].join(' '));
+      return q.split(/\s+/).filter(Boolean).every(x => t.includes(x));
+    });
+  }
+  function pintarCand(){
+    const lista = candidatos();
+    document.getElementById('candidatos').innerHTML = lista.length ? lista.map(g => `
+      <label class="asignar-fila"><input type="checkbox" data-sel="${g.id}" ${sel.has(g.id) ? 'checked' : ''}>
+        <b>${esc(g.nombre)}</b>
+        <span>${esc(mayus(g.rango) || 'Sin rango')}${g.areas ? ' · ' + esc(String(g.areas).split(' · ')[0]) : ''}</span>
+      </label>`).join('')
+      : `<p style="margin:10px;color:var(--suave);font-size:14px">Nadie más por asignar.</p>`;
+    document.querySelectorAll('[data-sel]').forEach(ch => ch.onchange = () => {
+      ch.checked ? sel.add(ch.dataset.sel) : sel.delete(ch.dataset.sel);
+      contar();
+    });
+    contar();
+  }
+  const contar = () => document.getElementById('contSel').textContent =
+    `${sel.size} ${sel.size === 1 ? 'marcado' : 'marcados'}`;
+
+  document.getElementById('qa').oninput = pintarCand;
+  app.querySelectorAll('[data-regla]').forEach(b => b.onclick = () => {
+    const prueba = REGLAS[Number(b.dataset.regla)][1];
+    candidatos().filter(prueba).forEach(g => sel.add(g.id));
+    pintarCand();
   });
 
-  const casilla = document.getElementById('cuenta');
-  if (casilla) casilla.onchange = e => { S.contarEncuentro = e.target.checked; };
+  document.getElementById('confirmarAsig').onclick = async () => {
+    if (!sel.size) return avisar('No has marcado a nadie.', true);
+    const filas = [...sel].map(pid => ({
+      ruta_id:id, persona_id:pid, asignado_por:S.yo.persona_id, estado:'inscrito' }));
+    const { error } = await SB.from('inscripciones').upsert(filas, { onConflict:'ruta_id,persona_id' });
+    if (error) return avisar(error.message, true);
+    avisar(`${sel.size} ${sel.size === 1 ? 'persona asignada' : 'personas asignadas'}.`);
+    ir('curso', id);
+  };
 
-  app.querySelectorAll('[data-paso]').forEach(b => b.onclick = () => {
-    const r = (rutas || []).find(x => x.id === b.dataset.ruta2);
-    marcarPaso(quien, b.dataset.paso, b.dataset.est, r, primero);
+  /* ---------- inscritos: terminar y quitar ---------- */
+  app.querySelectorAll('[data-term]').forEach(b => b.onclick = async () => {
+    const { error } = await SB.from('inscripciones')
+      .update({ estado:'completado', fecha_fin:hoy() }).eq('id', b.dataset.term);
+    if (error) return avisar(error.message, true);
+    avisar('Marcado como terminado.');
+    ir('curso', id);
+  });
+  app.querySelectorAll('[data-quitarins]').forEach(b => b.onclick = async () => {
+    if (!confirm(`¿Quitar a ${b.dataset.nomq} de este curso? Los pasos que haya marcado se quedan.`)) return;
+    const { error } = await SB.from('inscripciones').delete().eq('id', b.dataset.quitarins);
+    if (error) return avisar(error.message, true);
+    avisar('Quitado del curso.');
+    ir('curso', id);
   });
 
-  app.querySelectorAll('[data-nuevopaso]').forEach(b => b.onclick = async () => {
-    const id = b.dataset.nuevopaso;
-    const nombre = document.getElementById('np-'+id).value.trim();
-    if (!nombre) return avisar('Ponle nombre al paso.', true);
-    b.disabled = true;
+  /* ---------- sesiones ---------- */
+  const as = document.getElementById('addSesion');
+  if (as) as.onclick = async () => {
+    const nombre = document.getElementById('sn').value.trim();
+    if (!nombre) return avisar('Ponle nombre a la sesión.', true);
     const { error } = await SB.from('pasos').insert({
       ruta_id:id, nombre,
-      descripcion: document.getElementById('nd-'+id).value.trim() || null,
-      orden: Number(b.dataset.orden) });
-    if (error){ avisar(error.message, true); b.disabled = false; return; }
-    avisar('Paso agregado.');
-    ir('procesos');
-  });
-
-  app.querySelectorAll('[data-borrarruta]').forEach(b => b.onclick = async () => {
-    if (!confirm(`¿Eliminar la ruta «${b.dataset.nomruta}»? Se van sus pasos y los avances de todos.`)) return;
-    const { error } = await SB.from('rutas').delete().eq('id', b.dataset.borrarruta);
+      descripcion: document.getElementById('sd').value.trim() || null,
+      orden: (sesiones || []).length + 1 });
     if (error) return avisar(error.message, true);
-    avisar('Ruta eliminada.'); ir('procesos');
-  });
-  app.querySelectorAll('[data-borrarpaso]').forEach(b => b.onclick = async () => {
-    if (!confirm('¿Eliminar este paso? Se van los avances que tenga marcados.')) return;
-    const { error } = await SB.from('pasos').delete().eq('id', b.dataset.borrarpaso);
-    if (error) return avisar(error.message, true);
-    avisar('Paso eliminado.'); ir('procesos');
-  });
-  app.querySelectorAll('[data-auto]').forEach(b => b.onclick = async () => {
-    const { error } = await SB.from('rutas').update({ auto_marca: b.dataset.val === 'true' }).eq('id', b.dataset.auto);
-    if (error) return avisar(error.message, true);
-    avisar(b.dataset.val === 'true' ? 'Ahora la persona marca sus propios pasos.' : 'Ahora los marca su líder.');
-    ir('procesos');
-  });
-
-  const ar = document.getElementById('admRutas');
-  if (ar) ar.onclick = () => {
-    const f = document.getElementById('formRuta');
-    f.hidden = !f.hidden;
-    ar.textContent = f.hidden ? 'Crear una ruta nueva' : 'Cancelar';
+    avisar('Sesión agregada.');
+    ir('curso', id);
   };
-  const gr = document.getElementById('guardarRuta');
-  if (gr) gr.onclick = async () => {
-    const nombre = document.getElementById('rn').value.trim();
-    if (!nombre) return avisar('Ponle nombre a la ruta.', true);
-    gr.disabled = true;
-    const { error } = await SB.from('rutas').insert({
-      nombre, tipo: document.getElementById('rt').value,
-      auto_marca: document.getElementById('rm').value === 'true',
-      descripcion: document.getElementById('rd').value.trim() || null,
-      orden: (rutas || []).length + 1 });
-    if (error){ avisar(error.message, true); gr.disabled = false; return; }
-    avisar('Ruta creada. Ábrela para agregarle pasos.');
+  app.querySelectorAll('[data-bs]').forEach(b => b.onclick = async () => {
+    if (!confirm('¿Eliminar esta sesión? Se van los avances que tenga marcados.')) return;
+    const { error } = await SB.from('pasos').delete().eq('id', b.dataset.bs);
+    if (error) return avisar(error.message, true);
+    avisar('Sesión eliminada.');
+    ir('curso', id);
+  });
+
+  /* ---------- editar ---------- */
+  const ec = document.getElementById('editarC');
+  if (ec) ec.onclick = () => {
+    const f = document.getElementById('formEd');
+    f.hidden = !f.hidden; ec.textContent = f.hidden ? 'Editar' : 'Cerrar';
+  };
+
+  const si = document.getElementById('subirImg');
+  if (si) si.onclick = async () => {
+    const f = document.getElementById('efile').files[0];
+    if (!f) return avisar('Elige primero una imagen.', true);
+    si.disabled = true; si.textContent = 'Subiendo…';
+    const ruta = `${id}/${Date.now()}-${f.name.replace(/[^\w.\-]/g,'_')}`;
+    const { error } = await SB.storage.from('cursos').upload(ruta, f, { upsert:true });
+    if (error){
+      avisar('No se pudo subir: ' + error.message + '. Puedes pegar una dirección de imagen en el campo de arriba.', true);
+      si.disabled = false; si.textContent = 'Subir imagen';
+      return;
+    }
+    const { data } = SB.storage.from('cursos').getPublicUrl(ruta);
+    document.getElementById('eimg').value = data.publicUrl;
+    si.disabled = false; si.textContent = 'Subir imagen';
+    avisar('Imagen lista. Dale a Guardar cambios.');
+  };
+
+  const ge = document.getElementById('guardarEd');
+  if (ge) ge.onclick = async () => {
+    ge.disabled = true;
+    const { error } = await SB.from('rutas').update({
+      nombre:      document.getElementById('en2').value.trim(),
+      tipo:        document.getElementById('et2').value,
+      descripcion: document.getElementById('ed2').value.trim()   || null,
+      duracion:    document.getElementById('edur2').value.trim() || null,
+      responsable: document.getElementById('eresp2').value       || null,
+      imagen:      document.getElementById('eimg').value.trim()  || null,
+      auto_marca:  document.getElementById('eq2').value === 'true',
+      activa:      document.getElementById('eact').value === 'true'
+    }).eq('id', id);
+    if (error){ avisar(error.message, true); ge.disabled = false; return; }
+    avisar('Curso actualizado.');
+    ir('curso', id);
+  };
+
+  const bc = document.getElementById('borrarCurso');
+  if (bc) bc.onclick = async () => {
+    if (!confirm(`¿Eliminar «${c.nombre}»? Se van sus sesiones, los inscritos y los avances de todos.`)) return;
+    const { error } = await SB.from('rutas').delete().eq('id', id);
+    if (error) return avisar(error.message, true);
+    avisar('Curso eliminado.');
     ir('procesos');
   };
 }
@@ -1644,9 +1899,6 @@ async function marcarPaso(personaId, pasoId, estado, ruta, primero, volverA){
   }
   if (error) return avisar(error.message, true);
 
-  // Un paso de escuela lo marca la persona sola: hizo el proceso,
-  // nadie se sentó con ella. Uno acompañado lo marca su líder
-  // después de preguntarle cómo le fue, y eso sí es un encuentro.
   const esEncuentro = !quitado && estado === 'completado' && ruta && !ruta.auto_marca
                       && personaId !== S.yo.persona_id && S.contarEncuentro !== false;
 
@@ -1742,14 +1994,18 @@ async function vPersonas(){
   cargando();
   const yo = V();
 
-  const [{ data:gente, error }, { data:areas }] = await Promise.all([
+  const [{ data:gente, error }, { data:areas }, { data:cursos }, { data:listas }] = await Promise.all([
     SB.from('buscador').select('*').order('nombre'),
-    SB.from('areas').select('*').eq('activa', true).order('nombre')
+    SB.from('areas').select('*').eq('activa', true).order('nombre'),
+    SB.from('rutas').select('id,nombre').order('nombre'),
+    SB.from('listas').select('*').order('nombre')
   ]);
   if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
 
   const F = S.filtros;
   const lideres = (gente || []).filter(g => g.rango === 'escudero' || g.rango === 'caballero');
+  const anios = [...new Set((gente || []).flatMap(g => String(g.anios || '').split(' ')))]
+                  .filter(Boolean).sort().reverse();
 
   const html = cabeza('Personas', `${(gente || []).length} en el sistema`,
     yo.es_admin ? `<button class="btn" id="nuevo">Agregar persona</button>` : '');
@@ -1767,8 +2023,14 @@ async function vPersonas(){
 
     <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">
       <button class="btn seco chico" id="avanzada">Búsqueda avanzada</button>
+      <button class="btn seco chico" id="bajarCsv">Descargar</button>
+      <button class="btn seco chico" id="guardarLista" ${hayFiltros() ? '' : 'hidden'}>Guardar como lista</button>
       <button class="btn seco chico" id="limpiarTodo" ${hayFiltros() ? '' : 'hidden'}>Quitar filtros</button>
     </div>
+
+    ${(listas || []).length ? `<div class="chips" style="margin-bottom:14px">
+      ${listas.map(l => `<button class="chip" data-lista="${l.id}">${esc(l.nombre)}</button>`).join('')}
+    </div>` : ''}
 
     <div id="panelAvanzada" hidden class="tarjeta"><div class="tarjeta-cuerpo">
       <div class="avanzada">
@@ -1809,6 +2071,26 @@ async function vPersonas(){
           <input id="fEmin" type="text" inputmode="numeric" data-f="edadMin" value="${esc(F.edadMin)}"></div>
         <div><label for="fEmax">Edad hasta</label>
           <input id="fEmax" type="text" inputmode="numeric" data-f="edadMax" value="${esc(F.edadMax)}"></div>
+        <div><label for="fCur">Curso</label>
+          <select id="fCur" data-f="curso"><option value="">Cualquiera</option>
+            ${(cursos || []).map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join('')}</select></div>
+        <div><label for="fAnio">Estuvo en el año</label>
+          <select id="fAnio" data-f="anio"><option value="">Cualquiera</option>
+            ${anios.map(a => `<option value="${a}">${a}</option>`).join('')}</select></div>
+      </div>
+
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--linea-suave)">
+        <div class="avanzada">
+          <div><label for="fEx" style="margin-top:0">Excluir si dice</label>
+            <input id="fEx" type="text" data-f="excluir" placeholder="caballero, sanchez…" value="${esc(F.excluir)}"></div>
+          <div><label for="fAreNo" style="margin-top:0">Excluir área</label>
+            <select id="fAreNo" data-f="areaNo"><option value="">Ninguna</option>
+              ${(areas || []).map(a => `<option value="${esc(a.nombre)}">${esc(a.nombre)}</option>`).join('')}</select></div>
+          <div><label for="fRanNo" style="margin-top:0">Excluir rango</label>
+            <select id="fRanNo" data-f="rangoNo"><option value="">Ninguno</option>
+              <option value="paje">Paje</option><option value="escudero">Escudero</option>
+              <option value="caballero">Caballero</option><option value="__sin">Sin rango</option></select></div>
+        </div>
       </div>
     </div></div>
 
@@ -1836,22 +2118,34 @@ async function vPersonas(){
     return String(t ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   }
 
+  function texto(g){
+    return normal([g.nombre, g.nombre_completo, g.correo, g.celular, g.telefono,
+                   g.documento, g.areas, g.areas_todas, g.rango, g.cursos].join(' '));
+  }
+
   function pasa(g){
     const f = S.filtros;
     if (f.texto){
-      const aguja = normal(f.texto).split(/\s+/).filter(Boolean);
-      const pajar = normal([g.nombre, g.nombre_completo, g.correo, g.celular,
-                            g.telefono, g.documento, g.areas, g.rango].join(' '));
-      if (!aguja.every(t => pajar.includes(t))) return false;
+      const pajar = texto(g);
+      if (!normal(f.texto).split(/\s+/).filter(Boolean).every(t => pajar.includes(t))) return false;
+    }
+    // Excluir: basta que coincida UNA de las palabras para quedar fuera
+    if (f.excluir){
+      const pajar = texto(g);
+      if (normal(f.excluir).split(/\s+/).filter(Boolean).some(t => pajar.includes(t))) return false;
     }
     if (f.situacion && g.situacion !== f.situacion) return false;
     if (f.rango === '__sin' ? g.rango : f.rango && g.rango !== f.rango) return false;
+    if (f.rangoNo && (f.rangoNo === '__sin' ? !g.rango : g.rango === f.rangoNo)) return false;
     if (f.area === '__sin' ? g.areas : f.area && !String(g.areas).includes(f.area)) return false;
+    if (f.areaNo && String(g.areas).includes(f.areaNo)) return false;
     if (f.estado && g.estado !== f.estado) return false;
     if (f.lider === '__sin' ? g.lider_id : f.lider && g.lider_id !== f.lider) return false;
+    if (f.curso && !String(g.cursos).includes(f.curso)) return false;
     if (f.proceso === 'con'      && !g.pasos_marcados) return false;
     if (f.proceso === 'sin'      &&  g.pasos_marcados) return false;
     if (f.proceso === 'completo' && !g.rutas_completas) return false;
+    if (f.anio && !String(g.anios).split(' ').includes(f.anio)) return false;
     const min = parseInt(f.edadMin, 10), max = parseInt(f.edadMax, 10);
     if (Number.isFinite(min) && (g.edad === null || g.edad < min)) return false;
     if (Number.isFinite(max) && (g.edad === null || g.edad > max)) return false;
@@ -1919,6 +2213,8 @@ async function vPersonas(){
     document.querySelectorAll('.pcard').forEach(b => b.onclick = () => ir('ficha', b.dataset.id));
     const lt = document.getElementById('limpiarTodo');
     if (lt) lt.hidden = !hayFiltros();
+    const gl = document.getElementById('guardarLista');
+    if (gl) gl.hidden = !hayFiltros();
   }
 
   pintarKpis(); pintarLista();
@@ -1942,12 +2238,58 @@ async function vPersonas(){
   };
 
   document.getElementById('limpiarTodo').onclick = () => {
-    S.filtros = { texto:'', situacion:'', rango:'', area:'', proceso:'',
-                  estado:'', edadMin:'', edadMax:'', lider:'' };
+    S.filtros = { ...FILTROS_VACIOS };
     q.value = ''; lq.hidden = true;
     app.querySelectorAll('[data-f]').forEach(el => el.value = '');
     pintarKpis(); pintarLista();
   };
+
+  /* ---------- descargar lo que se está viendo ---------- */
+  document.getElementById('bajarCsv').onclick = () => {
+    const res = (gente || []).filter(pasa);
+    if (!res.length) return avisar('No hay nada que descargar.', true);
+    const cols = [
+      ['Nombre','nombre'], ['Nombre completo','nombre_completo'], ['Rango','rango'],
+      ['Cuidado','situacion'], ['Días sin verse','dias'], ['Último encuentro','ultima_reunion'],
+      ['Lo cuida','lider'], ['Áreas','areas'], ['Cursos','cursos'],
+      ['Cursos terminados','cursos_hechos'], ['Edad','edad'], ['Nacimiento','fecha_nacimiento'],
+      ['Celular','celular'], ['Teléfono fijo','telefono'], ['Correo','correo'],
+      ...(V().es_admin ? [['Cédula','documento']] : []),
+      ['Estado','estado'], ['Ingresó','fecha_ingreso'], ['Años','anios']
+    ];
+    const limpia = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+    const csv = '\uFEFF' + [cols.map(c => limpia(c[0])).join(';')]
+      .concat(res.map(g => cols.map(c => limpia(g[c[1]])).join(';'))).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+    a.download = `personas-${hoy()}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+    avisar(`${res.length} ${res.length === 1 ? 'persona descargada' : 'personas descargadas'}.`);
+  };
+
+  /* ---------- listas guardadas ---------- */
+  document.getElementById('guardarLista').onclick = async () => {
+    const nombre = prompt('¿Cómo se va a llamar esta lista?');
+    if (nombre === null) return;
+    if (!nombre.trim()) return avisar('Ponle un nombre.', true);
+    const { error } = await SB.from('listas').insert({
+      nombre: nombre.trim(), filtros: S.filtros, creado_por: S.yo.persona_id });
+    if (error) return avisar(error.message, true);
+    avisar('Lista guardada.');
+    ir('personas');
+  };
+
+  app.querySelectorAll('[data-lista]').forEach(b => {
+    const l = (listas || []).find(x => x.id === b.dataset.lista);
+    b.onclick = () => { S.filtros = { ...FILTROS_VACIOS, ...(l.filtros || {}) }; ir('personas'); };
+    b.oncontextmenu = async ev => {
+      ev.preventDefault();
+      if (!confirm(`¿Eliminar la lista «${l.nombre}»?`)) return;
+      const { error } = await SB.from('listas').delete().eq('id', l.id);
+      if (error) return avisar(error.message, true);
+      avisar('Lista eliminada.'); ir('personas');
+    };
+  });
 
   app.querySelectorAll('[data-f]').forEach(el => {
     const k = el.dataset.f;
@@ -1998,10 +2340,12 @@ async function vPersonas(){
   };
 }
 
+const FILTROS_VACIOS = { texto:'', excluir:'', situacion:'', rango:'', rangoNo:'',
+                         area:'', areaNo:'', proceso:'', curso:'', estado:'',
+                         edadMin:'', edadMax:'', lider:'', anio:'' };
+
 function hayFiltros(){
-  const f = S.filtros;
-  return !!(f.texto || f.situacion || f.rango || f.area || f.proceso ||
-            f.estado || f.edadMin || f.edadMax || f.lider);
+  return Object.keys(FILTROS_VACIOS).some(k => S.filtros[k]);
 }
 
 /* ============================================================
