@@ -698,6 +698,8 @@ const app   = document.getElementById('app');
 const lado  = document.getElementById('lado');
 const barra = document.getElementById('barra');
 
+const CLAVE_ARRANQUE = '123456';
+
 const S = { yo:null, vista:'inicio', nombres:new Map(), gente:[],
             procPersona:null, rutaAbierta:null, evento:null, rol:'real',
             filtros:{ texto:'', excluir:'', situacion:'', rango:'', rangoNo:'',
@@ -861,6 +863,9 @@ const mostrar = (titulo, texto) =>
 const I = {
   inicio:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg>',
   listas:'<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.3"/><circle cx="4.5" cy="12" r="1.3"/><circle cx="4.5" cy="18" r="1.3"/></svg>',
+  usuarios:'<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11" stroke-linecap="round"/></svg>',
+  fusionar:'<svg viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="5"/><circle cx="15.5" cy="12" r="5"/></svg>',
+  registrar:'<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.1A4 4 0 0 1 12 8a4 4 0 0 1 7 2.9C19 15.6 12 20 12 20z" stroke-linejoin="round"/></svg>',
   nuevaPersona:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.2"/><path d="M4 20c0-3.4 2.7-5.2 6-5.2 1 0 1.9.15 2.7.44" stroke-linecap="round"/><path d="M18 14v6M15 17h6" stroke-linecap="round"/></svg>',
   personas:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5" stroke-linecap="round"/><path d="M16 11a3 3 0 1 0 0-6M18 20c0-2.5-1-4-2.5-4.6" stroke-linecap="round"/></svg>',
   procesos:'<svg viewBox="0 0 24 24"><path d="M5 19V5M5 19h14" stroke-linecap="round"/><path d="M9 15l3.5-4 3 2.5L19 8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -906,8 +911,66 @@ async function entrar(){
   S.procPersona = S.yo.persona_id;
   const { data:gente } = await SB.from('personas').select('id,nombre');
   S.nombres = new Map((gente||[]).map(p => [p.id, p.nombre]));
+
+  // Primer ingreso: la clave de arranque no sirve para quedarse.
+  if (S.yo.debe_cambiar_clave) return pantallaCambioClave();
+
   pintarNav();
-  ir('inicio');
+  // Quien cuida a alguien aterriza en el formulario de cuidado;
+  // quien todavia no, en el inicio.
+  ir(S.yo.a_cargo > 0 ? 'registrar' : 'inicio');
+}
+
+/* ============================================================
+   Primer ingreso: cambiar la clave de arranque
+   ============================================================ */
+function pantallaCambioClave(){
+  lado.hidden = true; barra.hidden = true;
+  document.querySelector('.principal').style.marginLeft = '0';
+  app.innerHTML = `
+  <div class="entrada">
+    <div class="marca"><span class="marca-sello">${I.sello}</span>
+      <span><b>Cuidado</b><span>Ministerio de hombres</span></span></div>
+    <h1>Ponle tu propia clave</h1>
+    <p class="lema">${esc((S.yo.nombre || '').split(' ')[0])}, entraste con la clave de arranque</p>
+    <form id="f" novalidate>
+      <label for="c1">Clave nueva</label>
+      <input id="c1" type="password" autocomplete="new-password">
+      <label for="c2">Escríbela otra vez</label>
+      <input id="c2" type="password" autocomplete="new-password">
+      <div id="err"></div>
+      <div style="margin-top:20px"><button class="btn ancho" type="submit" id="b">Guardar y entrar</button></div>
+    </form>
+    <div style="margin-top:14px"><button class="btn seco ancho" type="button" id="salir">Cerrar sesión</button></div>
+  </div>`;
+
+  document.getElementById('salir').onclick = () => SB.auth.signOut();
+
+  document.getElementById('f').onsubmit = async e => {
+    e.preventDefault();
+    const b   = document.getElementById('b');
+    const err = document.getElementById('err');
+    const c1  = document.getElementById('c1').value;
+    const c2  = document.getElementById('c2').value;
+    const malo = c1.length < 6                   ? 'La clave necesita al menos 6 caracteres.'
+               : c1 !== c2                       ? 'Las dos claves no coinciden.'
+               : c1 === CLAVE_ARRANQUE           ? 'Esa es la clave de arranque. Ponle una tuya.'
+               : '';
+    if (malo) return err.innerHTML = `<div class="error">${malo}</div>`;
+
+    b.disabled = true; b.textContent = 'Guardando…';
+    const { error } = await SB.auth.updateUser({ password:c1 });
+    if (error){
+      err.innerHTML = `<div class="error">No se pudo cambiar: ${esc(error.message)}</div>`;
+      b.disabled = false; b.textContent = 'Guardar y entrar';
+      return;
+    }
+    await SB.rpc('clave_cambiada');
+    S.yo.debe_cambiar_clave = false;
+    pintarNav();
+    avisar('Clave cambiada.');
+    ir(S.yo.a_cargo > 0 ? 'registrar' : 'inicio');
+  };
 }
 
 /* ============================================================
@@ -922,11 +985,11 @@ function pantallaEntrada(){
       <span><b>Cuidado</b><span>Ministerio de hombres</span></span></div>
     <h1>Entra con tu correo</h1>
     <p class="lema">Semillas de Vida</p>
-    <form id="f">
+    <form id="f" novalidate>
       <label for="correo">Correo</label>
-      <input id="correo" type="email" autocomplete="username" required>
+      <input id="correo" type="email" autocomplete="username">
       <label for="clave">Contraseña</label>
-      <input id="clave" type="password" autocomplete="current-password" required>
+      <input id="clave" type="password" autocomplete="current-password">
       <div id="err"></div>
       <div style="margin-top:20px"><button class="btn ancho" type="submit" id="b">Entrar</button></div>
     </form>
@@ -936,8 +999,16 @@ function pantallaEntrada(){
     e.preventDefault();
     const b = document.getElementById('b');
     b.disabled = true; b.textContent = 'Entrando…';
+    const correoV = document.getElementById('correo').value.trim();
+    const claveV  = document.getElementById('clave').value;
+    if (!correoV || !claveV){
+      document.getElementById('err').innerHTML =
+        `<div class="error">${!correoV ? 'Falta el correo.' : 'Falta la contraseña.'}</div>`;
+      b.disabled = false; b.textContent = 'Entrar';
+      return;
+    }
     const { error } = await SB.auth.signInWithPassword({
-      email: document.getElementById('correo').value.trim(),
+      email: correoV,
       password: document.getElementById('clave').value
     });
     if (error){
@@ -955,13 +1026,16 @@ function pantallaEntrada(){
    ============================================================ */
 function pintarNav(){
   const mando = V().es_admin || V().ve_todo;
+  const cuida = V().puede_cuidar && V().a_cargo > 0;
   const grupos = [
-    ['Cuidado',  [['inicio','Inicio'], ...(mando ? [['personas','Personas'], ['listas','Listas'],
-                                                    ['nuevaPersona','Registrar']] : [])]],
+    ['Cuidado',  [...(cuida ? [['registrar','Cuidado']] : []), ['inicio','Inicio'],
+                  ...(mando ? [['personas','Personas'], ['listas','Listas'],
+                               ['nuevaPersona','Registrar']] : [])]],
     ['Procesos', [['procesos','Procesos']]],
     ['Encuentros', [['eventos','Eventos']]],
     ['Servicio',   [['servicio','Mi servicio']]],
-    ['Recursos',   [['material','Material']]]
+    ['Recursos',   [['material','Material']]],
+    ...(mando ? [['Administrar', [['usuarios','Usuarios'], ['fusionar','Fusionar']]]] : [])
   ];
 
   const opciones = rolesDisponibles();
@@ -990,7 +1064,8 @@ function pintarNav(){
         aria-label="Cambiar entre claro y oscuro">${I.luz}</button>
     </div>`;
 
-  const movil = [['inicio','Inicio'], ...(mando ? [['personas','Personas']] : []),
+  const movil = [...(cuida ? [['registrar','Cuidado']] : []), ['inicio','Inicio'],
+                 ...(mando ? [['personas','Personas']] : []),
                  ['procesos','Procesos'], ['eventos','Eventos'], ['yo','Yo']];
   barra.hidden = false;
   barra.innerHTML = '<ul>' + movil.map(([v,n]) =>
@@ -1012,7 +1087,8 @@ function ir(vista, arg){
   ({ inicio:vInicio, personas:vPersonas, procesos:vProcesos, material:vMaterial,
      eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCurso, listas:vListas,
      yo:vYo, ficha:vFicha, registrar:vRegistrar,
-     nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista }[vista])(arg);
+     nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
+     usuarios:vUsuarios, fusionar:vFusionar }[vista])(arg);
 }
 
 function cabeza(titulo, bajada, acciones=''){
@@ -1514,12 +1590,42 @@ async function abrirReservada(contactoId, personaId){
 /* ============================================================
    Registrar encuentro
    ============================================================ */
-function vRegistrar(quien){
+async function vRegistrar(quien){
+  cargando();
+  const { data:mios } = await SB.from('mi_gente').select('*').order('dias', { ascending:false });
+  const gente = mios || [];
+  const desdeFicha = !!(quien && quien.id);
+
+  if (!gente.length && !desdeFicha){
+    return app.innerHTML = cabeza('Cuidado', 'Tu espacio en el ministerio') +
+      `<div class="vacio"><strong>Todavía no cuidas a nadie</strong>
+        Cuando te asignen hombres, este va a ser el primer lugar al que llegues.</div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn" data-ir="inicio">Ir al inicio</button>
+        <button class="btn seco" data-ir="procesos">Ver mi proceso</button></div>`,
+      app.querySelectorAll('[data-ir]').forEach(b => b.onclick = () => ir(b.dataset.ir));
+  }
+
+  // A quién le toca: el que pidieron, o el que lleva más tiempo sin que se vean.
+  const elegido = (desdeFicha && quien.id) || (gente[0] && gente[0].persona_id);
+  const nombreDe = id => (gente.find(g => g.persona_id === id) || {}).nombre
+                      || (desdeFicha ? quien.nombre : '');
+
   let tipo = 'reunion', medio = 'presencial';
-  app.innerHTML = `<button class="volver" id="atras">← Volver</button>` +
-    cabeza(esc(quien.nombre), 'Cuéntanos cómo fue') + `
+
+  app.innerHTML =
+    (desdeFicha ? `<button class="volver" id="atras">← Volver</button>` : '') +
+    cabeza('Cuidado', 'Cuéntanos cómo te fue') + `
     <div class="tarjeta"><div class="tarjeta-cuerpo"><form id="f">
-      <div class="opciones">
+      <label for="aquien" style="margin-top:0">¿A quién cuidaste?</label>
+      <select id="aquien">
+        ${desdeFicha && !gente.some(g => g.persona_id === quien.id)
+          ? `<option value="${quien.id}">${esc(quien.nombre)}</option>` : ''}
+        ${gente.map(g => `<option value="${g.persona_id}"${g.persona_id === elegido ? ' selected' : ''}>
+            ${esc(g.nombre)} · ${g.dias == null ? 'sin encuentros' : g.dias + ' días'}</option>`).join('')}
+      </select>
+
+      <div class="opciones" style="margin:16px 0 18px">
         <button type="button" class="opcion" data-tipo="reunion" aria-pressed="true">Nos vimos</button>
         <button type="button" class="opcion" data-tipo="intento" aria-pressed="false">Lo busqué</button>
       </div>
@@ -1538,14 +1644,16 @@ function vRegistrar(quien){
       <label for="resumen">Cómo lo viste</label>
       <textarea id="resumen" placeholder="Lo que valga la pena recordar la próxima vez que se vean."></textarea>
       <label class="casilla"><input type="checkbox" id="reservada">
-        <div><b>Guardar como reservada</b>
-        <span>Quien está arriba va a ver que escribiste algo y cuándo, pero no el contenido.
-              Si de verdad necesita leerlo puede abrirlo, y a ti te queda el aviso de quién fue.</span></div></label>
+        <div><b>Guardar como reservada</b></div></label>
       <div id="err"></div>
-      <div style="margin-top:22px"><button class="btn ancho" type="submit" id="b">Guardar</button></div>
+      <div style="margin-top:22px;display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn" type="submit" id="b">Guardar</button>
+        <button class="btn seco" type="button" id="alInicio">Ir al inicio</button></div>
     </form></div></div>`;
 
-  document.getElementById('atras').onclick = () => ir('ficha', quien.id);
+  if (desdeFicha) document.getElementById('atras').onclick = () => ir('ficha', quien.id);
+  document.getElementById('alInicio').onclick = () => ir('inicio');
+
   app.querySelectorAll('[data-tipo]').forEach(b => b.onclick = () => {
     tipo = b.dataset.tipo;
     app.querySelectorAll('[data-tipo]').forEach(o => o.setAttribute('aria-pressed', o === b));
@@ -1558,9 +1666,11 @@ function vRegistrar(quien){
   document.getElementById('f').onsubmit = async e => {
     e.preventDefault();
     const b = document.getElementById('b');
+    const aQuien = document.getElementById('aquien').value;
+    if (!aQuien) return avisar('Elige a quién cuidaste.', true);
     b.disabled = true; b.textContent = 'Guardando…';
     const { error } = await SB.from('contactos').insert({
-      persona_id: quien.id, lider_id: S.yo.persona_id,
+      persona_id: aQuien, lider_id: S.yo.persona_id,
       fecha: document.getElementById('fecha').value, tipo, medio,
       tema:    document.getElementById('tema').value.trim()    || null,
       resumen: document.getElementById('resumen').value.trim() || null,
@@ -1571,8 +1681,10 @@ function vRegistrar(quien){
       b.disabled = false; b.textContent = 'Guardar';
       return;
     }
-    avisar(tipo === 'reunion' ? 'Encuentro guardado.' : 'Intento guardado.');
-    ir('ficha', quien.id);
+    avisar(`${(nombreDe(aQuien) || '').split(' ')[0]}: ${tipo === 'reunion' ? 'encuentro' : 'intento'} guardado.`);
+    // Desde la ficha se vuelve a la ficha; desde Cuidado se queda, para
+    // poder registrar a varios seguidos sin dar vueltas.
+    desdeFicha ? ir('ficha', quien.id) : ir('registrar');
   };
 }
 
@@ -2540,13 +2652,13 @@ async function vRegistrarPersona(){
         <div class="par"><div><label for="rn" style="margin-top:0">Nombre</label>
           <input id="rn" type="text" placeholder="Como lo llaman"></div>
           <div><label for="rnc" style="margin-top:0">Nombre completo</label><input id="rnc" type="text"></div></div>
-        <div class="par"><div><label for="rnac">Fecha de nacimiento${menor ? '' : ' (opcional)'}</label>
+        <div class="par"><div><label for="rnac">Fecha de nacimiento</label>
           <input id="rnac" type="date" max="${hoy()}"></div>
           <div><label for="rdoc">${menor ? 'Documento' : 'Cédula'}</label>
           <input id="rdoc" type="text" inputmode="numeric"></div></div>
-        <div class="par"><div><label for="rcel">Celular</label><input id="rcel" type="text" inputmode="numeric"></div>
+        <div class="par"><div><label for="rcel">Celular</label><input id="rcel" type="text" inputmode="numeric" required></div>
           <div><label for="rfijo">Teléfono fijo</label><input id="rfijo" type="text" inputmode="numeric"></div></div>
-        <label for="rcor">Correo</label><input id="rcor" type="email">
+        <label for="rcor">Correo${menor ? ' (o el del acudiente)' : ''}</label><input id="rcor" type="email">
         <div class="par"><div><label for="rcomo">¿Cómo llegó?</label>
           <input id="rcomo" type="text" placeholder="Un amigo, un evento, el grupo de vida…"></div>
           <div><label for="rar">Área</label>
@@ -2606,10 +2718,13 @@ async function vRegistrarPersona(){
     const g = document.getElementById('guardarReg');
     const val = x => (document.getElementById(x)?.value || '').trim();
     const nombre = val('rn');
-    if (!nombre) return avisar('Falta el nombre.', true);
+    if (!nombre)      return avisar('Falta el nombre.', true);
+    if (!val('rcel')) return avisar('Falta el celular.', true);
+    if (!val('rnac')) return avisar('Falta la fecha de nacimiento.', true);
+    if (!val('rcor') && !(menor && val('acor')))
+      return avisar(menor ? 'Falta el correo, o el del acudiente.' : 'Falta el correo.', true);
 
     if (menor){
-      if (!val('rnac'))  return avisar('Para un menor necesitamos la fecha de nacimiento.', true);
       if (!val('an'))    return avisar('Falta el nombre del acudiente.', true);
       if (!val('acel'))  return avisar('Falta el celular del acudiente.', true);
       if (!document.getElementById('aok').checked)
@@ -2617,6 +2732,28 @@ async function vRegistrarPersona(){
       const e = edadDe(val('rnac'));
       if (e >= 18 && !await confirmar('Esa fecha da ' + e + ' años',
           'Lo estás registrando como menor pero ya es mayor de edad. ¿Sigo de todas formas?', false)) return;
+    }
+
+    // ---- ¿ya está? ----
+    g.disabled = true; g.textContent = 'Revisando…';
+    const { data:choques } = await SB.rpc('posibles_duplicados', {
+      p_nombre:nombre, p_correo:val('rcor') || null, p_documento:val('rdoc') || null });
+    g.disabled = false; g.textContent = 'Registrar';
+
+    if (choques && choques.length){
+      const duro = choques.find(c => c.choca !== 'nombre');
+      const c = duro || choques[0];
+      const donde = c.lider ? ` (lo cuida ${c.lider})` : '';
+
+      if (duro){
+        // Correo y cédula identifican de verdad: aquí se para.
+        const esa = c.choca === 'cédula';
+        return mostrar(`${esa ? 'Esa cédula' : 'Ese correo'} ya está registrad${esa ? 'a' : 'o'}`,
+          `${c.nombre}${donde} ya ${esa ? 'tiene esa cédula' : 'tiene ese correo'}. Si es la misma persona, fusiona las dos fichas desde Administrar; si no, revisa el dato.`);
+      }
+      // Mismo nombre: en una iglesia pasa. Lo decide quien registra.
+      if (!await confirmar(`Ya hay un ${c.nombre}`,
+        `${c.nombre}${donde} ya está en el sistema. ¿Es otra persona distinta?`, false)) return;
     }
 
     g.disabled = true; g.textContent = 'Guardando…';
@@ -2768,6 +2905,182 @@ async function vNuevaLista(){
     S.filtroLista = null; S.nombreLista = '';
     avisar('Lista guardada.');
     ir('listas');
+  };
+}
+
+/* ============================================================
+   Usuarios — quien puede entrar
+   ============================================================ */
+async function vUsuarios(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+
+  const { data:us, error } = await SB.from('usuarios').select('*').order('nombre');
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const sin    = (us || []).filter(u => !u.tiene_entrada);
+  const deben  = (us || []).filter(u =>  u.tiene_entrada &&  u.debe_cambiar_clave);
+  const listos = (us || []).filter(u =>  u.tiene_entrada && !u.debe_cambiar_clave);
+
+  const fila = u => `<li><div class="fila" style="cursor:default">
+    <span class="fila-alto">
+      <span class="nombre">${esc(u.nombre)}</span>
+      ${!u.tiene_entrada
+        ? (u.correo ? '' : `<span class="marca-est m-desconectado">falta correo</span>`)
+        : (u.debe_cambiar_clave ? `<span class="marca-est m-alerta">clave de arranque</span>`
+                                : `<span class="marca-est m-cuidado">clave propia</span>`)}
+    </span>
+    <span class="sub">
+      <span>${u.correo ? esc(u.correo) : 'sin correo'}</span>
+      ${u.a_cargo ? `<span>· cuida a ${u.a_cargo}</span>` : ''}
+      ${u.rango ? `<span class="sello">${esc(mayus(u.rango))}</span>` : ''}
+    </span>
+    <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+      ${!u.tiene_entrada
+        ? (u.correo ? `<button class="btn chico" data-abrir="${u.id}" data-nom="${esc(u.nombre)}">Darle entrada</button>` : '')
+        : `<button class="btn seco chico" data-reiniciar="${u.id}" data-nom="${esc(u.nombre)}">Reiniciar clave</button>`}
+    </span></div></li>`;
+
+  const bloque = (titulo, lista) => lista.length
+    ? `<div class="tarjeta"><div class="tarjeta-alto"><h2>${titulo}</h2>
+         <span class="sello">${lista.length}</span></div>
+       <div class="tarjeta-cuerpo" style="padding-top:4px">
+         <ul class="registro">${lista.map(fila).join('')}</ul></div></div>` : '';
+
+  app.innerHTML = cabeza('Usuarios', `Todos entran con la clave ${CLAVE_ARRANQUE} y la cambian al entrar`) +
+    bloque('Todavía no pueden entrar', sin) +
+    bloque('Siguen con la clave de arranque', deben) +
+    bloque('Ya tienen su propia clave', listos);
+
+  const llamar = async (accion, id, nombre, b) => {
+    const ant = b.textContent;
+    b.disabled = true; b.textContent = 'Un momento…';
+    const { data, error } = await SB.functions.invoke('claves', { body:{ accion, persona_id:id } });
+    b.disabled = false; b.textContent = ant;
+    if (error || (data && data.error)){
+      const m = (data && data.error) || error.message || '';
+      return mostrar('No se pudo',
+        /Function not found|not found|Failed to send/i.test(m)
+          ? `Todavía no está publicada la función «claves» en Supabase. Mientras tanto, la clave de ${nombre} se cambia desde el panel de Supabase, en Authentication.`
+          : m);
+    }
+    avisar((data && data.mensaje) || 'Listo.');
+    ir('usuarios');
+  };
+
+  app.querySelectorAll('[data-abrir]').forEach(b => b.onclick = async () => {
+    if (!await confirmar(`¿Darle entrada a ${b.dataset.nom}?`,
+      `Va a poder entrar con su correo y la clave ${CLAVE_ARRANQUE}, y la plataforma le va a pedir que la cambie.`, false)) return;
+    llamar('crear', b.dataset.abrir, b.dataset.nom, b);
+  });
+
+  app.querySelectorAll('[data-reiniciar]').forEach(b => b.onclick = async () => {
+    if (!await confirmar(`¿Reiniciar la clave de ${b.dataset.nom}?`,
+      `Su clave vuelve a ser ${CLAVE_ARRANQUE} y tendrá que cambiarla la próxima vez que entre.`)) return;
+    llamar('reiniciar', b.dataset.reiniciar, b.dataset.nom, b);
+  });
+}
+
+/* ============================================================
+   Fusionar dos fichas de la misma persona
+   ============================================================ */
+const CAMPOS_FUSION = [
+  ['nombre','Nombre'], ['nombre_completo','Nombre completo'], ['correo','Correo'],
+  ['celular','Celular'], ['telefono','Teléfono fijo'], ['documento','Cédula'],
+  ['fecha_nacimiento','Fecha de nacimiento'], ['fecha_ingreso','Entró al ministerio'],
+  ['como_llego','¿Cómo llegó?']
+];
+
+async function vFusionar(arg){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+
+  const { data:gente } = await SB.from('buscador').select('*').order('nombre');
+  const todos = gente || [];
+  const F = S.fusion || (S.fusion = { a:(arg && arg.a) || '', b:(arg && arg.b) || '' });
+
+  const quien = id => todos.find(g => g.id === id);
+  const A = quien(F.a), B = quien(F.b);
+
+  const opciones = (sel, excluir) => todos
+    .filter(g => g.id !== excluir)
+    .map(g => `<option value="${g.id}"${g.id === sel ? ' selected' : ''}>${esc(g.nombre)}${g.correo ? ' · ' + esc(g.correo) : ''}</option>`)
+    .join('');
+
+  let html = `<button class="volver" id="atras">← Volver</button>` +
+    cabeza('Fusionar', 'Dos fichas de la misma persona se vuelven una') + `
+    <div class="tarjeta"><div class="tarjeta-cuerpo">
+      <div class="par">
+        <div><label for="fa" style="margin-top:0">La ficha que queda</label>
+          <select id="fa"><option value="">Elige…</option>${opciones(F.a, F.b)}</select></div>
+        <div><label for="fb" style="margin-top:0">La que se va</label>
+          <select id="fb"><option value="">Elige…</option>${opciones(F.b, F.a)}</select></div>
+      </div></div></div>`;
+
+  if (A && B){
+    const distinto = CAMPOS_FUSION.filter(([k]) =>
+      (A[k] || '') !== (B[k] || '') && ((A[k] || '') || (B[k] || '')));
+
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>¿Con cuál dato se queda?</h2></div>
+      <div class="tarjeta-cuerpo">
+      ${distinto.length ? distinto.map(([k,t]) => `
+        <label style="margin-top:14px">${t}</label>
+        <div class="opciones">
+          <button type="button" class="opcion" data-campo="${k}" data-valor="${esc(A[k] || '')}"
+            aria-pressed="true">${esc(A[k] || '— vacío —')}</button>
+          <button type="button" class="opcion" data-campo="${k}" data-valor="${esc(B[k] || '')}"
+            aria-pressed="false">${esc(B[k] || '— vacío —')}</button>
+        </div>`).join('')
+      : `<p style="margin:0;color:var(--suave);font-size:14.5px">Las dos fichas tienen los mismos datos.</p>`}
+      </div></div>`;
+
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Lo que se va a mover</h2></div>
+      <div class="tarjeta-cuerpo"><div class="avanzada">
+        ${[['Áreas', B.areas_todas || '—'], ['Cursos', B.cursos || '—'],
+           ['Rango', B.rango ? mayus(B.rango) : '—'], ['Lo cuida', B.lider || '—']]
+          .map(([t,v]) => `<div><label style="margin-top:0">${t}</label>
+             <p style="margin:0;font-size:15px">${esc(v)}</p></div>`).join('')}
+      </div></div></div>`;
+
+    html += `<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:28px">
+      <button class="btn rojo" id="hacerlo">Fusionar</button>
+      <button class="btn seco" id="cancelarF">Cancelar</button></div>`;
+  }
+
+  app.innerHTML = html;
+  document.getElementById('atras').onclick    = () => { S.fusion = null; ir('personas'); };
+  const cancelar = document.getElementById('cancelarF');
+  if (cancelar) cancelar.onclick = () => { S.fusion = null; ir('personas'); };
+
+  document.getElementById('fa').onchange = e => { F.a = e.target.value; ir('fusionar'); };
+  document.getElementById('fb').onchange = e => { F.b = e.target.value; ir('fusionar'); };
+
+  const elegidos = {};
+  app.querySelectorAll('[data-campo]').forEach(b => b.onclick = () => {
+    elegidos[b.dataset.campo] = b.dataset.valor;
+    app.querySelectorAll(`[data-campo="${b.dataset.campo}"]`)
+       .forEach(o => o.setAttribute('aria-pressed', o === b));
+  });
+
+  const hacerlo = document.getElementById('hacerlo');
+  if (hacerlo) hacerlo.onclick = async () => {
+    if (!await confirmar('¿Fusionar las dos fichas?',
+      `Todo lo de ${B.nombre} pasa a ${A.nombre} y esa segunda ficha se elimina. Esto no se deshace.`)) return;
+    hacerlo.disabled = true; hacerlo.textContent = 'Fusionando…';
+    const { error } = await SB.rpc('fusionar_personas',
+      { p_queda:F.a, p_va:F.b, p_campos:elegidos });
+    if (error){
+      hacerlo.disabled = false; hacerlo.textContent = 'Fusionar';
+      return mostrar('No se pudo fusionar', error.message);
+    }
+    const queda = F.a;
+    S.fusion = null;
+    avisar('Las dos fichas quedaron en una.');
+    ir('ficha', queda);
   };
 }
 
