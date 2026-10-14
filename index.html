@@ -165,7 +165,15 @@ a{color:var(--verde);text-decoration-color:color-mix(in srgb, var(--verde) 35%, 
 /* El grupo que tiene la página abierta se marca aunque esté plegado */
 .grupo-nav.aqui > summary{color:var(--verde);font-weight:600}
 .grupo-nav .dentro{padding:2px 0 6px 12px;margin-left:8px;border-left:1px solid var(--linea-suave)}
-.grupo-nav .dentro button{font-size:14px;padding:8px 10px}
+.grupo-nav .dentro button, .grupo-nav .dentro a{font-size:14px;padding:8px 10px}
+
+/* Lo que se puede abrir en otra pestaña va como enlace de verdad,
+   no como botón: así el navegador ofrece «abrir en pestaña nueva»,
+   el clic con rueda funciona y se puede copiar la dirección. */
+a.fila, a.pcard, a.ccard, .grupo-nav a, .barra a{ text-decoration:none;color:inherit }
+a.fila{display:block;box-sizing:border-box}
+a.pcard, a.ccard{display:flex}
+a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
 
 /* ============================================================
    La escuela
@@ -270,15 +278,15 @@ a{color:var(--verde);text-decoration-color:color-mix(in srgb, var(--verde) 35%, 
 .nav-rollo{overflow-y:auto;overflow-x:hidden;flex:1;margin:0 -4px;padding:0 4px}
 .nav-rollo::-webkit-scrollbar{width:5px}
 .nav-rollo::-webkit-scrollbar-thumb{background:var(--linea);border-radius:3px}
-.grupo-nav button{
+.grupo-nav button, .grupo-nav .dentro a{
   display:flex;align-items:center;gap:10px;width:100%;
   background:none;border:0;border-radius:var(--r-chico);
   padding:9px 10px;cursor:pointer;color:var(--suave);
   font-size:14.5px;font-weight:500;text-align:left;
   transition:background .22s var(--brinco), color .22s var(--brinco);
 }
-.grupo-nav button:hover{background:var(--velo);color:var(--texto)}
-.grupo-nav button[aria-current=page]{
+.grupo-nav button:hover, .grupo-nav .dentro a:hover{background:var(--velo);color:var(--texto)}
+.grupo-nav button[aria-current=page], .grupo-nav .dentro a[aria-current=page]{
   background:var(--verde-tenue);color:var(--verde);font-weight:600;
   box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--verde) 18%, transparent);
 }
@@ -755,14 +763,14 @@ textarea{resize:vertical;min-height:88px;line-height:1.5}
   box-shadow:var(--sombra-alta);
 }
 .barra ul{display:flex;list-style:none;margin:0;padding:0}
-.barra button{
+.barra button, .barra a{
   flex:1;background:none;border:0;padding:9px 3px 10px;cursor:pointer;color:var(--tenue);
   font-size:10.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px;
   border-radius:16px;transition:color .25s var(--brinco), transform .25s var(--brinco);
 }
-.barra button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7}
-.barra button[aria-current=page]{color:var(--verde)}
-.barra button[aria-current=page] svg{transform:translateY(-1px) scale(1.08)}
+.barra button svg, .barra a svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7}
+.barra button[aria-current=page], .barra a[aria-current=page]{color:var(--verde)}
+.barra button[aria-current=page] svg, .barra a[aria-current=page] svg{transform:translateY(-1px) scale(1.08)}
 
 /* ============================================================
    Varios
@@ -853,7 +861,7 @@ const barra = document.getElementById('barra');
 const CLAVE_ARRANQUE = '123456';
 
 const S = { yo:null, vista:'inicio', nombres:new Map(), gente:[],
-            qUsuarios:'', qPermisos:'', qFusion:'', focoFusion:false,
+            qUsuarios:'', qPermisos:'', qFusion:'', focoFusion:false, listaEditando:null,
             procPersona:null, rutaAbierta:null, evento:null, rol:'real',
             filtros:{ texto:'', excluir:'', situacion:'', rango:'', rangoNo:'',
                       area:'', areaNo:'', proceso:'', curso:'', estado:'',
@@ -1084,9 +1092,12 @@ async function entrar(){
   if (S.yo.debe_cambiar_clave) return pantallaCambioClave();
 
   pintarNav();
-  // Quien cuida a alguien aterriza en el formulario de cuidado;
-  // quien todavia no, en el inicio.
-  ir(S.yo.a_cargo > 0 ? 'registrar' : 'inicio');
+  // Si llegó por un enlace directo (una ficha, un evento), se abre
+  // eso. Si no, quien cuida a alguien aterriza en el formulario de
+  // cuidado y quien todavía no, en el inicio.
+  const r = leerDireccion();
+  if (r) pintarVista(r.vista, r.arg);
+  else   ir(S.yo.a_cargo > 0 ? 'registrar' : 'inicio');
 }
 
 /* ============================================================
@@ -1246,7 +1257,7 @@ function pintarNav(){
         <details class="grupo-nav${aqui(t) ? ' aqui' : ''}" data-grupo="${t}">
           <summary>${I[ic]}<span>${t}</span>${I.flecha}</summary>
           <div class="dentro">
-            ${items.map(([v,n]) => `<button data-v="${v}">${I[v]}<span>${n}</span></button>`).join('')}
+            ${items.map(([v,n]) => `<a href="${direccion(v)}" data-v="${v}">${I[v]}<span>${n}</span></a>`).join('')}
           </div>
         </details>`).join('')}
     </div>
@@ -1264,9 +1275,15 @@ function pintarNav(){
                  ['procesos','Procesos'], ['eventos','Eventos'], ['yo','Yo']];
   barra.hidden = false;
   barra.innerHTML = '<ul>' + movil.map(([v,n]) =>
-    `<li><button data-v="${v}">${I[v]}<span>${n}</span></button></li>`).join('') + '</ul>';
+    `<li><a href="${direccion(v)}" data-v="${v}">${I[v]}<span>${n}</span></a></li>`).join('') + '</ul>';
 
-  document.querySelectorAll('[data-v]').forEach(b => b.onclick = () => ir(b.dataset.v));
+  // Clic normal: navega sin recargar. Con Ctrl, Cmd o la rueda el
+  // navegador se encarga y abre la pestaña nueva, por eso no se toca.
+  document.querySelectorAll('[data-v]').forEach(b => b.onclick = e => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault();
+    ir(b.dataset.v);
+  });
   document.getElementById('btema').onclick = girarTema;
 
   document.getElementById('salirSesion').onclick = async () => {
@@ -1274,48 +1291,115 @@ function pintarNav(){
     await SB.auth.signOut();
   };
 
-  // Con cursor, el grupo se abre al pasarle por encima y el clic en el
-  // título no hace nada: si dejara el toggle nativo, pasar el mouse
-  // abriría y el clic siguiente cerraría, que se siente roto.
-  // Sin cursor (celular, tablet) manda el toque, que es lo único que hay.
-  const hayCursor = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  // Un clic en el nombre del grupo lo abre, otro lo cierra. Antes se
+  // abría al pasar el cursor, y eso hacía que al bajar la mano hacia
+  // otro grupo el de arriba se replegara y todo saltara de sitio.
+  // Abierto se queda uno solo, para que la barra no se alargue.
   lado.querySelectorAll('.grupo-nav').forEach(d => {
-    if (!hayCursor) return;
-    let reloj;
-    d.querySelector('summary').onclick = e => e.preventDefault();
-    d.onmouseenter = () => { clearTimeout(reloj); d.open = true; };
-    // Todos se cierran al salir, incluido el de la página abierta: si
-    // ese se quedaba fijo, el grupo de Cuidado nunca se plegaba y la
-    // barra volvía a quedar larga. Para no perder de vista dónde estás,
-    // el título del grupo activo queda marcado en verde aunque esté
-    // plegado, y el renglón abierto se ve al desplegarlo.
-    d.onmouseleave = () => { reloj = setTimeout(() => { d.open = false; }, 260); };
+    d.querySelector('summary').onclick = e => {
+      e.preventDefault();
+      const abrir = !d.open;
+      lado.querySelectorAll('.grupo-nav').forEach(o => { o.open = false; });
+      d.open = abrir;
+    };
   });
+
+  // El grupo donde está la página abierta arranca desplegado: si no,
+  // al entrar no se ve en qué renglón se está parado.
+  const grupoActivo = lado.querySelector('.grupo-nav.aqui');
+  if (grupoActivo) grupoActivo.open = true;
 
   const sr = document.getElementById('selrol');
   if (sr) sr.onchange = e => { S.rol = e.target.value; pintarNav(); ir('inicio'); };
 }
 
+/* Las pantallas de detalle no están en el menú (una ficha, un evento,
+   una clase). Para que el menú no quede sin nada marcado al abrirlas
+   —sobre todo si se llega por un enlace directo— cada una apunta al
+   renglón del que cuelga. */
+const PADRE = {
+  ficha:'personas', lista:'listas', registrar:'registrar',
+  evento:'eventos', area:'servicio',
+  curso:'procesos', clase:'procesos', quiz:'procesos', resultado:'procesos',
+  certificado:'procesos', cursoAdmin:'procesos', quizEditor:'procesos',
+  nuevaLista:'listas'
+};
+
 function marcar(v){
+  // Si la vista no está en el menú, se marca la de la que cuelga.
+  const enMenu = document.querySelector(`.lado [data-v="${v}"]`) ? v : (PADRE[v] || v);
   document.querySelectorAll('[data-v]').forEach(b =>
-    b.dataset.v === v ? b.setAttribute('aria-current','page') : b.removeAttribute('aria-current'));
+    b.dataset.v === enMenu ? b.setAttribute('aria-current','page') : b.removeAttribute('aria-current'));
   // El grupo que contiene la vista abierta se marca en verde, aunque
   // esté plegado. Sin esto el verde se quedaría donde estaba al entrar.
-  document.querySelectorAll('.lado .grupo-nav').forEach(d =>
-    d.classList.toggle('aqui', !!d.querySelector(`[data-v="${v}"]`)));
+  document.querySelectorAll('.lado .grupo-nav').forEach(d => {
+    const suyo = !!d.querySelector(`[data-v="${enMenu}"]`);
+    d.classList.toggle('aqui', suyo);
+    // Si se navegó a una pantalla de otro grupo (por un enlace o por el
+    // botón de atrás), ese grupo se abre y los demás se cierran.
+    if (suyo && !d.open){
+      document.querySelectorAll('.lado .grupo-nav').forEach(o => { o.open = false; });
+      d.open = true;
+    }
+  });
+}
+
+const VISTAS = {
+  inicio:vInicio, personas:vPersonas, procesos:vProcesos, material:vMaterial,
+  eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCursoAlumno,
+  listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
+  nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
+  usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
+  cursoAdmin:vCurso, clase:vClase, quiz:vQuiz, resultado:vResultado,
+  certificado:vCertificado, solicitudes:vSolicitudes,
+  quizEditor:vQuizEditor, revisar:vRevisar
+};
+
+/* ============================================================
+   Direcciones
+   ------------------------------------------------------------
+   Cada pantalla tiene su propia dirección (#/ficha/<id>). Eso es
+   lo que permite abrir un perfil en otra pestaña, mandar un enlace
+   por WhatsApp y que el botón de atrás del navegador funcione.
+   Sin esto todo vive en la misma URL y no hay nada que abrir aparte.
+   ============================================================ */
+const direccion = (vista, arg) => {
+  const id = typeof arg === 'string' ? arg : (arg && arg.id) || '';
+  return '#/' + vista + (id ? '/' + encodeURIComponent(id) : '');
+};
+
+function leerDireccion(){
+  const h = (location.hash || '').replace(/^#\/?/, '');
+  if (!h) return null;
+  const [vista, ...resto] = h.split('/');
+  if (!VISTAS[vista]) return null;
+  return { vista, arg: resto.length ? decodeURIComponent(resto.join('/')) : undefined };
+}
+
+function pintarVista(vista, arg){
+  if (!S.yo) return;
+  const f = VISTAS[vista] || VISTAS.inicio;
+  S.vista = vista; marcar(vista); window.scrollTo(0,0);
+  f(arg);
 }
 
 function ir(vista, arg){
-  S.vista = vista; marcar(vista); window.scrollTo(0,0);
-  ({ inicio:vInicio, personas:vPersonas, procesos:vProcesos, material:vMaterial,
-     eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCursoAlumno, listas:vListas,
-     yo:vYo, ficha:vFicha, registrar:vRegistrar,
-     nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
-     usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
-     cursoAdmin:vCurso, clase:vClase, quiz:vQuiz, resultado:vResultado,
-     certificado:vCertificado, solicitudes:vSolicitudes,
-     quizEditor:vQuizEditor, revisar:vRevisar }[vista])(arg);
+  const nueva = direccion(vista, arg);
+  // El objeto completo (cuando trae más que el id) se guarda aparte:
+  // en la dirección solo cabe el id, y si llegan por enlace directo
+  // la vista lo vuelve a buscar en la base.
+  S.argLargo = (arg && typeof arg === 'object') ? arg : null;
+  if (location.hash === nueva) return pintarVista(vista, arg);
+  location.hash = nueva;   // el cambio de dirección dispara el pintado
 }
+
+window.addEventListener('hashchange', () => {
+  const r = leerDireccion();
+  if (!r) return;
+  const arg = (S.argLargo && S.argLargo.id === r.arg) ? S.argLargo : r.arg;
+  S.argLargo = null;
+  pintarVista(r.vista, arg);
+});
 
 function cabeza(titulo, bajada, acciones=''){
   return `<div class="cabeza"><div><h1>${titulo}</h1>${bajada ? `<p>${bajada}</p>` : ''}</div>
@@ -1442,13 +1526,13 @@ function fila(p){
   const c = claseEstado(p.situacion);
   const cuando = p.ultima_reunion ? haceCuanto(p.dias) : 'Sin registro';
   const g = (p.situacion !== 'cuidado' && p.gestion === 'con intentos') ? ' · lo han buscado' : '';
-  return `<li><button class="fila" data-id="${p.persona_id}">
+  return `<li><a class="fila" href="#/ficha/${p.persona_id}" data-id="${p.persona_id}">
     <span class="fila-alto"><span class="nombre">${esc(p.nombre)}</span>
       <span class="cuenta ${c}">${p.dias}<small>días</small></span></span>
     <span class="sub"><span class="marca-est m-${c.slice(2)}">${esc(p.situacion)}</span>
       <span>${cuando}${g}</span></span>
     <span class="medida ${c}"><i style="width:${Math.min(100,Math.round(p.dias/90*100))}%"></i><b style="left:33.3%"></b></span>
-  </button></li>`;
+  </a></li>`;
 }
 const enlazarFilas = () => app.querySelectorAll('.fila').forEach(b => b.onclick = () => ir('ficha', b.dataset.id));
 
@@ -1816,11 +1900,20 @@ async function abrirReservada(contactoId, personaId){
 /* ============================================================
    Registrar encuentro
    ============================================================ */
-async function vRegistrar(quien){
+async function vRegistrar(arg){
   cargando();
+  // Puede llegar con el objeto (desde la ficha) o solo con el id
+  // (desde un enlace directo o el botón de atrás del navegador).
+  const quien = typeof arg === 'string' ? { id:arg } : (arg || null);
+
   const { data:mios } = await SB.from('mi_gente').select('*').order('dias', { ascending:false });
   const gente = mios || [];
   const desdeFicha = !!(quien && quien.id);
+
+  if (desdeFicha && !quien.nombre){
+    const { data:p } = await SB.from('buscador').select('nombre').eq('id', quien.id).maybeSingle();
+    quien.nombre = p?.nombre || '';
+  }
 
   if (!gente.length && !desdeFicha){
     return app.innerHTML = cabeza('Cuidado', 'Tu espacio en el ministerio') +
@@ -1956,7 +2049,7 @@ async function vProcesos(){
       : c.mi_solicitud === 'pendiente'          ? ['m-alerta', 'acceso pedido']
       : c.acceso === 'abierto'                  ? ['m-cuidado','abierto']
                                                 : ['m-desconectado','hay que pedir acceso'];
-    return `<button class="ccard" data-curso="${c.id}">
+    return `<a class="ccard" href="#/curso/${c.id}" data-curso="${c.id}">
       <span class="ccard-img" ${c.imagen ? `style="background-image:url('${esc(c.imagen)}')"` : ''}>
         ${c.imagen ? '' : `<span class="ccard-sin">${I.procesos}</span>`}
       </span>
@@ -1972,7 +2065,7 @@ async function vProcesos(){
           ${c.da_certificado ? `<span>· con certificado</span>` : ''}
         </span>
         ${c.inscrito ? `<span class="barra-prog"><i style="width:${pct}%"></i></span>` : ''}
-      </span></button>`;
+      </span></a>`;
   };
 
   let html = cabeza('Escuela', 'Las clases y los procesos del ministerio',
@@ -2118,7 +2211,7 @@ async function vCursoAlumno(arg){
     // ---------- las clases ----------
     html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Las clases</h2></div>
       <div class="tarjeta-cuerpo" style="padding-top:4px"><ul class="registro">
-      ${sesiones.map((x, n) => `<li><button class="fila" data-clase="${x.id}">
+      ${sesiones.map((x, n) => `<li><a class="fila" href="#/clase/${x.id}" data-clase="${x.id}">
         <span class="fila-alto">
           <span class="clase-num ${x.hecha ? 'hecha' : ''}">${x.hecha ? '✓' : n + 1}</span>
           <span class="nombre">${esc(x.nombre)}</span>
@@ -2130,7 +2223,7 @@ async function vCursoAlumno(arg){
           ${x.pct && !x.hecha ? `<span>· vas en ${x.pct}%</span>` : ''}
         </span>
         ${x.pct && !x.hecha ? `<span class="barra-prog"><i style="width:${x.pct}%"></i></span>` : ''}
-      </button></li>`).join('')}
+      </a></li>`).join('')}
       </ul></div></div>`;
 
     if (c.preguntas > 0)
@@ -3115,11 +3208,15 @@ async function vClase(arg){
     }
   };
 
-  const player = new YT.Player('reproductor', {
+  // Se usa e.target y no la variable de afuera: si YouTube avisa que
+  // está listo antes de terminar de construirse, la variable todavía
+  // no existe y la pantalla se cae.
+  let player = null;
+  player = new YT.Player('reproductor', {
     videoId: ses.video_id,
     playerVars: { rel:0, modestbranding:1, playsinline:1, origin:location.origin },
     events: {
-      onReady: () => { if (tope > 5) player.seekTo(Math.max(0, tope - 3), true); },
+      onReady: e => { const pl = (e && e.target) || player; if (pl && tope > 5) pl.seekTo(Math.max(0, tope - 3), true); },
       onStateChange: e => { if (e.data === YT.PlayerState.ENDED) guardar(); }
     }
   });
@@ -3128,7 +3225,7 @@ async function vClase(arg){
   let desdeGuardado = 0;
   const reloj = setInterval(() => {
     if (S.vista !== 'clase'){ clearInterval(reloj); return; }
-    if (!player.getCurrentTime) return;
+    if (!player || !player.getCurrentTime) return;
     const t = player.getCurrentTime();
     const tocando = player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING;
 
@@ -3539,7 +3636,7 @@ async function vPersonas(){
     const ini = (g.nombre || '').split(' ').filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase();
     const pct = g.rutas_total ? Math.round(g.rutas_completas / g.rutas_total * 100) : 0;
     const area1 = String(g.areas || '').split(' · ')[0];
-    return `<button class="pcard" data-id="${g.id}">
+    return `<a class="pcard" href="#/ficha/${g.id}" data-id="${g.id}">
       <span class="pcard-alto">
         <span class="pcard-ini ${c.replace('v-','e-')}">${esc(ini)}</span>
         <span class="pcard-nom"><b>${esc(g.nombre)}</b><span>${esc(mayus(g.rango) || 'Sin rango')}</span></span>
@@ -3556,7 +3653,7 @@ async function vPersonas(){
         ${area1 ? `<span>· ${esc(area1)}</span>` : ''}
         ${g.estado !== 'activo' ? `<span class="sello">${esc(g.estado)}</span>` : ''}
       </span>
-    </button>`;
+    </a>`;
   }
 
   function pintarKpis(){
@@ -3945,8 +4042,12 @@ async function vNuevaLista(){
   const F = S.filtroLista || { ...FILTROS_VACIOS };
   S.filtroLista = F;
 
+  const editando = S.listaEditando || null;
+
   app.innerHTML = `<button class="volver" id="atras">← Volver a listas</button>` +
-    cabeza('Nueva lista', 'Define la regla; después la abres y te da los resultados') + `
+    cabeza(editando ? 'Editar la lista' : 'Nueva lista',
+           editando ? 'Cambia la regla y vuelve a guardarla'
+                    : 'Define la regla; después la abres y te da los resultados') + `
 
     <div class="tarjeta"><div class="tarjeta-cuerpo">
       <label for="ln" style="margin-top:0">¿Cómo se va a llamar?</label>
@@ -4007,12 +4108,17 @@ async function vNuevaLista(){
       </div></div></div>
 
     <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:28px;align-items:center">
-      <button class="btn" id="guardarL">Guardar lista</button>
+      <button class="btn" id="guardarL">${editando ? 'Guardar los cambios' : 'Guardar lista'}</button>
       <button class="btn seco" id="cancelarL">Cancelar</button>
       <span class="ruta-conteo" id="resumenL"></span></div>`;
 
-  document.getElementById('atras').onclick = () => { S.filtroLista = null; S.nombreLista = ''; ir('listas'); };
-  document.getElementById('cancelarL').onclick = () => { S.filtroLista = null; S.nombreLista = ''; ir('listas'); };
+  const salir = () => {
+    const vuelta = S.listaEditando;
+    S.filtroLista = null; S.nombreLista = ''; S.listaEditando = null;
+    vuelta ? ir('lista', vuelta) : ir('listas');
+  };
+  document.getElementById('atras').onclick     = salir;
+  document.getElementById('cancelarL').onclick = salir;
 
   const nombres = new Map((gente || []).map(g => [g.id, g.nombre]));
   const resumen = () => document.getElementById('resumenL').textContent = resumenFiltros(F, nombres);
@@ -4032,12 +4138,14 @@ async function vNuevaLista(){
     if (!nombre) return avisar('Ponle nombre a la lista.', true);
     if (!Object.keys(FILTROS_VACIOS).some(k => F[k]))
       return avisar('Pon al menos una regla.', true);
-    const { error } = await SB.from('listas').insert({
-      nombre, filtros: F, creado_por: S.yo.persona_id });
+    const { data, error } = editando
+      ? await SB.from('listas').update({ nombre, filtros:F }).eq('id', editando).select('id').single()
+      : await SB.from('listas').insert({ nombre, filtros:F, creado_por:S.yo.persona_id })
+                .select('id').single();
     if (error) return avisar(error.message, true);
-    S.filtroLista = null; S.nombreLista = '';
-    avisar('Lista guardada.');
-    ir('listas');
+    S.filtroLista = null; S.nombreLista = ''; S.listaEditando = null;
+    avisar(editando ? 'Lista actualizada.' : 'Lista guardada.');
+    ir('lista', data.id);
   };
 }
 
@@ -4452,13 +4560,10 @@ async function vListas(){
 
   const nombres = new Map((gente || []).map(g => [g.id, g.nombre]));
 
-  // cuántas personas trae cada lista, con la regla corrida ahora
+  // Cuántas personas trae cada lista, con la regla corrida ahora.
   const cuantos = l => {
     const f = { ...FILTROS_VACIOS, ...(l.filtros || {}) };
-    const guardado = S.filtros; S.filtros = f;
-    const n = (gente || []).filter(g => pasaFiltros(g, f)).length;
-    S.filtros = guardado;
-    return n;
+    return (gente || []).filter(g => pasaFiltros(g, f)).length;
   };
 
   let html = cabeza('Listas', 'Búsquedas guardadas que se actualizan solas',
@@ -4472,48 +4577,112 @@ async function vListas(){
   } else {
     html += `<div class="personas">${listas.map(l => {
       const n = cuantos(l);
-      return `<div class="pcard" style="cursor:default">
+      return `<a class="pcard" href="#/lista/${l.id}" data-lista="${l.id}">
         <span class="pcard-alto">
           <span class="pcard-ini">${esc((l.nombre || '?')[0].toUpperCase())}</span>
           <span class="pcard-nom"><b>${esc(l.nombre)}</b>
             <span>${n} ${n === 1 ? 'persona' : 'personas'} hoy</span></span>
         </span>
-        <span class="pcard-fila" style="font-size:12.5px;line-height:1.5">${esc(resumenFiltros(l.filtros, nombres))}</span>
-        <span class="pcard-pie" style="gap:7px">
-          <button class="btn chico" data-abrir-l="${l.id}">Abrir</button>
-          <button class="btn seco chico" data-bajar-l="${l.id}">Descargar</button>
-          <button class="btn rojo chico" data-borrar-l="${l.id}" data-noml="${esc(l.nombre)}">Eliminar</button>
-        </span></div>`;
+        <span class="pcard-fila" style="font-size:12.5px;line-height:1.5">${
+          esc(resumenFiltros(l.filtros, nombres))}</span>
+      </a>`;
     }).join('')}</div>`;
   }
 
   app.innerHTML = html;
   document.getElementById('aPersonas2').onclick = () => ir('personas');
   document.getElementById('nuevaL').onclick = () => {
-    S.filtroLista = { ...FILTROS_VACIOS }; S.nombreLista = ''; ir('nuevaLista');
+    S.filtroLista = { ...FILTROS_VACIOS }; S.nombreLista = ''; S.listaEditando = null;
+    ir('nuevaLista');
   };
 
-  app.querySelectorAll('[data-abrir-l]').forEach(b => b.onclick = () => {
-    const l = listas.find(x => x.id === b.dataset.abrirL);
-    S.filtros = { ...FILTROS_VACIOS, ...(l.filtros || {}) };
-    ir('personas');
-  });
-
-  app.querySelectorAll('[data-bajar-l]').forEach(b => b.onclick = () => {
-    const l = listas.find(x => x.id === b.dataset.bajarL);
-    const f = { ...FILTROS_VACIOS, ...(l.filtros || {}) };
-    descargar((gente || []).filter(g => pasaFiltros(g, f)));
-  });
-
-  app.querySelectorAll('[data-borrar-l]').forEach(b => b.onclick = async () => {
-    if (!await confirmar('¿Eliminar esta lista?',
-      `«${b.dataset.noml}». Las personas no se tocan, solo se borra la regla.`)) return;
-    const { error } = await SB.from('listas').delete().eq('id', b.dataset.borrarL);
-    if (error) return avisar(error.message, true);
-    avisar('Lista eliminada.');
-    ir('listas');
+  app.querySelectorAll('[data-lista]').forEach(b => b.onclick = e => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault();
+    ir('lista', b.dataset.lista);
   });
 }
+
+
+/* ============================================================
+   Una lista por dentro
+   ============================================================ */
+async function vLista(arg){
+  cargando();
+  const id = typeof arg === 'string' ? arg : arg?.id;
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Las listas las manejan la dirección y el pastorado.</div>`;
+
+  const [{ data:l }, { data:gente }] = await Promise.all([
+    SB.from('listas').select('*').eq('id', id).maybeSingle(),
+    SB.from('buscador').select('*').order('nombre')
+  ]);
+  if (!l) return app.innerHTML = `<div class="error">No se encontró esa lista.</div>`;
+
+  const nombres = new Map((gente || []).map(g => [g.id, g.nombre]));
+  const f = { ...FILTROS_VACIOS, ...(l.filtros || {}) };
+  const dentro = (gente || []).filter(g => pasaFiltros(g, f));
+
+  app.innerHTML = `<button class="volver" id="atras">← Volver a listas</button>` +
+    cabeza(esc(l.nombre), `${dentro.length} ${dentro.length === 1 ? 'persona' : 'personas'} hoy`,
+      `<button class="btn seco" id="editarL">Editar</button>` +
+      `<button class="btn seco" id="bajarL">Descargar</button>` +
+      `<button class="btn rojo" id="borrarL">Eliminar</button>`) + `
+
+    <div class="tarjeta"><div class="tarjeta-alto"><h2>La regla</h2></div>
+      <div class="tarjeta-cuerpo">
+        <p style="margin:0;font-size:14.5px;color:var(--suave);line-height:1.6">${
+          esc(resumenFiltros(l.filtros, nombres))}</p>
+      </div></div>
+
+    ${dentro.length
+      ? `<div class="personas">${dentro.map(g => {
+          const c = claseEstado(g.situacion);
+          return `<a class="pcard" href="#/ficha/${g.id}" data-id="${g.id}">
+            <span class="pcard-alto">
+              <span class="pcard-ini ${c.replace('v-','e-')}">${esc(iniciales(g.nombre))}</span>
+              <span class="pcard-nom"><b>${esc(g.nombre)}</b>
+                <span>${esc(mayus(g.rango) || 'Sin rango')}</span></span>
+            </span>
+            <span class="pcard-fila">
+              <span class="marca-est m-${c.slice(2)}">${esc(g.situacion || 'sin datos')}</span>
+              ${g.areas ? `<span>${esc(String(g.areas).split(' · ')[0])}</span>` : ''}
+            </span>
+            ${g.lider ? `<span class="pcard-pie"><span>lo cuida ${esc(g.lider)}</span></span>` : ''}
+          </a>`;
+        }).join('')}</div>`
+      : `<div class="vacio"><strong>Hoy no hay nadie en esta lista</strong>
+          La regla sigue guardada: si alguien empieza a cumplirla, aparece aquí solo.</div>`}
+    <div style="height:28px"></div>`;
+
+  document.getElementById('atras').onclick = () => ir('listas');
+
+  app.querySelectorAll('[data-id]').forEach(b => b.onclick = e => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault();
+    ir('ficha', b.dataset.id);
+  });
+
+  document.getElementById('editarL').onclick = () => {
+    S.filtroLista = { ...f };
+    S.nombreLista = l.nombre;
+    S.listaEditando = l.id;
+    ir('nuevaLista');
+  };
+
+  document.getElementById('bajarL').onclick = () => descargar(dentro);
+
+  document.getElementById('borrarL').onclick = async () => {
+    if (!await confirmar('¿Eliminar esta lista?',
+      `«${l.nombre}». Las personas no se tocan, solo se borra la regla.`)) return;
+    const { error } = await SB.from('listas').delete().eq('id', l.id);
+    if (error) return mostrar('No se pudo', error.message);
+    avisar('Lista eliminada.');
+    ir('listas');
+  };
+}
+
 
 /* El mismo filtro que usa Personas, aparte para que las Listas
    puedan correr la regla sin volver a pintar esa pantalla. */
@@ -4587,14 +4756,14 @@ async function vEventos(){
       <div style="margin-top:16px"><button class="btn" id="guardarEv">Crear evento</button></div>
     </div></div>`;
 
-  const tarjetaEv = e => `<li><button class="fila" data-ev="${e.id}">
+  const tarjetaEv = e => `<li><a class="fila" href="#/evento/${e.id}" data-ev="${e.id}">
       <span class="fila-alto"><span class="nombre">${esc(e.nombre)}</span>
         <span class="cuenta ${e.asistieron ? 'v-cuidado' : ''}">${e.asistieron}<small>${e.asistieron === 1 ? 'fue' : 'fueron'}</small></span></span>
       <span class="sub"><span class="sello">${esc(TIPOS_EV[e.tipo] || e.tipo)}</span>
         <span>${fechaCorta(e.fecha)}${e.hora ? ' · ' + esc(e.hora.slice(0,5)) : ''}</span>
         ${e.lugar ? `<span>· ${esc(e.lugar)}</span>` : ''}
         ${e.visitantes ? `<span style="color:var(--ambar)">· ${e.visitantes} ${e.visitantes === 1 ? 'visitante' : 'visitantes'}</span>` : ''}</span>
-    </button></li>`;
+    </a></li>`;
 
   if (proximos.length)
     html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Por venir</h2></div>
@@ -4965,11 +5134,11 @@ async function vServicio(){
 
   if (misAreas.length){
     html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Tus áreas</h2></div>
-      <ul class="registro">${misAreas.map(m => `<li><button class="fila" data-area="${m.area_id}">
+      <ul class="registro">${misAreas.map(m => `<li><a class="fila" href="#/area/${m.area_id}" data-area="${m.area_id}">
         <span class="fila-alto"><span class="nombre">${esc(m.area)}</span>
           ${m.rol_en_area === 'lider' ? '<span class="sello">Líder</span>' : ''}</span>
         <span class="sub"><span>Novedades, material y capacitación</span></span>
-      </button></li>`).join('')}</ul></div>`;
+      </a></li>`).join('')}</ul></div>`;
   } else {
     html += `<div class="vacio"><strong>Todavía no estás en un área de servicio</strong>
       ${yo.es_admin ? 'Asígnate una abajo.' : 'Pídele a quien administra que te agregue.'}</div>`;
