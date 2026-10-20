@@ -1036,6 +1036,7 @@ const I = {
   revisar:'<svg viewBox="0 0 24 24"><path d="M5 4h11l4 4v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" stroke-linejoin="round"/><path d="M8.5 13.5l2.2 2.2 4.6-5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   usuarios:'<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11" stroke-linecap="round"/></svg>',
   fusionar:'<svg viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="5"/><circle cx="15.5" cy="12" r="5"/></svg>',
+  oracion:'<svg viewBox="0 0 24 24"><path d="M12 3c1.8 2.6 3.8 4.4 3.8 7a3.8 3.8 0 0 1-7.6 0c0-2.6 2-4.4 3.8-7z" stroke-linejoin="round"/><path d="M5 20h14M8 20v-2.5a4 4 0 0 1 8 0V20" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   flecha:'<svg class="flecha" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   salir:'<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M14 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2" stroke-linecap="round"/><path d="M18 15l3-3-3-3M21 12H9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   permisos:'<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 8.5-4.1-.9-7-4.3-7-8.5V6z" stroke-linejoin="round"/><path d="M9.3 12l1.9 1.9 3.5-3.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -1216,7 +1217,7 @@ function pintarNav(){
     ['Escuela', 'procesos',
       [['procesos','Cursos y procesos'],
        ...(mando ? [['solicitudes','Solicitudes'], ['revisar','Por revisar']] : [])]],
-    ['Encuentros', 'eventos',  [['eventos','Eventos']]],
+    ['Encuentros', 'eventos',  [['eventos','Eventos'], ['oracion','Oración']]],
     ['Servicio',   'servicio', [['servicio','Mi servicio']]],
     ['Recursos',   'material', [['material','Material']]],
     ...(mando ? [['Administrar', 'usuarios',
@@ -1319,7 +1320,7 @@ function pintarNav(){
    renglón del que cuelga. */
 const PADRE = {
   ficha:'personas', lista:'listas', registrar:'registrar',
-  evento:'eventos', area:'servicio',
+  evento:'eventos', area:'servicio', lista_oracion:'oracion',
   curso:'procesos', clase:'procesos', quiz:'procesos', resultado:'procesos',
   certificado:'procesos', cursoAdmin:'procesos', quizEditor:'procesos',
   nuevaLista:'listas'
@@ -1347,6 +1348,7 @@ function marcar(v){
 const VISTAS = {
   inicio:vInicio, personas:vPersonas, procesos:vProcesos, material:vMaterial,
   eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCursoAlumno,
+  oracion:vOracion, lista_oracion:vPasarLista,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -5106,6 +5108,248 @@ function descargarIcs(e, rol){
 /* ============================================================
    Mi servicio
    ============================================================ */
+/* ============================================================
+   Oración — el tablero del proceso de caballeros
+   ------------------------------------------------------------
+   El documento de Pedro pide tres indicadores y un semáforo de
+   dos y tres ausencias. Todo eso se calcula en la base; aquí solo
+   se pinta. Lo que la pantalla sí decide es el orden: primero el
+   viernes que viene, después quién se está soltando, y de último
+   los números. Un líder abre esto un jueves por la noche para
+   saber a quién escribirle, no para ver un promedio.
+   ============================================================ */
+const ESTADOS_LISTA = { presente:'Presente', ausente:'Ausente', permiso:'Con permiso' };
+
+async function vOracion(){
+  cargando();
+  const yo = V();
+  const { data:serie, error } = await SB.from('oracion_resumen').select('*').limit(1).maybeSingle();
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+  if (!serie) return app.innerHTML = `<div class="vacio"><strong>Todavía no hay un proceso de oración</strong>
+    Cuando se cree la serie, aquí van a salir las sesiones y los indicadores.</div>`;
+
+  const [{ data:ses }, { data:padron }] = await Promise.all([
+    SB.from('oracion_sesiones').select('*').eq('serie_id', serie.serie_id).order('fecha'),
+    SB.from('oracion_padron').select('*').eq('serie_id', serie.serie_id)
+  ]);
+
+  const hoyF = hoy();
+  const sesiones = ses || [];
+  const proxima  = sesiones.find(s => s.fecha >= hoyF);
+  const pasadas  = sesiones.filter(s => s.fecha < hoyF).reverse();
+  const porVenir = sesiones.filter(s => s.fecha > hoyF);
+  const sinLista = sesiones.filter(s => s.fecha < hoyF && !s.paso_lista);
+  const puede    = yo.es_admin || yo.ve_todo || yo.puede_cuidar;
+
+  let html = cabeza('Oración', esc(serie.nombre));
+
+  // ---------- el viernes que viene ----------
+  if (proxima){
+    const falta = Math.round((new Date(proxima.fecha + 'T00:00:00') - new Date(hoyF + 'T00:00:00')) / 86400000);
+    html += `<div class="tarjeta"><div class="tarjeta-alto">
+        <h2>${falta === 0 ? 'Hoy' : falta === 1 ? 'Mañana' : `En ${falta} días`}</h2>
+        ${puede ? `<a class="btn" href="${direccion('lista_oracion', proxima.id)}">Pasar lista</a>` : ''}
+      </div><div class="tarjeta-cuerpo">
+        <p style="margin:0 0 4px;font-size:19px;font-weight:600">${esc(proxima.tema || proxima.nombre)}</p>
+        <span class="sub"><span>${fechaCorta(proxima.fecha)}</span>
+          ${proxima.hora ? `<span>· ${esc(proxima.hora.slice(0,5))}</span>` : ''}
+          ${proxima.lugar ? `<span>· ${esc(proxima.lugar)}</span>` : ''}</span>
+        <div class="par" style="margin-top:16px">
+          <div><label style="margin-top:0">Lidera</label>
+            <p style="margin:0;font-weight:600">${proxima.lidera ? esc(proxima.lidera)
+              : '<span style="color:var(--ambar)">Sin asignar</span>'}</p></div>
+          <div><label style="margin-top:0">Apoya</label>
+            <p style="margin:0;font-weight:600">${proxima.apoya ? esc(proxima.apoya)
+              : '<span style="color:var(--ambar)">Sin asignar</span>'}</p></div>
+        </div>
+      </div></div>`;
+  }
+
+  // ---------- quién se está soltando ----------
+  const rojos    = (padron || []).filter(p => p.semaforo === 'rojo');
+  const amarillos= (padron || []).filter(p => p.semaforo === 'amarillo');
+  const conPermiso = (padron || []).filter(p => p.semaforo === 'verde' && p.permisos >= 3);
+
+  if (rojos.length || amarillos.length || conPermiso.length){
+    const fila = (p, clase, texto) => `<li><a class="fila" href="${direccion('ficha', p.persona_id)}">
+      <span class="fila-alto"><span class="nombre">${esc(p.nombre)}</span>
+        <span class="marca-est ${clase}">${texto}</span></span>
+      <span class="sub"><span>${p.presentes} de ${p.sesiones} sesiones</span>
+        ${p.permisos ? `<span>· ${p.permisos} con permiso</span>` : ''}
+        ${p.ultima_vez ? `<span>· última vez ${fechaCorta(p.ultima_vez)}</span>`
+                       : '<span>· no ha venido</span>'}</span>
+    </a></li>`;
+
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>A quién escribirle</h2></div>
+      <ul class="registro">
+        ${rojos.map(p => fila(p, 'm-desconectado',
+            `${p.ausencias_seguidas} seguidas`)).join('')}
+        ${amarillos.map(p => fila(p, 'm-alerta',
+            `${p.ausencias_seguidas} seguidas`)).join('')}
+        ${conPermiso.map(p => fila(p, 'm-alerta', `${p.permisos} permisos`)).join('')}
+      </ul></div>`;
+  } else if (serie.sesiones_hechas > 0){
+    html += `<div class="vacio"><strong>Nadie se está soltando</strong>
+      Ningún hombre del padrón lleva dos viernes seguidos sin conectarse.</div>`;
+  }
+
+  // ---------- las listas que faltan por pasar ----------
+  if (puede && sinLista.length){
+    html += `<div class="tarjeta"><div class="tarjeta-alto">
+        <h2>Sesiones sin lista</h2></div>
+      <ul class="registro">${sinLista.slice(0,6).map(s => `<li>
+        <a class="fila" href="${direccion('lista_oracion', s.id)}">
+          <span class="fila-alto"><span class="nombre">${fechaCorta(s.fecha)}</span>
+            <span class="marca-est m-alerta">falta la lista</span></span>
+          <span class="sub"><span>${esc(s.tema || s.nombre)}</span></span>
+        </a></li>`).join('')}</ul></div>`;
+  }
+
+  // ---------- los tres indicadores ----------
+  const meta = serie.meta_asistencia || 70;
+  const col = (v, m) => v == null ? 'azul' : v >= m ? 'verde' : v >= m - 15 ? 'ambar' : 'barro';
+  const pct = v => v == null ? '—' : v + '%';
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Cómo va el proceso</h2></div>
+    <div class="tarjeta-cuerpo">` + cifras([
+      { icono:'personas', color:col(serie.asistencia_ultima, meta),
+        valor:pct(serie.asistencia_ultima), texto:`conectados la última vez · meta ${meta}%` },
+      { icono:'reloj', color:col(serie.asistencia_promedio, meta),
+        valor:pct(serie.asistencia_promedio), texto:'promedio de todas las sesiones' },
+      { icono:'alerta', color:col(serie.retencion_90, 65),
+        valor:pct(serie.retencion_90), texto:'retención a 90 días · meta 65%' },
+      { icono:'oracion', color:serie.intercesores_mes >= 2 ? 'verde' : 'ambar',
+        valor:serie.intercesores_mes || 0, texto:'guiaron el clamor este mes · meta 2' }
+    ]) + `<span class="sub" style="margin-top:12px">
+      <span>${serie.padron} hombres en el padrón</span>
+      <span>· ${serie.sesiones_hechas} de ${serie.sesiones_totales} sesiones con lista</span></span>
+    </div></div>`;
+
+  // ---------- el calendario ----------
+  // La asistencia solo se muestra en sesiones que ya pasaron. Una
+  // fila suelta con fecha futura no puede anunciar que vinieron 14.
+  const tarjetaSes = s => `<li><a class="fila" href="${direccion('lista_oracion', s.id)}">
+      <span class="fila-alto"><span class="nombre">${esc(s.tema || s.nombre)}</span>
+        ${s.paso_lista && s.fecha <= hoyF
+          ? `<span class="marca-est m-cuidado">${s.presentes} vinieron</span>` : ''}</span>
+      <span class="sub"><span>${fechaCorta(s.fecha)}</span>
+        ${s.lidera ? `<span>· lidera ${esc(s.lidera)}</span>` : ''}
+        ${s.apoya ? `<span>· apoya ${esc(s.apoya)}</span>` : ''}</span>
+    </a></li>`;
+
+  if (porVenir.length)
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Lo que viene</h2>
+        <span class="sub"><span>${porVenir.length} sesiones</span></span></div>
+      <ul class="registro">${porVenir.slice(0,8).map(tarjetaSes).join('')}</ul></div>`;
+
+  if (pasadas.length)
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Lo que ya pasó</h2></div>
+      <ul class="registro">${pasadas.slice(0,8).map(tarjetaSes).join('')}</ul></div>`;
+
+  app.innerHTML = html;
+}
+
+
+/* ------------------------------------------------------------
+   Pasar lista — los tres estados, en una sola guardada
+   ------------------------------------------------------------
+   Se manda todo junto y no persona por persona: a las 7 de la
+   mañana, con mala señal, media lista guardada es peor que
+   ninguna.
+   ------------------------------------------------------------ */
+async function vPasarLista(id){
+  cargando();
+  if (!id) return ir('oracion');
+  const yo = V();
+
+  const [{ data:ses }, { data:serie }] = await Promise.all([
+    SB.from('oracion_sesiones').select('*').eq('id', id).maybeSingle(),
+    SB.from('oracion_resumen').select('*').limit(1).maybeSingle()
+  ]);
+  if (!ses) return app.innerHTML = `<div class="error">No se encontró esa sesión.</div>`;
+
+  const [{ data:padron }, { data:marcas }] = await Promise.all([
+    SB.from('oracion_padron').select('*').eq('serie_id', ses.serie_id).order('nombre'),
+    SB.from('asistencias').select('persona_id, estado').eq('evento_id', id)
+  ]);
+
+  const puesto = new Map((marcas || []).map(m => [m.persona_id, m.estado]));
+  const gente  = padron || [];
+  const puede  = yo.es_admin || yo.ve_todo ||
+                 ses.lidera_id === S.yo.persona_id || ses.apoya_id === S.yo.persona_id;
+
+  // Quien abre una lista nueva casi siempre va a marcar presente a
+  // la mayoría: arrancar en presente ahorra 14 toques y deja solo
+  // los que faltaron.
+  const estado = new Map(gente.map(p => [p.persona_id, puesto.get(p.persona_id) || 'presente']));
+
+  let html = `<button class="volver" id="atras">← Volver a Oración</button>` +
+    cabeza(esc(ses.tema || ses.nombre),
+      `${fechaCorta(ses.fecha)}${ses.hora ? ' · ' + esc(ses.hora.slice(0,5)) : ''}` +
+      `${ses.lidera ? ' · lidera ' + esc(ses.lidera) : ''}`,
+      puede ? `<button class="btn" id="guardarLista">Guardar lista</button>` : '');
+
+  if (!puede){
+    html += `<div class="vacio"><strong>Solo pasa lista quien está asignado</strong>
+      La lista de esta sesión la marca quien lidera, quien apoya, o quien administra.</div>`;
+  }
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>El padrón</h2>
+      <span class="sub"><span id="cuenta"></span></span></div>
+    <ul class="registro" id="listaO">${gente.map(p => `<li>
+      <div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(p.nombre)}</span>
+          ${p.semaforo === 'rojo' ? '<span class="marca-est m-desconectado">venía faltando</span>'
+            : p.semaforo === 'amarillo' ? '<span class="marca-est m-alerta">venía faltando</span>' : ''}</span>
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          ${Object.entries(ESTADOS_LISTA).map(([v,t]) =>
+            `<button class="btn ${v === 'presente' ? '' : 'seco '}chico" data-p="${p.persona_id}" data-e="${v}"
+               ${puede ? '' : 'disabled'}>${t}</button>`).join('')}
+        </span>
+      </div></li>`).join('')}</ul>
+    ${puede ? `<div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+      <button class="btn" id="guardarLista2" style="width:100%">Guardar lista</button></div>` : ''}
+    </div>`;
+
+  app.innerHTML = html;
+  document.getElementById('atras').onclick = () => ir('oracion');
+
+  // Pinta el botón escogido de cada fila y la cuenta de arriba.
+  const pintar = () => {
+    document.querySelectorAll('[data-p]').forEach(b => {
+      const elegido = estado.get(b.dataset.p) === b.dataset.e;
+      b.classList.toggle('seco', !elegido);
+      b.classList.toggle('rojo', elegido && b.dataset.e === 'ausente');
+    });
+    const n = [...estado.values()].filter(e => e === 'presente').length;
+    const pm = [...estado.values()].filter(e => e === 'permiso').length;
+    document.getElementById('cuenta').textContent =
+      `${n} de ${gente.length} presentes` + (pm ? ` · ${pm} con permiso` : '');
+  };
+  pintar();
+
+  document.querySelectorAll('[data-p]').forEach(b => {
+    b.onclick = () => { estado.set(b.dataset.p, b.dataset.e); pintar(); };
+  });
+
+  // Dos botones, uno arriba y otro al final de la lista: con 16
+  // hombres en un celular, el de arriba queda cuatro pantallas atrás
+  // justo cuando se acaba de terminar de marcar.
+  const botones = ['guardarLista','guardarLista2'].map(x => document.getElementById(x)).filter(Boolean);
+  const guardar = async () => {
+    botones.forEach(b => b.disabled = true);
+    const { error } = await SB.rpc('pasar_lista', {
+      p_evento: id,
+      p_marcas: gente.map(p => ({ persona_id:p.persona_id, estado:estado.get(p.persona_id) }))
+    });
+    if (error){ avisar(error.message, true); botones.forEach(b => b.disabled = false); return; }
+    avisar('Lista guardada.');
+    ir('oracion');
+  };
+  botones.forEach(b => b.onclick = guardar);
+}
+
+
 async function vServicio(){
   cargando();
   const yo = V();
