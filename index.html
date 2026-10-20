@@ -1710,7 +1710,8 @@ async function vFicha(id){
     <div class="tarjeta-cuerpo">
     <div id="verDatos"><ul class="datos">
       ${areasP && areasP.length ? `<li><span>Áreas</span><b>${areasP.map(a =>
-        esc(a.areas.nombre) + (a.rol_en_area === 'lider' ? ' (líder)' : '')).join('<br>')}</b></li>` : ''}
+        esc(a.areas.nombre) + (MANDA_AREA(a.rol_en_area)
+          ? ` (${(ROLES_AREA[a.rol_en_area] || a.rol_en_area).toLowerCase()})` : '')).join('<br>')}</b></li>` : ''}
       ${p.celular ? `<li><span>Celular</span><b><a href="https://wa.me/57${esc(p.celular)}">${esc(p.celular)}</a></b></li>` : ''}
       ${p.telefono ? `<li><span>Teléfono fijo</span><b>${esc(p.telefono)}</b></li>` : ''}
       ${p.correo ? `<li><span>Correo</span><b style="word-break:break-all">${esc(p.correo)}</b></li>` : ''}
@@ -4713,17 +4714,29 @@ function pasaFiltros(g, f){
 /* ============================================================
    Eventos
    ============================================================ */
-const TIPOS_EV = { oracion:'Oración', mesa:'Mesa', legendarios:'Legendarios',
-                   grupo_vida:'Grupo de vida', otro:'Otro' };
+const TIPOS_EV = { oracion:'Oración', mesa:'Mesa de caballeros',
+                   grupo_vida:'Grupo de vida', catalitico:'Evento catalítico',
+                   formacion:'Formación', otro:'Otro' };
+
+// Los cinco roles de un área. «cabeza» responde por el área, «lider» la
+// mueve, «colider» acompaña, «encargado» está a cargo mientras no hay
+// cabeza. Cualquiera de esos cuatro manda adentro; participante no.
+const ROLES_AREA = { cabeza:'Cabeza', lider:'Líder', colider:'Colíder',
+                     encargado:'Encargado', participante:'Participante' };
+const MANDA_AREA = r => r === 'cabeza' || r === 'lider' ||
+                        r === 'colider' || r === 'encargado';
+const selloRol = r => MANDA_AREA(r) ? `<span class="sello">${ROLES_AREA[r] || r}</span>` : '';
 
 async function vEventos(){
   cargando();
   const yo = V();
   const puede = yo.es_admin || yo.puede_cuidar;
 
-  const [{ data:evs, error }, { data:vis }] = await Promise.all([
+  const [{ data:evs, error }, { data:vis }, { data:areas }] = await Promise.all([
     SB.from('eventos_resumen').select('*').order('fecha', { ascending:false }),
     puede ? SB.from('visitantes').select('*').order('dias_desde', { ascending:true })
+          : Promise.resolve({ data:[] }),
+    puede ? SB.from('areas_vista').select('id, nombre').eq('activa', true).order('nombre')
           : Promise.resolve({ data:[] })
   ]);
   if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
@@ -4751,6 +4764,9 @@ async function vEventos(){
           ${Object.entries(TIPOS_EV).map(([v,t]) => `<option value="${v}">${t}</option>`).join('')}</select></div></div>
       <div class="par"><div><label for="ef">Fecha</label><input id="ef" type="date" value="${hoyF}"></div>
         <div><label for="eh">Hora</label><input id="eh" type="text" placeholder="7:00 pm"></div></div>
+      <label for="ea">Área</label><select id="ea">
+        <option value="">Ninguna · es de toda la red</option>
+        ${(areas || []).map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}</select>
       <label for="el">Lugar</label><input id="el" type="text" placeholder="Auditorio, casa de alguien, en línea…">
       <label for="ed">De qué se trata</label><input id="ed" type="text">
       <div style="margin-top:16px"><button class="btn" id="guardarEv">Crear evento</button></div>
@@ -4804,6 +4820,7 @@ async function vEventos(){
     g.disabled = true;
     const { error } = await SB.from('eventos').insert({
       nombre, tipo:document.getElementById('et').value,
+      area_id: document.getElementById('ea').value || null,
       fecha: document.getElementById('ef').value,
       hora:  document.getElementById('eh').value.trim() || null,
       lugar: document.getElementById('el').value.trim() || null,
@@ -5096,7 +5113,7 @@ async function vServicio(){
   const [{ data:mias }, { data:fechas, error }, { data:areas }] = await Promise.all([
     SB.from('servidores_por_area').select('*').eq('persona_id', S.yo.persona_id),
     SB.from('mis_fechas_servicio').select('*').order('fecha'),
-    SB.from('areas').select('*').eq('activa', true).order('nombre')
+    SB.from('areas_vista').select('*').eq('activa', true).order('nombre')
   ]);
   if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
 
@@ -5136,7 +5153,7 @@ async function vServicio(){
     html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Tus áreas</h2></div>
       <ul class="registro">${misAreas.map(m => `<li><a class="fila" href="#/area/${m.area_id}" data-area="${m.area_id}">
         <span class="fila-alto"><span class="nombre">${esc(m.area)}</span>
-          ${m.rol_en_area === 'lider' ? '<span class="sello">Líder</span>' : ''}</span>
+          ${selloRol(m.rol_en_area)}</span>
         <span class="sub"><span>Novedades, material y capacitación</span></span>
       </a></li>`).join('')}</ul></div>`;
   } else {
@@ -5149,7 +5166,14 @@ async function vServicio(){
       <ul class="registro">${areas.filter(a => !misAreas.some(m => m.area_id === a.id)).map(a =>
         `<li><div class="fila" style="cursor:default;display:flex;align-items:center;gap:12px">
           <button style="flex:1;background:none;border:0;text-align:left;cursor:pointer;padding:0" data-area="${a.id}">
-            <span class="nombre">${esc(a.nombre)}</span></button>
+            <span class="nombre">${esc(a.nombre)}</span>
+            <span class="sub">${a.cabeza
+              ? `<span>${a.cabeza_rol === 'encargado' ? 'Encargado' : 'Cabeza'}
+                   <b style="color:var(--texto);font-weight:600">${esc(a.cabeza)}</b></span>`
+              : `<span style="color:var(--ambar);font-weight:600">Sin cabeza</span>`}
+              ${a.lideres ? `<span>· Líderes
+                   <b style="color:var(--texto);font-weight:600">${esc(a.lideres)}</b></span>` : ''}
+              <span>· ${a.gente} ${a.gente === 1 ? 'persona' : 'personas'}</span></span></button>
           ${yo.es_admin ? `<button class="btn rojo chico" data-borrararea="${a.id}" data-noma="${esc(a.nombre)}">Eliminar</button>` : ''}
         </div></li>`).join('')}</ul></div>`;
 
@@ -5164,7 +5188,8 @@ async function vServicio(){
           <div class="par"><div><select id="aq"></select></div>
             <div><select id="ap"></select></div></div>
           <div class="par" style="margin-top:10px"><div><select id="ar">
-            <option value="participante">Participante</option><option value="lider">Líder</option></select></div>
+            ${['participante','cabeza','lider','colider','encargado'].map(v =>
+              `<option value="${v}">${ROLES_AREA[v]}</option>`).join('')}</select></div>
             <div><button class="btn" id="guardarMiembro" style="width:100%">Agregar al área</button></div></div>
         </div>
       </div></div>`;
@@ -5213,9 +5238,12 @@ async function vServicio(){
       ir('servicio');
     };
     document.getElementById('guardarMiembro').onclick = async () => {
-      const { error } = await SB.from('persona_area').insert({
-        persona_id: selP.value, area_id: selA.value,
-        rol_en_area: document.getElementById('ar').value });
+      // Por la función y no por un insert directo: ella es la que cuida
+      // que no queden dos cabezas en la misma área y la que cierra la
+      // línea anterior en vez de borrarla.
+      const { error } = await SB.rpc('poner_en_area', {
+        p_persona: selP.value, p_area: selA.value,
+        p_rol: document.getElementById('ar').value });
       if (error) return avisar(error.message, true);
       avisar('Listo, quedó en el área.');
       ir('servicio');
@@ -5236,7 +5264,10 @@ async function vArea(id){
   ]);
   if (error || !area) return app.innerHTML = `<div class="error">No se encontró esa área.</div>`;
 
-  const soyLider = (equipo || []).some(e => e.persona_id === S.yo.persona_id && e.rol_en_area === 'lider');
+  // Cabeza, líder, colíder y encargado mandan adentro del área. Antes
+  // esto preguntaba solo por 'lider' y dejaba por fuera a la cabeza.
+  const soyLider = (equipo || []).some(e =>
+    e.persona_id === S.yo.persona_id && MANDA_AREA(e.rol_en_area));
   const puede = V().es_admin || soyLider;
 
   let html = `<button class="volver" id="atras">← Volver a mi servicio</button>` +
@@ -5294,7 +5325,7 @@ async function vArea(id){
     html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quiénes sirven aquí</h2></div>
       <ul class="registro">${equipo.map(e => `<li><div class="fila" style="cursor:default">
         <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(e.nombre)}</span>
-          ${e.rol_en_area === 'lider' ? '<span class="sello">Líder</span>' : ''}</span>
+          ${selloRol(e.rol_en_area)}</span>
       </div></li>`).join('')}</ul></div>`;
 
   app.innerHTML = html;
