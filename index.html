@@ -1221,7 +1221,8 @@ function pintarNav(){
     ['Servicio',   'servicio', [['servicio','Mi servicio']]],
     ['Recursos',   'material', [['material','Material']]],
     ...(mando ? [['Administrar', 'usuarios',
-      [['usuarios','Usuarios'], ['permisos','Permisos'], ['fusionar','Fusionar']]]] : [])
+      [['usuarios','Usuarios'], ['permisos','Permisos'],
+       ['jerarquias','Jerarquías'], ['fusionar','Fusionar']]]] : [])
   ];
 
   // El grupo que contiene la vista abierta arranca desplegado.
@@ -1321,6 +1322,7 @@ function pintarNav(){
 const PADRE = {
   ficha:'personas', lista:'listas', registrar:'registrar',
   evento:'eventos', area:'servicio', lista_oracion:'oracion',
+  bajoSuCargo:'jerarquias', areaGente:'jerarquias',
   curso:'procesos', clase:'procesos', quiz:'procesos', resultado:'procesos',
   certificado:'procesos', cursoAdmin:'procesos', quizEditor:'procesos',
   nuevaLista:'listas'
@@ -1349,6 +1351,7 @@ const VISTAS = {
   inicio:vInicio, personas:vPersonas, procesos:vProcesos, material:vMaterial,
   eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCursoAlumno,
   oracion:vOracion, lista_oracion:vPasarLista,
+  jerarquias:vJerarquias, bajoSuCargo:vBajoSuCargo, areaGente:vAreaGente,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -5264,6 +5267,322 @@ function descargarIcs(e, rol){
    Mi servicio
    ============================================================ */
 /* ============================================================
+   Jerarquías — las dos, lado a lado
+   ------------------------------------------------------------
+   Cuidado y estructura son árboles distintos que se cruzan en la
+   misma persona. Esta pantalla es el único sitio donde se ven los
+   dos a la vez y donde se mueven.
+   ============================================================ */
+async function vJerarquias(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+
+  const [{ data:lideres, error }, { data:areas }, { data:dir }] = await Promise.all([
+    SB.from('lideres_vista').select('*').order('nombre'),
+    SB.from('areas_vista').select('*').eq('activa', true).order('nombre'),
+    SB.from('directorio').select('*').order('nombre')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  if (S.qJer == null) S.qJer = '';
+  const N = t => String(t ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const filtrar = () => {
+    const q = N(S.qJer.trim());
+    return q ? (lideres || []).filter(l => N(l.nombre).includes(q) || N(l.lidera).includes(q))
+             : (lideres || []);
+  };
+  const lista = filtrar();
+
+  let html = cabeza('Jerarquías', 'Quién cuida a quién, y quién pertenece a dónde') + `
+    <div class="buscador">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5" stroke-linecap="round"/></svg>
+      <input id="qj" type="text" autocomplete="off" placeholder="Buscar un líder o un área…" value="${esc(S.qJer)}">
+      <button class="limpiar" id="limpiarJ" ${S.qJer ? '' : 'hidden'} aria-label="Limpiar">✕</button>
+    </div>`;
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quién lidera algo</h2>
+      <span class="ruta-conteo">${lista.length} de ${(lideres||[]).length}</span></div>
+    <ul class="registro" id="listaJ">${lista.length ? lista.map(l => `<li>
+      <a class="fila" href="${direccion('bajoSuCargo', l.id)}">
+        <span class="fila-alto"><span class="nombre">${esc(l.nombre)}</span>
+          ${l.cuida ? `<span class="sello">cuida a ${l.cuida}</span>` : ''}</span>
+        <span class="sub">
+          ${l.lidera ? `<span>${esc(l.lidera)}</span>` : '<span>solo cuidado</span>'}
+          ${l.lo_cuida ? `<span>· lo cuida ${esc(l.lo_cuida)}</span>` : ''}</span>
+      </a></li>`).join('')
+      : `<li><div class="vacio" style="margin:0"><strong>Nadie con «${esc(q)}»</strong>
+           Prueba con otra parte del nombre o del área.</div></li>`}</ul></div>`;
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Las áreas y las redes</h2></div>
+    <ul class="registro">${(areas || []).map(a => `<li>
+      <a class="fila" href="${direccion('areaGente', a.id)}">
+        <span class="fila-alto"><span class="nombre">${esc(a.nombre)}</span>
+          <span class="sello">${esc(a.tipo)}</span></span>
+        <span class="sub">
+          ${a.area_padre ? `<span>dentro de ${esc(a.area_padre)}</span>` : '<span>primer nivel</span>'}
+          ${a.cabeza ? `<span>· ${a.cabeza_rol === 'encargado' ? 'encargado' : 'cabeza'} ${esc(a.cabeza)}</span>` : ''}
+          <span>· ${a.gente} ${a.gente === 1 ? 'persona' : 'personas'}</span></span>
+      </a></li>`).join('')}</ul></div>`;
+
+  app.innerHTML = html;
+
+  const filaL = l => `<li>
+      <a class="fila" href="${direccion('bajoSuCargo', l.id)}">
+        <span class="fila-alto"><span class="nombre">${esc(l.nombre)}</span>
+          ${l.cuida ? `<span class="sello">cuida a ${l.cuida}</span>` : ''}</span>
+        <span class="sub">
+          ${l.lidera ? `<span>${esc(l.lidera)}</span>` : '<span>solo cuidado</span>'}
+          ${l.lo_cuida ? `<span>· lo cuida ${esc(l.lo_cuida)}</span>` : ''}</span>
+      </a></li>`;
+
+  // Se repinta solo la lista y no la pantalla: si se repintara todo,
+  // el cursor saldría de la caja a la primera letra.
+  const pintarJ = () => {
+    const v = filtrar();
+    document.getElementById('listaJ').innerHTML = v.length ? v.map(filaL).join('')
+      : `<li><div class="vacio" style="margin:0"><strong>Nadie con «${esc(S.qJer.trim())}»</strong>
+           Prueba con otra parte del nombre o del área.</div></li>`;
+  };
+
+  const cajaJ = document.getElementById('qj');
+  cajaJ.oninput = e => {
+    S.qJer = e.target.value;
+    document.getElementById('limpiarJ').hidden = !S.qJer;
+    pintarJ();
+  };
+  document.getElementById('limpiarJ').onclick = () => {
+    S.qJer = ''; cajaJ.value = ''; cajaJ.focus();
+    document.getElementById('limpiarJ').hidden = true; pintarJ();
+  };
+}
+
+
+/* ------------------------------------------------------------
+   Todos los que cuelgan de un líder
+   ------------------------------------------------------------ */
+async function vBajoSuCargo(id){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+  if (!id) return ir('jerarquias');
+
+  const [{ data:quien }, { data:gente }, { data:lideres }, { data:areas }] = await Promise.all([
+    SB.from('directorio').select('*').eq('id', id).maybeSingle(),
+    SB.rpc('gente_a_cargo', { p_lider: id }),
+    SB.from('lideres_vista').select('id, nombre').order('nombre'),
+    SB.from('areas_vista').select('id, nombre, tipo').eq('activa', true).order('nombre')
+  ]);
+  if (!quien) return app.innerHTML = `<div class="error">No se encontró esa persona.</div>`;
+
+  const suyos  = gente || [];
+  const sueltos = suyos.filter(g => g.fuera_de_su_rama).length;
+
+  let html = `<button class="volver" id="atras">← Volver a Jerarquías</button>` +
+    cabeza(esc(quien.nombre),
+      `${suyos.length} ${suyos.length === 1 ? 'persona' : 'personas'} por la cadena de cuidado`);
+
+  if (!suyos.length){
+    html += `<div class="vacio"><strong>No cuida a nadie todavía</strong>
+      Puede liderar un área sin cuidar a nadie: son dos cosas distintas.</div>`;
+    app.innerHTML = html;
+    document.getElementById('atras').onclick = () => ir('jerarquias');
+    return;
+  }
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Su gente</h2>
+      <span class="ruta-conteo" id="selJ">0 seleccionados</span></div>
+    <ul class="registro">${suyos.map(g => `<li>
+      <div class="fila" style="cursor:default;display:flex;align-items:flex-start;gap:12px">
+        <label class="campo-op" style="margin-top:3px">
+          <input type="checkbox" data-sel="${g.persona_id}"></label>
+        <span style="flex:1;min-width:0">
+          <span class="fila-alto"><span class="nombre">${esc(g.nombre)}</span>
+            ${g.directo ? '' : `<span class="sello">nivel ${g.nivel}</span>`}
+            ${g.fuera_de_su_rama ? '<span class="marca-est m-alerta">otra rama</span>' : ''}</span>
+          <span class="sub">${g.areas ? `<span>${esc(g.areas)}</span>` : '<span>sin área</span>'}</span>
+        </span>
+        <a class="btn seco chico" href="${direccion('ficha', g.persona_id)}">Ver</a>
+      </div></li>`).join('')}</ul>
+    <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn seco chico" id="todosJ">Seleccionar todos</button>
+        <button class="btn seco chico" id="ningunoJ">Ninguno</button>
+      </div>
+      <label for="nuevoLider" style="margin-top:0">Pasarlos a otro líder</label>
+      <select id="nuevoLider"><option value="">Elige un líder…</option>
+        ${(lideres || []).filter(l => l.id !== id)
+          .map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}</select>
+      <div style="margin-top:12px"><button class="btn" id="moverCuidado">Mover el cuidado</button></div>
+
+      <label for="nuevaArea">O meterlos a un área o una red</label>
+      <select id="nuevaArea"><option value="">Elige un área…</option>
+        ${(areas || []).map(a => `<option value="${a.id}">${esc(a.nombre)} · ${esc(a.tipo)}</option>`).join('')}</select>
+      <div style="margin-top:12px"><button class="btn seco" id="moverArea">Meterlos al área</button></div>
+    </div></div>`;
+
+  if (sueltos)
+    html += `<div class="vacio"><strong>${sueltos} ${sueltos === 1 ? 'persona está' : 'personas están'} en otra rama</strong>
+      Las cuida ${esc(quien.nombre)} pero pertenecen a otra red. No es un error: pasa de verdad y queda a la vista para que la dirección lo decida.</div>`;
+
+  app.innerHTML = html;
+  document.getElementById('atras').onclick = () => ir('jerarquias');
+
+  const marcadas = () => [...app.querySelectorAll('[data-sel]:checked')].map(c => c.dataset.sel);
+  const contar = () => {
+    const n = marcadas().length;
+    document.getElementById('selJ').textContent =
+      n === 1 ? '1 seleccionado' : `${n} seleccionados`;
+  };
+  app.querySelectorAll('[data-sel]').forEach(c => c.onchange = contar);
+  document.getElementById('todosJ').onclick = () => {
+    app.querySelectorAll('[data-sel]').forEach(c => c.checked = true); contar(); };
+  document.getElementById('ningunoJ').onclick = () => {
+    app.querySelectorAll('[data-sel]').forEach(c => c.checked = false); contar(); };
+
+  document.getElementById('moverCuidado').onclick = async () => {
+    const sel = marcadas(), destino = document.getElementById('nuevoLider').value;
+    if (!sel.length) return avisar('No has seleccionado a nadie.', true);
+    if (!destino) return avisar('Elige a quién pasárselos.', true);
+    const nom = (lideres || []).find(l => l.id === destino)?.nombre || 'ese líder';
+    if (!await confirmar(`¿Pasar ${sel.length === 1 ? 'a 1 persona' : `a ${sel.length} personas`} a ${nom}?`,
+      'La cobertura anterior se cierra con la fecha de hoy y queda el rastro. Se puede devolver.', false)) return;
+    const { data, error } = await SB.rpc('mover_cuidado_masivo',
+      { p_personas:sel, p_lider:destino, p_nota:`Pasa de ${quien.nombre} a ${nom}` });
+    if (error) return avisar(error.message, true);
+    avisar(`${data} ${data === 1 ? 'persona pasó' : 'personas pasaron'} a ${nom}.`);
+    ir('bajoSuCargo', id);
+  };
+
+  document.getElementById('moverArea').onclick = async () => {
+    const sel = marcadas(), destino = document.getElementById('nuevaArea').value;
+    if (!sel.length) return avisar('No has seleccionado a nadie.', true);
+    if (!destino) return avisar('Elige el área.', true);
+    const nom = (areas || []).find(a => a.id === destino)?.nombre || 'esa área';
+    if (!await confirmar(`¿Meter ${sel.length === 1 ? 'a 1 persona' : `a ${sel.length} personas`} a ${nom}?`,
+      'Entran como participantes. No salen de las áreas donde ya están.', false)) return;
+    const { data, error } = await SB.rpc('mover_area_masivo',
+      { p_personas:sel, p_area:destino, p_rol:'participante', p_sacar_de:null });
+    if (error) return avisar(error.message, true);
+    avisar(`${data} ${data === 1 ? 'persona entró' : 'personas entraron'} a ${nom}.`);
+    ir('bajoSuCargo', id);
+  };
+}
+
+
+/* ------------------------------------------------------------
+   La gente de un área, y de dónde sacarla
+   ------------------------------------------------------------ */
+async function vAreaGente(id){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+  if (!id) return ir('jerarquias');
+
+  const [{ data:area }, { data:gente }, { data:areas }, { data:lideres }] = await Promise.all([
+    SB.from('areas_vista').select('*').eq('id', id).maybeSingle(),
+    SB.from('servidores_por_area').select('*').eq('area_id', id).order('nombre'),
+    SB.from('areas_vista').select('id, nombre, tipo').eq('activa', true).order('nombre'),
+    SB.from('lideres_vista').select('id, nombre').order('nombre')
+  ]);
+  if (!area) return app.innerHTML = `<div class="error">No se encontró esa área.</div>`;
+
+  const suyos = gente || [];
+
+  let html = `<button class="volver" id="atras">← Volver a Jerarquías</button>` +
+    cabeza(esc(area.nombre),
+      `${esc(area.tipo)}${area.area_padre ? ' · dentro de ' + esc(area.area_padre) : ''}` +
+      `${area.cabeza ? ' · ' + (area.cabeza_rol === 'encargado' ? 'encargado ' : 'cabeza ') + esc(area.cabeza) : ''}`);
+
+  if (!suyos.length){
+    html += `<div class="vacio"><strong>Todavía no hay nadie en esta área</strong>
+      Se agrega gente desde la pantalla de otro líder, o desde Mi servicio.</div>`;
+    app.innerHTML = html;
+    document.getElementById('atras').onclick = () => ir('jerarquias');
+    return;
+  }
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Su gente</h2>
+      <span class="ruta-conteo" id="selA">0 seleccionados</span></div>
+    <ul class="registro">${suyos.map(g => `<li>
+      <div class="fila" style="cursor:default;display:flex;align-items:flex-start;gap:12px">
+        <label class="campo-op" style="margin-top:3px">
+          <input type="checkbox" data-sel="${g.persona_id}"></label>
+        <span style="flex:1;min-width:0">
+          <span class="fila-alto"><span class="nombre">${esc(g.nombre)}</span>
+            ${selloRol(g.rol_en_area)}</span></span>
+        <a class="btn seco chico" href="${direccion('ficha', g.persona_id)}">Ver</a>
+      </div></li>`).join('')}</ul>
+    <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn seco chico" id="todosA">Seleccionar todos</button>
+        <button class="btn seco chico" id="ningunoA">Ninguno</button>
+      </div>
+      <label for="areaDestino" style="margin-top:0">Pasarlos a otra área o red</label>
+      <select id="areaDestino"><option value="">Elige el destino…</option>
+        ${(areas || []).filter(a => a.id !== id)
+          .map(a => `<option value="${a.id}">${esc(a.nombre)} · ${esc(a.tipo)}</option>`).join('')}</select>
+      <label class="campo-op" style="margin-top:12px">
+        <input type="checkbox" id="sacarDe" checked>
+        <span>Sacarlos de ${esc(area.nombre)}</span></label>
+      <div style="margin-top:12px"><button class="btn" id="moverAreaA">Moverlos</button></div>
+
+      <label for="liderDestino">O pasarlos todos a un líder de cuidado</label>
+      <select id="liderDestino"><option value="">Elige un líder…</option>
+        ${(lideres || []).map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}</select>
+      <div style="margin-top:12px"><button class="btn seco" id="moverCuidadoA">Mover el cuidado</button></div>
+    </div></div>`;
+
+  app.innerHTML = html;
+  document.getElementById('atras').onclick = () => ir('jerarquias');
+
+  const marcadas = () => [...app.querySelectorAll('[data-sel]:checked')].map(c => c.dataset.sel);
+  const contar = () => {
+    const n = marcadas().length;
+    document.getElementById('selA').textContent = n === 1 ? '1 seleccionado' : `${n} seleccionados`;
+  };
+  app.querySelectorAll('[data-sel]').forEach(c => c.onchange = contar);
+  document.getElementById('todosA').onclick = () => {
+    app.querySelectorAll('[data-sel]').forEach(c => c.checked = true); contar(); };
+  document.getElementById('ningunoA').onclick = () => {
+    app.querySelectorAll('[data-sel]').forEach(c => c.checked = false); contar(); };
+
+  document.getElementById('moverAreaA').onclick = async () => {
+    const sel = marcadas(), destino = document.getElementById('areaDestino').value;
+    const saca = document.getElementById('sacarDe').checked;
+    if (!sel.length) return avisar('No has seleccionado a nadie.', true);
+    if (!destino) return avisar('Elige el destino.', true);
+    const nom = (areas || []).find(a => a.id === destino)?.nombre || 'esa área';
+    if (!await confirmar(`¿Mover ${sel.length === 1 ? 'a 1 persona' : `a ${sel.length} personas`} a ${nom}?`,
+      saca ? `Salen de ${area.nombre} y entran a ${nom}.` : `Entran a ${nom} y se quedan también en ${area.nombre}.`,
+      false)) return;
+    const { data, error } = await SB.rpc('mover_area_masivo',
+      { p_personas:sel, p_area:destino, p_rol:'participante', p_sacar_de: saca ? id : null });
+    if (error) return avisar(error.message, true);
+    avisar(`${data} ${data === 1 ? 'persona quedó' : 'personas quedaron'} en ${nom}.`);
+    ir('areaGente', id);
+  };
+
+  document.getElementById('moverCuidadoA').onclick = async () => {
+    const sel = marcadas(), destino = document.getElementById('liderDestino').value;
+    if (!sel.length) return avisar('No has seleccionado a nadie.', true);
+    if (!destino) return avisar('Elige a quién pasárselos.', true);
+    const nom = (lideres || []).find(l => l.id === destino)?.nombre || 'ese líder';
+    if (!await confirmar(`¿Pasar ${sel.length === 1 ? 'a 1 persona' : `a ${sel.length} personas`} a ${nom}?`,
+      'La cobertura anterior se cierra con la fecha de hoy y queda el rastro.', false)) return;
+    const { data, error } = await SB.rpc('mover_cuidado_masivo',
+      { p_personas:sel, p_lider:destino, p_nota:`Desde ${area.nombre}` });
+    if (error) return avisar(error.message, true);
+    avisar(`${data} ${data === 1 ? 'persona pasó' : 'personas pasaron'} a ${nom}.`);
+    ir('areaGente', id);
+  };
+}
+
+
+/* ============================================================
    Oración — el tablero del proceso de caballeros
    ------------------------------------------------------------
    El documento de Pedro pide tres indicadores y un semáforo de
@@ -5280,8 +5599,17 @@ async function vOracion(){
   const yo = V();
   const { data:serie, error } = await SB.from('oracion_resumen').select('*').limit(1).maybeSingle();
   if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
-  if (!serie) return app.innerHTML = `<div class="vacio"><strong>Todavía no hay un proceso de oración</strong>
-    Cuando se cree la serie, aquí van a salir las sesiones y los indicadores.</div>`;
+  // Sin resumen hay dos casos distintos y dan pantallas distintas:
+  // o no existe el proceso, o existe y esta persona no lo dirige.
+  // Al segundo se le muestra lo suyo: el calendario y cómo va él.
+  if (!serie){
+    const { data:mio } = await SB.from('oracion_padron').select('*');
+    const { data:cal } = await SB.from('oracion_sesiones').select('*').order('fecha');
+    if (!mio || !mio.length)
+      return app.innerHTML = `<div class="vacio"><strong>Todavía no hay un proceso de oración</strong>
+        Cuando se cree la serie, aquí van a salir las sesiones y los indicadores.</div>`;
+    return vOracionMia(mio[0], cal || []);
+  }
 
   const [{ data:ses }, { data:padron }, { data:invitados }] = await Promise.all([
     SB.from('oracion_sesiones').select('*').eq('serie_id', serie.serie_id).order('fecha'),
@@ -5533,6 +5861,59 @@ async function vOracion(){
 
 
 /* ------------------------------------------------------------
+   Oración, para quien no dirige el proceso
+   ------------------------------------------------------------
+   Lo suyo y nada más: cómo va él, cuándo le toca liderar, y el
+   calendario. Ni el semáforo de los demás ni los indicadores.
+   ------------------------------------------------------------ */
+function vOracionMia(mio, cal){
+  const hoyF = hoy();
+  const proxima = cal.find(s => s.fecha >= hoyF && s.estado !== 'cancelado');
+  const mias    = cal.filter(s => s.fecha >= hoyF &&
+                   (s.lidera_id === S.yo.persona_id || s.apoya_id === S.yo.persona_id));
+
+  let html = cabeza('Oración', 'Proceso de Oración de Caballeros');
+
+  if (proxima)
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>La próxima</h2></div>
+      <div class="tarjeta-cuerpo">
+        <p style="margin:0 0 4px;font-size:19px;font-weight:600">${esc(proxima.tema || proxima.nombre)}</p>
+        <span class="sub"><span>${fechaCorta(proxima.fecha)}</span>
+          ${proxima.hora ? `<span>· ${esc(proxima.hora.slice(0,5))}</span>` : ''}
+          ${proxima.lidera ? `<span>· lidera ${esc(proxima.lidera)}</span>` : ''}</span>
+      </div></div>`;
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Cómo vas</h2></div>
+    <div class="tarjeta-cuerpo">` + cifras([
+      { icono:'oracion', color:'verde', valor:mio.presentes ?? 0, texto:'veces que has venido' },
+      { icono:'reloj',   color:'azul',  valor:mio.sesiones ?? 0,  texto:'sesiones hasta ahora' },
+      { icono:'alerta',  color:(mio.ausencias_seguidas ?? 0) >= 2 ? 'ambar' : 'verde',
+        valor:mio.ausencias_seguidas ?? 0, texto:'seguidas sin venir' }
+    ]) + `</div></div>`;
+
+  if (mias.length)
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Cuándo te toca</h2></div>
+      <ul class="registro">${mias.map(s => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(s.tema || s.nombre)}</span>
+          <span class="sello">${s.lidera_id === S.yo.persona_id ? 'Lideras' : 'Apoyas'}</span></span>
+        <span class="sub"><span>${fechaCorta(s.fecha)}</span></span>
+      </div></li>`).join('')}</ul></div>`;
+
+  const porVenir = cal.filter(s => s.fecha > hoyF);
+  if (porVenir.length)
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Lo que viene</h2></div>
+      <ul class="registro">${porVenir.slice(0,8).map(s => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre"${s.estado === 'cancelado'
+          ? ' style="text-decoration:line-through;opacity:.6"' : ''}>${esc(s.tema || s.nombre)}</span></span>
+        <span class="sub"><span>${fechaCorta(s.fecha)}</span>
+          ${s.lidera ? `<span>· lidera ${esc(s.lidera)}</span>` : ''}</span>
+      </div></li>`).join('')}</ul></div>`;
+
+  app.innerHTML = html;
+}
+
+
+/* ------------------------------------------------------------
    Pasar lista — los tres estados, en una sola guardada
    ------------------------------------------------------------
    Se manda todo junto y no persona por persona: a las 7 de la
@@ -5550,11 +5931,40 @@ async function vPasarLista(id){
   ]);
   if (!ses) return app.innerHTML = `<div class="error">No se encontró esa sesión.</div>`;
 
+  const puede = yo.es_admin || yo.ve_todo ||
+                ses.lidera_id === S.yo.persona_id || ses.apoya_id === S.yo.persona_id;
+
   const [{ data:padron }, { data:marcas }, { data:dir }] = await Promise.all([
     SB.from('oracion_padron').select('*').eq('serie_id', ses.serie_id).order('nombre'),
     SB.from('asistencias').select('persona_id, estado').eq('evento_id', id),
     SB.from('directorio').select('id, nombre')
   ]);
+
+  // Quien no lidera esta mañana ni dirige el proceso no entra a la
+  // toma de lista: ve de qué se trata la sesión y ya. Antes caía en
+  // la lista con los botones apagados, que es peor — parece que la
+  // herramienta se le dañó.
+  if (!puede){
+    app.innerHTML = `<button class="volver" id="atras">← Volver a Oración</button>` +
+      cabeza(esc(ses.tema || ses.nombre),
+        `${fechaCorta(ses.fecha)}${ses.hora ? ' · ' + esc(ses.hora.slice(0,5)) : ''}${ses.lugar ? ' · ' + esc(ses.lugar) : ''}`) +
+      `<div class="tarjeta"><div class="tarjeta-cuerpo">
+        <div class="par">
+          <div><label style="margin-top:0">Lidera</label>
+            <p style="margin:0;font-weight:600">${ses.lidera ? esc(ses.lidera) : '—'}</p></div>
+          <div><label style="margin-top:0">Apoya</label>
+            <p style="margin:0;font-weight:600">${ses.apoya ? esc(ses.apoya) : '—'}</p></div>
+        </div>
+        ${ses.estado === 'cancelado'
+          ? `<p style="margin:16px 0 0"><span class="marca-est m-desconectado">cancelada</span>
+             ${ses.motivo_cambio ? ' ' + esc(ses.motivo_cambio) : ''}</p>`
+          : ses.paso_lista
+            ? `<p style="margin:16px 0 0;color:var(--suave);font-size:14.5px">Vinieron ${ses.presentes}${ses.permisos ? `, ${ses.permisos} con permiso` : ''}.</p>`
+            : ''}
+      </div></div>`;
+    document.getElementById('atras').onclick = () => ir('oracion');
+    return;
+  }
 
   const puesto = new Map((marcas || []).map(m => [m.persona_id, m.estado]));
 
@@ -5569,8 +5979,6 @@ async function vPasarLista(id){
                  invitado:true, semaforo:'verde', presentes:0, sesiones:0, permisos:0 }));
 
   const gente = [...(padron || []), ...invitados];
-  const puede  = yo.es_admin || yo.ve_todo ||
-                 ses.lidera_id === S.yo.persona_id || ses.apoya_id === S.yo.persona_id;
 
   // Quien abre una lista nueva casi siempre va a marcar presente a
   // la mayoría: arrancar en presente ahorra 14 toques y deja solo
