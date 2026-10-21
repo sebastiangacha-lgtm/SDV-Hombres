@@ -1378,11 +1378,33 @@ function leerDireccion(){
   return { vista, arg: resto.length ? decodeURIComponent(resto.join('/')) : undefined };
 }
 
-function pintarVista(vista, arg){
+// Dónde quedó la pantalla la última vez que se pintó, para saber si
+// lo que viene es una pantalla nueva o la misma de nuevo.
+let vistaAnterior = null, argAnterior = null;
+
+async function pintarVista(vista, arg){
   if (!S.yo) return;
   const f = VISTAS[vista] || VISTAS.inicio;
-  S.vista = vista; marcar(vista); window.scrollTo(0,0);
-  f(arg);
+
+  // Repintar la MISMA pantalla casi siempre es «acabo de guardar
+  // algo aquí». Saltar al principio en ese caso obliga a bajar otra
+  // vez hasta la fila que se acaba de tocar, y en una lista de
+  // cuarenta nombres eso la vuelve inservible. Solo se sube cuando
+  // de verdad se cambió de pantalla.
+  const mismaPantalla = vista === vistaAnterior &&
+                        String(arg ?? '') === String(argAnterior ?? '');
+  const altura = mismaPantalla ? window.scrollY : 0;
+
+  vistaAnterior = vista; argAnterior = arg;
+  S.vista = vista; marcar(vista);
+  if (!mismaPantalla) window.scrollTo(0,0);
+
+  await f(arg);
+
+  // Después de pintar, no antes: el contenido tiene que existir para
+  // que el navegador pueda bajar hasta donde estaba.
+  if (mismaPantalla && altura)
+    requestAnimationFrame(() => window.scrollTo(0, altura));
 }
 
 function ir(vista, arg){
@@ -5007,22 +5029,30 @@ async function vEvento(id){
   const filaAsis = p => {
     const a = marcados.get(p.id);
     const fue = a?.asistio;
-    return `<li><div class="fila" style="cursor:default;display:flex;align-items:center;gap:12px">
+    return `<li id="as-${p.id}"><div class="fila" style="cursor:default;display:flex;align-items:center;gap:12px">
       <span style="flex:1;min-width:0">
         <span class="nombre" style="font-size:17px">${esc(p.nombre)}</span>
         <span class="sub">${p.estado === 'visitante' ? '<span class="sello">Visitante</span>' : ''}
           <span>${fue ? 'Asistió' : (a ? 'No asistió' : 'Sin marcar')}</span></span></span>
       ${puede ? `<span class="paso-acc">
         <button class="btn ${fue ? '' : 'seco'} chico" data-as="${p.id}" data-fue="1">Vino</button>
-        <button class="btn ${a && !fue ? '' : 'seco'} chico" data-as="${p.id}" data-fue="0">No</button>
+        <button class="btn ${a && !fue ? 'rojo' : 'seco'} chico" data-as="${p.id}" data-fue="0">No</button>
       </span>` : ''}
     </div></li>`;
   };
 
+  const enLista = [...miembros, ...visitas];
+
   html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Asistencia</h2>
-      <span class="ruta-conteo">${(asis||[]).filter(a=>a.asistio).length} marcados</span>
+      <span class="ruta-conteo" id="conteoAsis"></span>
       ${puede ? `<button class="btn seco chico" id="verVis">Agregar a alguien</button>` : ''}</div>
-    <ul class="registro">${[...miembros, ...visitas].map(filaAsis).join('')}</ul></div>`;
+    <ul class="registro">${enLista.map(filaAsis).join('')}</ul>
+    ${puede ? `<div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn" id="cerrarLista">Cerrar la lista</button>
+        <button class="btn seco" id="reabrirLista">Reabrir</button>
+      </div></div>` : ''}
+    </div>`;
 
   app.innerHTML = html;
   document.getElementById('atras').onclick = () => ir('eventos');
@@ -5114,21 +5144,82 @@ async function vEvento(id){
     window.open(`https://wa.me/57${x.celular}?text=${encodeURIComponent(txt)}`, '_blank');
   });
 
-  app.querySelectorAll('[data-as]').forEach(b => b.onclick = async () => {
-    const pid = b.dataset.as, fue = b.dataset.fue === '1';
+  // Cuántos van, sin tener que recorrer la pantalla.
+  const contar = () => {
+    const c = document.getElementById('conteoAsis');
+    if (!c) return;
+    const vinieron = [...marcados.values()].filter(a => a.asistio).length;
+    const sin = enLista.filter(p => !marcados.has(p.id)).length;
+    c.textContent = `${vinieron} vinieron` + (sin ? ` · ${sin} sin marcar` : '');
+  };
+  contar();
+
+  // Repinta UNA fila. Antes esto llamaba a ir('evento', id), que
+  // volvía a traer todo de la base y repintaba la pantalla entera:
+  // por eso al marcar a alguien del final la vista saltaba arriba y
+  // tocaba bajar de nuevo.
+  const repintarFila = pid => {
+    const li = document.getElementById('as-' + pid);
+    const p = enLista.find(x => x.id === pid);
+    if (!li || !p) return;
+    li.outerHTML = filaAsis(p);
+    enlazarAsis(document.getElementById('as-' + pid));
+    contar();
+  };
+
+  async function marcarAsistencia(pid, estado){
     const ya = marcados.get(pid);
-    let error;
-    if (ya && ya.asistio === fue){
+    let error, fila;
+
+    if (ya && ya.estado === estado){
+      // Tocar otra vez lo mismo lo desmarca: vuelve a «sin marcar».
       ({ error } = await SB.from('asistencias').delete().eq('id', ya.id));
+      if (!error) marcados.delete(pid);
     } else if (ya){
-      ({ error } = await SB.from('asistencias').update({ asistio:fue }).eq('id', ya.id));
+      ({ data:fila, error } = await SB.from('asistencias')
+        .update({ estado }).eq('id', ya.id).select().single());
+      if (!error) marcados.set(pid, fila);
     } else {
-      ({ error } = await SB.from('asistencias').insert({
-        evento_id:id, persona_id:pid, asistio:fue, invitado_por:S.yo.persona_id }));
+      // Se manda el estado y no asistio: es el campo que de verdad
+      // manda, y mandar solo asistio era lo que hacía que «No»
+      // quedara guardado como «Vino».
+      ({ data:fila, error } = await SB.from('asistencias')
+        .insert({ evento_id:id, persona_id:pid, estado, invitado_por:S.yo.persona_id })
+        .select().single());
+      if (!error) marcados.set(pid, fila);
     }
     if (error) return avisar(error.message, true);
+    repintarFila(pid);
+  }
+
+  function enlazarAsis(raiz){
+    (raiz || app).querySelectorAll('[data-as]').forEach(b => b.onclick = () =>
+      marcarAsistencia(b.dataset.as, b.dataset.fue === '1' ? 'presente' : 'ausente'));
+  }
+  enlazarAsis();
+
+  const cl = document.getElementById('cerrarLista');
+  if (cl) cl.onclick = async () => {
+    const sin = enLista.filter(p => !marcados.has(p.id));
+    if (!sin.length) return avisar('No queda nadie sin marcar.');
+    if (!await confirmar('¿Cerrar la lista?',
+      `${sin.length === 1 ? 'Una persona queda como que no asistió' : sin.length + ' personas quedan como que no asistieron'}. Se puede reabrir.`, false)) return;
+    const { error } = await SB.rpc('cerrar_lista',
+      { p_evento:id, p_personas:sin.map(p => p.id) });
+    if (error) return avisar(error.message, true);
+    avisar('Lista cerrada.');
     ir('evento', id);
-  });
+  };
+
+  const rl = document.getElementById('reabrirLista');
+  if (rl) rl.onclick = async () => {
+    if (!await confirmar('¿Reabrir la lista?',
+      'Se borran todas las ausencias de este evento. Los que están marcados como que vinieron no se tocan.', false)) return;
+    const { error } = await SB.rpc('reabrir_lista', { p_evento:id });
+    if (error) return avisar(error.message, true);
+    avisar('Lista reabierta.');
+    ir('evento', id);
+  };
 
   const av = document.getElementById('addVis');
   if (av) av.onclick = async () => {
@@ -5192,9 +5283,11 @@ async function vOracion(){
   if (!serie) return app.innerHTML = `<div class="vacio"><strong>Todavía no hay un proceso de oración</strong>
     Cuando se cree la serie, aquí van a salir las sesiones y los indicadores.</div>`;
 
-  const [{ data:ses }, { data:padron }] = await Promise.all([
+  const [{ data:ses }, { data:padron }, { data:invitados }] = await Promise.all([
     SB.from('oracion_sesiones').select('*').eq('serie_id', serie.serie_id).order('fecha'),
-    SB.from('oracion_padron').select('*').eq('serie_id', serie.serie_id)
+    SB.from('oracion_padron').select('*').eq('serie_id', serie.serie_id),
+    SB.from('oracion_invitados').select('*').eq('serie_id', serie.serie_id)
+      .order('veces', { ascending:false })
   ]);
 
   const hoyF = hoy();
@@ -5256,6 +5349,28 @@ async function vOracion(){
   } else if (serie.sesiones_hechas > 0){
     html += `<div class="vacio"><strong>Nadie se está soltando</strong>
       Ningún hombre del padrón lleva dos viernes seguidos sin conectarse.</div>`;
+  }
+
+  // ---------- los invitados ----------
+  // El que vino una vez es una visita. El que lleva tres viernes ya
+  // decidió quedarse y nadie se lo ha dicho todavía: por eso la
+  // columna que manda el orden es cuántas veces vino.
+  if ((invitados || []).length){
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Invitados</h2>
+        <span class="sub"><span>no cuentan en los porcentajes</span></span></div>
+      <ul class="registro">${invitados.map(v => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(v.nombre)}</span>
+          <span class="marca-est ${v.veces >= 3 ? 'm-cuidado' : 'm-alerta'}">${v.veces} ${v.veces === 1 ? 'vez' : 'veces'}</span></span>
+        <span class="sub">
+          ${v.celular ? `<span>${esc(v.celular)}</span>` : '<span>sin celular</span>'}
+          <span>· desde ${fechaCorta(v.primera_vez)}</span>
+          ${v.lo_trajo ? `<span>· lo trajo ${esc(v.lo_trajo)}</span>` : ''}</span>
+        ${yo.es_admin || yo.ve_todo ? `<span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn chico" data-sumar="${v.persona_id}" data-nom="${esc(v.nombre)}">Pasarlo al padrón</button>
+          ${v.celular ? `<a class="btn seco chico" target="_blank" rel="noopener"
+             href="https://wa.me/57${esc(v.celular)}">Escribirle</a>` : ''}
+        </span>` : ''}
+      </div></li>`).join('')}</ul></div>`;
   }
 
   // ---------- las listas que faltan por pasar ----------
@@ -5376,6 +5491,16 @@ async function vOracion(){
     avisar('Sesión cancelada.'); ir('oracion');
   });
 
+  app.querySelectorAll('[data-sumar]').forEach(b => b.onclick = async () => {
+    if (!await confirmar(`¿Pasar a ${b.dataset.nom} al padrón?`,
+      'Deja de ser visitante, entra al área de Oración y desde el próximo viernes cuenta en los indicadores y en el semáforo como todos los demás.', false)) return;
+    const { error } = await SB.rpc('sumar_al_padron',
+      { p_persona:b.dataset.sumar, p_serie:serie.serie_id });
+    if (error) return avisar(error.message, true);
+    avisar(`${b.dataset.nom.split(' ')[0]} ya es del padrón.`);
+    ir('oracion');
+  });
+
   app.querySelectorAll('[data-react]').forEach(b => b.onclick = async () => {
     const { error } = await SB.rpc('reactivar_sesion', { p_evento:b.dataset.react });
     if (error) return avisar(error.message, true);
@@ -5425,13 +5550,25 @@ async function vPasarLista(id){
   ]);
   if (!ses) return app.innerHTML = `<div class="error">No se encontró esa sesión.</div>`;
 
-  const [{ data:padron }, { data:marcas }] = await Promise.all([
+  const [{ data:padron }, { data:marcas }, { data:dir }] = await Promise.all([
     SB.from('oracion_padron').select('*').eq('serie_id', ses.serie_id).order('nombre'),
-    SB.from('asistencias').select('persona_id, estado').eq('evento_id', id)
+    SB.from('asistencias').select('persona_id, estado').eq('evento_id', id),
+    SB.from('directorio').select('id, nombre')
   ]);
 
   const puesto = new Map((marcas || []).map(m => [m.persona_id, m.estado]));
-  const gente  = padron || [];
+
+  // Quien aparece en la lista de esta mañana sin estar en el padrón
+  // es un invitado. Va al final y marcado como tal: cuenta como
+  // presente en la reunión, pero no entra en los porcentajes.
+  const nombres  = new Map((dir || []).map(d => [d.id, d.nombre]));
+  const delPadron = new Set((padron || []).map(p => p.persona_id));
+  const invitados = (marcas || [])
+    .filter(m => !delPadron.has(m.persona_id))
+    .map(m => ({ persona_id:m.persona_id, nombre:nombres.get(m.persona_id) || 'Invitado',
+                 invitado:true, semaforo:'verde', presentes:0, sesiones:0, permisos:0 }));
+
+  const gente = [...(padron || []), ...invitados];
   const puede  = yo.es_admin || yo.ve_todo ||
                  ses.lidera_id === S.yo.persona_id || ses.apoya_id === S.yo.persona_id;
 
@@ -5451,12 +5588,22 @@ async function vPasarLista(id){
       La lista de esta sesión la marca quien lidera, quien apoya, o quien administra.</div>`;
   }
 
+  if (puede) html += `<div id="formInv" hidden class="tarjeta"><div class="tarjeta-cuerpo">
+      <div class="par"><div><label for="ivn" style="margin-top:0">Nombre</label>
+        <input id="ivn" type="text" placeholder="Como se presentó"></div>
+        <div><label for="ivc" style="margin-top:0">Celular</label>
+        <input id="ivc" type="text" inputmode="numeric" placeholder="Opcional"></div></div>
+      <div style="margin-top:14px"><button class="btn" id="guardarInv">Agregar</button></div>
+    </div></div>`;
+
   html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>El padrón</h2>
-      <span class="sub"><span id="cuenta"></span></span></div>
+      <span class="sub"><span id="cuenta"></span></span>
+      ${puede ? `<button class="btn seco chico" id="verInv">Agregar invitado</button>` : ''}</div>
     <ul class="registro" id="listaO">${gente.map(p => `<li>
       <div class="fila" style="cursor:default">
         <span class="fila-alto"><span class="nombre">${esc(p.nombre)}</span>
-          ${p.semaforo === 'rojo' ? '<span class="marca-est m-desconectado">venía faltando</span>'
+          ${p.invitado ? '<span class="sello">Invitado</span>'
+            : p.semaforo === 'rojo' ? '<span class="marca-est m-desconectado">venía faltando</span>'
             : p.semaforo === 'amarillo' ? '<span class="marca-est m-alerta">venía faltando</span>' : ''}</span>
         <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
           ${Object.entries(ESTADOS_LISTA).map(([v,t]) =>
@@ -5492,6 +5639,28 @@ async function vPasarLista(id){
   // Dos botones, uno arriba y otro al final de la lista: con 16
   // hombres en un celular, el de arriba queda cuatro pantallas atrás
   // justo cuando se acaba de terminar de marcar.
+  const vi = document.getElementById('verInv');
+  if (vi) vi.onclick = () => {
+    const f = document.getElementById('formInv');
+    f.hidden = !f.hidden;
+    vi.textContent = f.hidden ? 'Agregar invitado' : 'Cancelar';
+    if (!f.hidden) document.getElementById('ivn').focus();
+  };
+
+  const gi = document.getElementById('guardarInv');
+  if (gi) gi.onclick = async () => {
+    const nom = document.getElementById('ivn').value.trim();
+    if (!nom) return avisar('Ponle el nombre.', true);
+    gi.disabled = true;
+    const { error } = await SB.rpc('sumar_visitante', {
+      p_evento:id, p_nombre:nom,
+      p_celular:document.getElementById('ivc').value.trim() || null });
+    gi.disabled = false;
+    if (error) return avisar(error.message, true);
+    avisar(`${nom.split(' ')[0]} quedó en la lista.`);
+    ir('lista_oracion', id);
+  };
+
   const botones = ['guardarLista','guardarLista2'].map(x => document.getElementById(x)).filter(Boolean);
   const guardar = async () => {
     botones.forEach(b => b.disabled = true);
