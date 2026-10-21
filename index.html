@@ -4024,7 +4024,21 @@ async function vRegistrarPersona(){
 
     if (val('rar')) await SB.from('persona_area').insert({ persona_id:creada.id, area_id:val('rar') });
 
-    avisar(`${nombre.split(' ')[0]} quedó registrado.`);
+    // La entrada se abre sola. Antes había que ir después a Usuarios
+    // y activarlos uno por uno, y eso se olvida. Los menores quedan
+    // por fuera a propósito: están registrados porque alguien los
+    // cuida, no porque vayan a entrar, y el correo de su ficha suele
+    // ser el del acudiente.
+    let aviso = `${nombre.split(' ')[0]} quedó registrado.`;
+    if (!menor && val('rcor')){
+      const { data:acc, error:e4 } = await SB.functions.invoke('claves',
+        { body:{ accion:'crear', persona_id:creada.id } });
+      aviso += (e4 || (acc && acc.error))
+        ? ` No se le pudo abrir la entrada: ${(acc && acc.error) || e4.message}`
+        : ` Ya puede entrar con su correo y la clave ${CLAVE_ARRANQUE}.`;
+    }
+
+    avisar(aviso);
     ir('ficha', creada.id);
   };
 }
@@ -4193,9 +4207,16 @@ async function vUsuarios(){
       ${!u.tiene_entrada
         ? (u.correo ? `<button class="btn chico" data-abrir="${u.id}" data-nom="${esc(u.nombre)}">Darle entrada</button>` : '')
         : `<button class="btn seco chico" data-reiniciar="${u.id}" data-nom="${esc(u.nombre)}">Reiniciar clave</button>`}
+      ${u.correo ? `<button class="btn seco chico" data-correo="${u.id}" data-nom="${esc(u.nombre)}"
+         data-cor="${esc(u.correo)}">Cambiar correo</button>` : ''}
     </span></div></li>`;
 
-  app.innerHTML = cabeza('Usuarios', `Todos entran con la clave ${CLAVE_ARRANQUE} y la cambian al entrar`) + `
+  // Cuántos están esperando entrada: si son varios, se abren todas
+  // de una vez en vez de ir uno por uno.
+  const faltan = todos.filter(u => !u.tiene_entrada && u.correo).length;
+
+  app.innerHTML = cabeza('Usuarios', `Todos entran con la clave ${CLAVE_ARRANQUE} y la cambian al entrar`,
+    faltan > 1 ? `<button class="btn" id="abrirTodas">Darles entrada a ${faltan}</button>` : '') + `
     <div class="buscador">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5" stroke-linecap="round"/></svg>
       <input id="qu" type="text" autocomplete="off" placeholder="Buscar por nombre, correo, celular…" value="${esc(S.qUsuarios)}">
@@ -4241,7 +4262,50 @@ async function vUsuarios(){
     ir('usuarios');
   };
 
+  // ---------- abrirles la entrada a todos los que faltan ----------
+  const bTodas = document.getElementById('abrirTodas');
+  if (bTodas) bTodas.onclick = async () => {
+    if (!await confirmar(`¿Darles entrada a ${faltan}?`,
+      `Van a poder entrar con su correo y la clave ${CLAVE_ARRANQUE}. Los menores de edad y los visitantes no entran.`, false)) return;
+    bTodas.disabled = true; bTodas.textContent = 'Un momento…';
+    const { data, error } = await SB.functions.invoke('claves', { body:{ accion:'crear_faltantes' } });
+    bTodas.disabled = false;
+    if (error || (data && data.error))
+      return mostrar('No se pudo', (data && data.error) || error.message);
+
+    // Se cuenta lo que pasó de verdad, no «listo»: si tres se
+    // saltaron por ser menores, eso hay que decirlo.
+    const s = (data.saltados || []), f = (data.fallaron || []);
+    await mostrar('Listo', [esc(data.mensaje || ''),
+      s.length ? esc(`Se saltaron ${s.length}: ${s.map(x => `${x.nombre} (${x.porque})`).join(', ')}.`) : '',
+      f.length ? esc(`No se pudo con ${f.length}: ${f.map(x => `${x.nombre} (${x.porque})`).join(', ')}.`) : ''
+    ].filter(Boolean).join('<br><br>'));
+    ir('usuarios');
+  };
+
   function enlazarU(){
+    // ---------- cambiar el correo ----------
+    // Pasa por la función y no por un update a la ficha: el correo
+    // es también con lo que se entra, y cambiarlo solo en un lado
+    // deja a la persona por fuera sin que nadie se entere.
+    app.querySelectorAll('[data-correo]').forEach(b => b.onclick = async () => {
+      const nuevo = await pedirTexto(`Cambiarle el correo a ${b.dataset.nom}`, {
+        texto: 'Con este correo va a entrar a la plataforma. Su clave no cambia.',
+        valor: b.dataset.cor, marcador: 'alguien@correo.com' });
+      if (nuevo == null) return;
+      const limpio = nuevo.trim().toLowerCase();
+      if (!limpio || limpio === b.dataset.cor.toLowerCase()) return;
+      const ant = b.textContent;
+      b.disabled = true; b.textContent = 'Un momento…';
+      const { data, error } = await SB.functions.invoke('claves',
+        { body:{ accion:'cambiar_correo', persona_id:b.dataset.correo, correo:limpio } });
+      b.disabled = false; b.textContent = ant;
+      if (error || (data && data.error))
+        return mostrar('No se pudo', (data && data.error) || error.message);
+      avisar(data.mensaje);
+      ir('usuarios');
+    });
+
     app.querySelectorAll('[data-abrir]').forEach(b => b.onclick = async () => {
       if (!await confirmar(`¿Darle entrada a ${b.dataset.nom}?`,
         `Va a poder entrar con su correo y la clave ${CLAVE_ARRANQUE}, y la plataforma le va a pedir que la cambie.`, false)) return;
@@ -5141,7 +5205,8 @@ async function vOracion(){
   const sinLista = sesiones.filter(s => s.fecha < hoyF && !s.paso_lista);
   const puede    = yo.es_admin || yo.ve_todo || yo.puede_cuidar;
 
-  let html = cabeza('Oración', esc(serie.nombre));
+  let html = cabeza('Oración', esc(serie.nombre),
+    `<button class="btn seco" id="bajarCal">Descargar el calendario</button>`);
 
   // ---------- el viernes que viene ----------
   if (proxima){
@@ -5228,14 +5293,28 @@ async function vOracion(){
   // ---------- el calendario ----------
   // La asistencia solo se muestra en sesiones que ya pasaron. Una
   // fila suelta con fecha futura no puede anunciar que vinieron 14.
-  const tarjetaSes = s => `<li><a class="fila" href="${direccion('lista_oracion', s.id)}">
-      <span class="fila-alto"><span class="nombre">${esc(s.tema || s.nombre)}</span>
-        ${s.paso_lista && s.fecha <= hoyF
-          ? `<span class="marca-est m-cuidado">${s.presentes} vinieron</span>` : ''}</span>
-      <span class="sub"><span>${fechaCorta(s.fecha)}</span>
-        ${s.lidera ? `<span>· lidera ${esc(s.lidera)}</span>` : ''}
-        ${s.apoya ? `<span>· apoya ${esc(s.apoya)}</span>` : ''}</span>
-    </a></li>`;
+  const tarjetaSes = s => `<li><div class="fila" style="cursor:default">
+      <a href="${direccion('lista_oracion', s.id)}" style="display:block;color:inherit;text-decoration:none">
+        <span class="fila-alto"><span class="nombre"${s.estado === 'cancelado'
+            ? ' style="text-decoration:line-through;opacity:.6"' : ''}>${esc(s.tema || s.nombre)}</span>
+          ${s.estado === 'cancelado' ? '<span class="marca-est m-desconectado">cancelada</span>'
+            : s.paso_lista && s.fecha <= hoyF
+              ? `<span class="marca-est m-cuidado">${s.presentes} vinieron</span>` : ''}</span>
+        <span class="sub"><span>${fechaCorta(s.fecha)}</span>
+          ${s.movido_de ? `<span>· movida del ${fechaCorta(s.movido_de)}</span>` : ''}
+          ${s.lidera ? `<span>· lidera ${esc(s.lidera)}</span>` : ''}
+          ${s.apoya ? `<span>· apoya ${esc(s.apoya)}</span>` : ''}
+          ${s.motivo_cambio ? `<span>· ${esc(s.motivo_cambio)}</span>` : ''}</span>
+      </a>
+      ${puede && s.fecha >= hoyF ? `<span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+        ${s.estado === 'cancelado'
+          ? `<button class="btn seco chico" data-react="${s.id}">Volver a programarla</button>`
+          : `<button class="btn seco chico" data-mover="${s.id}" data-f="${s.fecha}"
+               data-t="${esc(s.tema || s.nombre)}">Cambiar la fecha</button>
+             <button class="btn rojo chico" data-cancel="${s.id}"
+               data-t="${esc(s.tema || s.nombre)}">Cancelar</button>`}
+      </span>` : ''}
+    </div></li>`;
 
   if (porVenir.length)
     html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Lo que viene</h2>
@@ -5247,6 +5326,84 @@ async function vOracion(){
       <ul class="registro">${pasadas.slice(0,8).map(tarjetaSes).join('')}</ul></div>`;
 
   app.innerHTML = html;
+
+  // ---------- el calendario entero en un archivo ----------
+  // Un solo archivo con las 36 sesiones: cada uno lo abre una vez y
+  // le quedan todas agendadas. Se reparte por WhatsApp o por correo
+  // desde la cuenta de quien lidera; la plataforma todavía no manda
+  // correos por su cuenta.
+  document.getElementById('bajarCal').onclick = () => {
+    const vivas = sesiones.filter(s => s.estado !== 'cancelado');
+    if (!vivas.length) return avisar('No hay sesiones por agendar.', true);
+    const sello = new Date().toISOString().replace(/[-:]/g,'').slice(0,15) + 'Z';
+    const limpio = t => String(t || '').replace(/[\\;,]/g, ' ').replace(/\n/g, ' ');
+    const masUna = (f, h) => {       // media hora después, sin librerías
+      const [H,M] = (h || '06:30').slice(0,5).split(':').map(Number);
+      const d = new Date(Date.UTC(2000,0,1,H,M)); d.setUTCMinutes(d.getUTCMinutes() + 30);
+      return String(d.getUTCHours()).padStart(2,'0') + String(d.getUTCMinutes()).padStart(2,'0') + '00';
+    };
+    const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//SDV//Oración//ES','CALSCALE:GREGORIAN',
+      `X-WR-CALNAME:${limpio(serie.nombre)}`]
+      .concat(vivas.flatMap(s => {
+        const f = s.fecha.replace(/-/g,'');
+        const h = (s.hora || '06:30').slice(0,5).replace(':','') + '00';
+        return ['BEGIN:VEVENT', `UID:${s.id}@sdv`, `DTSTAMP:${sello}`,
+          `DTSTART;TZID=America/Bogota:${f}T${h}`,
+          `DTEND;TZID=America/Bogota:${f}T${masUna(s.fecha, s.hora)}`,
+          `SUMMARY:${limpio(s.nombre)} — ${limpio(s.tema)}`,
+          s.lugar ? `LOCATION:${limpio(s.lugar)}` : '',
+          `DESCRIPTION:${limpio(s.tema)}${s.lidera ? '. Lidera: ' + limpio(s.lidera) : ''}${s.apoya ? '. Apoya: ' + limpio(s.apoya) : ''}`,
+          'BEGIN:VALARM','TRIGGER:-PT15M','ACTION:DISPLAY',
+          `DESCRIPTION:${limpio(s.nombre)}`,'END:VALARM','END:VEVENT'].filter(Boolean);
+      }))
+      .concat(['END:VCALENDAR']).join('\r\n');
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([ics], { type:'text/calendar;charset=utf-8' }));
+    a.download = 'oracion-de-caballeros.ics';
+    a.click(); URL.revokeObjectURL(a.href);
+    avisar(`${vivas.length} sesiones en el archivo. Repártelo y cada uno las agenda todas de una.`);
+  };
+
+  // ---------- cancelar, reprogramar, volver a programar ----------
+  app.querySelectorAll('[data-cancel]').forEach(b => b.onclick = async () => {
+    const motivo = await pedirTexto('Cancelar la sesión', {
+      texto: `«${b.dataset.t}». Queda marcada como cancelada y deja de contar para la asistencia y el semáforo. Se puede volver a programar.`,
+      marcador: 'Navidad, por ejemplo' });
+    if (motivo == null) return;
+    const { error } = await SB.rpc('cancelar_sesion', { p_evento:b.dataset.cancel, p_motivo:motivo });
+    if (error) return avisar(error.message, true);
+    avisar('Sesión cancelada.'); ir('oracion');
+  });
+
+  app.querySelectorAll('[data-react]').forEach(b => b.onclick = async () => {
+    const { error } = await SB.rpc('reactivar_sesion', { p_evento:b.dataset.react });
+    if (error) return avisar(error.message, true);
+    avisar('Vuelve a estar programada.'); ir('oracion');
+  });
+
+  app.querySelectorAll('[data-mover]').forEach(b => b.onclick = async () => {
+    const r = await dialogo({
+      titulo: 'Cambiar la fecha',
+      texto: `«${b.dataset.t}». La sesión se mueve, no se borra: conserva su tema y su pareja.`,
+      cuerpo: `<label for="mvF" style="margin-top:0">Nueva fecha</label>
+               <input type="date" id="mvF" value="${b.dataset.f}">
+               <label for="mvH">Hora</label><input type="time" id="mvH" value="06:30">
+               <label for="mvM">Por qué se mueve</label>
+               <input type="text" id="mvM" placeholder="Cae en año nuevo">`,
+      aceptar: 'Moverla',
+      alMontar: v => () => {
+        const f = v.querySelector('#mvF').value;
+        if (!f){ v.querySelector('#mvF').focus(); return undefined; }
+        return { f, h: v.querySelector('#mvH').value || null, m: v.querySelector('#mvM').value.trim() };
+      }
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('mover_sesion',
+      { p_evento:b.dataset.mover, p_fecha:r.f, p_hora:r.h, p_motivo:r.m || null });
+    if (error) return avisar(error.message, true);
+    avisar('Sesión movida.'); ir('oracion');
+  });
 }
 
 
