@@ -1029,6 +1029,29 @@ const pedirTexto = (titulo, { texto = '', valor = '', marcador = '' } = {}) =>
 const mostrar = (titulo, texto) =>
   dialogo({ titulo, texto, aceptar: 'Cerrar', cancelar: '' });
 
+/* ============================================================
+   Buscar — la misma pieza en todas las pantallas
+   ------------------------------------------------------------
+   Toda lista larga lleva buscador: personas, eventos, áreas,
+   grupos. Se arma con cajaBusqueda() y se engancha con
+   engancharBusqueda(), que repinta SOLO la lista — si repintara la
+   pantalla, el cursor saldría de la caja a la primera letra.
+   ============================================================ */
+const sinT = t => String(t ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+const cajaBusqueda = (id, marcador, valor) => `<div class="buscador">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5" stroke-linecap="round"/></svg>
+    <input id="${id}" type="text" autocomplete="off" placeholder="${esc(marcador)}" value="${esc(valor || '')}">
+    <button class="limpiar" id="${id}X" ${valor ? '' : 'hidden'} aria-label="Limpiar">✕</button>
+  </div>`;
+
+function engancharBusqueda(id, alEscribir){
+  const caja = document.getElementById(id), x = document.getElementById(id + 'X');
+  if (!caja || !x) return;
+  caja.oninput = e => { x.hidden = !e.target.value; alEscribir(e.target.value); };
+  x.onclick = () => { caja.value = ''; x.hidden = true; caja.focus(); alEscribir(''); };
+}
+
 const I = {
   inicio:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg>',
   listas:'<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.3"/><circle cx="4.5" cy="12" r="1.3"/><circle cx="4.5" cy="18" r="1.3"/></svg>',
@@ -1036,6 +1059,7 @@ const I = {
   revisar:'<svg viewBox="0 0 24 24"><path d="M5 4h11l4 4v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" stroke-linejoin="round"/><path d="M8.5 13.5l2.2 2.2 4.6-5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   usuarios:'<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11" stroke-linecap="round"/></svg>',
   fusionar:'<svg viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="5"/><circle cx="15.5" cy="12" r="5"/></svg>',
+  jerarquias:'<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1.5"/><rect x="2.5" y="16" width="6" height="5" rx="1.5"/><rect x="15.5" y="16" width="6" height="5" rx="1.5"/><path d="M12 8v4M5.5 16v-2.5h13V16" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   oracion:'<svg viewBox="0 0 24 24"><path d="M12 3c1.8 2.6 3.8 4.4 3.8 7a3.8 3.8 0 0 1-7.6 0c0-2.6 2-4.4 3.8-7z" stroke-linejoin="round"/><path d="M5 20h14M8 20v-2.5a4 4 0 0 1 8 0V20" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   flecha:'<svg class="flecha" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   salir:'<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M14 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2" stroke-linecap="round"/><path d="M18 15l3-3-3-3M21 12H9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -4872,13 +4896,22 @@ async function vEventos(){
         ${e.visitantes ? `<span style="color:var(--ambar)">· ${e.visitantes} ${e.visitantes === 1 ? 'visitante' : 'visitantes'}</span>` : ''}</span>
     </a></li>`;
 
-  if (proximos.length)
-    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Por venir</h2></div>
-      <ul class="registro">${proximos.map(tarjetaEv).join('')}</ul></div>`;
+  // Con un año de eventos adentro, la lista deja de servir para
+  // encontrar algo: el buscador mira nombre, tipo, lugar y tema.
+  if (S.qEv == null) S.qEv = '';
+  const filtraEv = lista => {
+    const q = sinT(S.qEv.trim());
+    if (!q) return lista;
+    return lista.filter(e =>
+      sinT(e.nombre).includes(q) || sinT(e.tema).includes(q) ||
+      sinT(e.lugar).includes(q) || sinT(TIPOS_EV[e.tipo] || e.tipo).includes(q) ||
+      sinT(fechaCorta(e.fecha)).includes(q));
+  };
 
-  if (pasados.length)
-    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Ya pasaron</h2></div>
-      <ul class="registro">${pasados.map(tarjetaEv).join('')}</ul></div>`;
+  html += cajaBusqueda('qEv', 'Buscar por nombre, tipo, lugar o fecha…', S.qEv);
+  html += '<div id="rolloEv"></div>';
+
+
 
   if (!evs.length)
     html += `<div class="vacio"><strong>Todavía no hay eventos</strong>
@@ -4897,6 +4930,28 @@ async function vEventos(){
       </div>`;
 
   app.innerHTML = html;
+
+  // Las dos listas se pintan aparte para que el buscador repinte
+  // solo esto y no la pantalla entera.
+  const pintarEv = () => {
+    const pr = filtraEv(proximos), pa = filtraEv(pasados);
+    const rollo = document.getElementById('rolloEv');
+    if (!rollo) return;
+    const q = S.qEv.trim();
+    rollo.innerHTML =
+      (pr.length ? `<div class="tarjeta"><div class="tarjeta-alto"><h2>Por venir</h2>
+          <span class="ruta-conteo">${pr.length}</span></div>
+        <ul class="registro">${pr.map(tarjetaEv).join('')}</ul></div>` : '') +
+      (pa.length ? `<div class="tarjeta"><div class="tarjeta-alto"><h2>Ya pasaron</h2>
+          <span class="ruta-conteo">${q ? pa.length + ' encontrados' : delAnio.length + ' este año'}</span></div>
+        <ul class="registro">${pa.map(tarjetaEv).join('')}</ul></div>` : '') +
+      (q && !pr.length && !pa.length
+        ? `<div class="vacio"><strong>Ningún evento con «${esc(q)}»</strong>
+            Prueba con otra parte del nombre, el lugar o el tipo.</div>` : '');
+  };
+  pintarEv();
+  engancharBusqueda('qEv', v => { S.qEv = v; pintarEv(); });
+
   app.querySelectorAll('[data-ev]').forEach(b => b.onclick = () => ir('evento', b.dataset.ev));
 
   const n = document.getElementById('nuevo');
@@ -5482,11 +5537,12 @@ async function vAreaGente(id){
     return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
   if (!id) return ir('jerarquias');
 
-  const [{ data:area }, { data:gente }, { data:areas }, { data:lideres }] = await Promise.all([
+  const [{ data:area }, { data:gente }, { data:areas }, { data:lideres }, { data:dir }] = await Promise.all([
     SB.from('areas_vista').select('*').eq('id', id).maybeSingle(),
     SB.from('servidores_por_area').select('*').eq('area_id', id).order('nombre'),
     SB.from('areas_vista').select('id, nombre, tipo').eq('activa', true).order('nombre'),
-    SB.from('lideres_vista').select('id, nombre').order('nombre')
+    SB.from('lideres_vista').select('id, nombre').order('nombre'),
+    SB.from('directorio').select('*').order('nombre')
   ]);
   if (!area) return app.innerHTML = `<div class="error">No se encontró esa área.</div>`;
 
@@ -5497,11 +5553,31 @@ async function vAreaGente(id){
       `${esc(area.tipo)}${area.area_padre ? ' · dentro de ' + esc(area.area_padre) : ''}` +
       `${area.cabeza ? ' · ' + (area.cabeza_rol === 'encargado' ? 'encargado ' : 'cabeza ') + esc(area.cabeza) : ''}`);
 
+  // ---------- meter gente de toda la base ----------
+  // Buscar entre los mil de la iglesia y agregarlos aquí. Sin esto,
+  // la pantalla solo sabía sacar y mover: para meter a alguien había
+  // que irse a otra parte.
+  const dentro = new Set(suyos.map(g => g.persona_id));
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Agregar gente</h2>
+      <span class="ruta-conteo" id="selN">0 seleccionados</span></div>
+    <div class="tarjeta-cuerpo" style="padding-bottom:4px">
+      ${cajaBusqueda('qAdd', 'Buscar por nombre, correo o celular…', S.qAdd || '')}
+    </div>
+    <ul class="registro" id="listaAdd"></ul>
+    <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+      <div class="par"><div><label for="rolNuevo" style="margin-top:0">Con qué rol</label>
+        <select id="rolNuevo">${['participante','cabeza','lider','colider','encargado']
+          .map(v => `<option value="${v}">${ROLES_AREA[v]}</option>`).join('')}</select></div>
+        <div><label style="margin-top:0">&nbsp;</label>
+        <button class="btn" id="agregarA" style="width:100%">Agregarlos al área</button></div></div>
+    </div></div>`;
+
   if (!suyos.length){
     html += `<div class="vacio"><strong>Todavía no hay nadie en esta área</strong>
-      Se agrega gente desde la pantalla de otro líder, o desde Mi servicio.</div>`;
+      Búscalos arriba y agrégalos.</div>`;
     app.innerHTML = html;
     document.getElementById('atras').onclick = () => ir('jerarquias');
+    engancharAgregar();
     return;
   }
 
@@ -5538,6 +5614,7 @@ async function vAreaGente(id){
 
   app.innerHTML = html;
   document.getElementById('atras').onclick = () => ir('jerarquias');
+  engancharAgregar();
 
   const marcadas = () => [...app.querySelectorAll('[data-sel]:checked')].map(c => c.dataset.sel);
   const contar = () => {
@@ -5579,6 +5656,63 @@ async function vAreaGente(id){
     avisar(`${data} ${data === 1 ? 'persona pasó' : 'personas pasaron'} a ${nom}.`);
     ir('areaGente', id);
   };
+
+  function engancharAgregar(){
+    const nuevas = () => [...app.querySelectorAll('[data-add]:checked')].map(c => c.dataset.add);
+    const contarN = () => {
+      const n = nuevas().length;
+      document.getElementById('selN').textContent = n === 1 ? '1 seleccionado' : `${n} seleccionados`;
+    };
+
+    // Con mil personas no se pinta la lista entera: hasta que no se
+    // escriba algo no hay nada que mostrar, y después van las
+    // primeras veinte coincidencias.
+    const pintarAdd = () => {
+      const q = sinT((S.qAdd || '').trim());
+      const ul = document.getElementById('listaAdd');
+      if (!ul) return;
+      if (q.length < 2){
+        ul.innerHTML = `<li><div class="tarjeta-cuerpo" style="padding-top:0">
+          <span class="sub"><span>Escribe al menos dos letras para buscar</span></span></div></li>`;
+        contarN(); return;
+      }
+      const hay = (dir || []).filter(d => !dentro.has(d.id) &&
+        (sinT(d.nombre).includes(q) || sinT(d.correo).includes(q) || sinT(d.celular).includes(q)));
+      ul.innerHTML = hay.length ? hay.slice(0,20).map(d => `<li>
+        <div class="fila" style="cursor:default;display:flex;align-items:flex-start;gap:12px">
+          <label class="campo-op" style="margin-top:3px">
+            <input type="checkbox" data-add="${d.id}"></label>
+          <span style="flex:1;min-width:0">
+            <span class="fila-alto"><span class="nombre">${esc(d.nombre)}</span>
+              ${d.estado === 'visitante' ? '<span class="sello">Visitante</span>' : ''}</span>
+            <span class="sub">${d.correo ? `<span>${esc(d.correo)}</span>` : '<span>sin correo</span>'}
+              ${d.celular ? `<span>· ${esc(d.celular)}</span>` : ''}</span>
+          </span></div></li>`).join('') +
+          (hay.length > 20 ? `<li><div class="tarjeta-cuerpo" style="padding-top:0">
+            <span class="sub"><span>y ${hay.length - 20} más · afina la búsqueda</span></span></div></li>` : '')
+        : `<li><div class="tarjeta-cuerpo" style="padding-top:0">
+            <span class="sub"><span>Nadie con «${esc((S.qAdd||'').trim())}» por fuera de esta área</span></span></div></li>`;
+      app.querySelectorAll('[data-add]').forEach(c => c.onchange = contarN);
+      contarN();
+    };
+    pintarAdd();
+    engancharBusqueda('qAdd', v => { S.qAdd = v; pintarAdd(); });
+
+    const ba = document.getElementById('agregarA');
+    if (ba) ba.onclick = async () => {
+      const sel = nuevas();
+      if (!sel.length) return avisar('No has seleccionado a nadie.', true);
+      const rol = document.getElementById('rolNuevo').value;
+      if (!await confirmar(`¿Agregar ${sel.length === 1 ? 'a 1 persona' : `a ${sel.length} personas`} a ${area.nombre}?`,
+        `Entran como ${ROLES_AREA[rol].toLowerCase()}. Se pueden sacar después.`, false)) return;
+      const { data, error } = await SB.rpc('mover_area_masivo',
+        { p_personas:sel, p_area:id, p_rol:rol, p_sacar_de:null });
+      if (error) return avisar(error.message, true);
+      S.qAdd = '';
+      avisar(`${data} ${data === 1 ? 'persona entró' : 'personas entraron'} a ${area.nombre}.`);
+      ir('areaGente', id);
+    };
+  }
 }
 
 
