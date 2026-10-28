@@ -1052,6 +1052,10 @@ function engancharBusqueda(id, alEscribir){
   x.onclick = () => { caja.value = ''; x.hidden = true; caja.focus(); alEscribir(''); };
 }
 
+const I_GRUPOS = '<svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.4"/><path d="M3 19v-1.5a5 5 0 0 1 10 0V19M14.5 19v-1.2a4 4 0 0 1 6.5-3.1" stroke-linecap="round"/></svg>';
+const I_SERVICIOS = '<svg viewBox="0 0 24 24"><path d="M12 3l2.4 5 5.6.8-4 3.9 1 5.5-5-2.6-5 2.6 1-5.5-4-3.9 5.6-.8z" stroke-linejoin="round"/></svg>';
+const I_MAS = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>';
+
 const I = {
   inicio:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg>',
   listas:'<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.3"/><circle cx="4.5" cy="12" r="1.3"/><circle cx="4.5" cy="18" r="1.3"/></svg>',
@@ -1061,6 +1065,7 @@ const I = {
   fusionar:'<svg viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="5"/><circle cx="15.5" cy="12" r="5"/></svg>',
   jerarquias:'<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1.5"/><rect x="2.5" y="16" width="6" height="5" rx="1.5"/><rect x="15.5" y="16" width="6" height="5" rx="1.5"/><path d="M12 8v4M5.5 16v-2.5h13V16" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   estructura:'<svg viewBox="0 0 24 24"><path d="M4 5h7M4 12h11M4 19h7" stroke-linecap="round"/><circle cx="18.5" cy="5" r="2"/><circle cx="18.5" cy="19" r="2"/></svg>',
+  grupos:I_GRUPOS, servicios:I_SERVICIOS, nuevoGrupo:I_MAS,
   oracion:'<svg viewBox="0 0 24 24"><path d="M12 3c1.8 2.6 3.8 4.4 3.8 7a3.8 3.8 0 0 1-7.6 0c0-2.6 2-4.4 3.8-7z" stroke-linejoin="round"/><path d="M5 20h14M8 20v-2.5a4 4 0 0 1 8 0V20" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   flecha:'<svg class="flecha" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   salir:'<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M14 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2" stroke-linecap="round"/><path d="M18 15l3-3-3-3M21 12H9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -1243,12 +1248,16 @@ function pintarNav(){
       [['procesos','Cursos y procesos'],
        ...(mando ? [['solicitudes','Solicitudes'], ['revisar','Por revisar']] : [])]],
     ['Encuentros', 'eventos',  [['eventos','Eventos'], ['oracion','Oración']]],
-    ['Servicio',   'servicio', [['servicio','Mi servicio']]],
+    ['Grupos', 'estructura',
+      [['grupos','Listado de grupos'],
+       ...(mando ? [['nuevoGrupo','Nuevo grupo']] : [])]],
+    ['Servicio',   'servicio',
+      [['servicio','Mi servicio'],
+       ...(mando ? [['servicios','Áreas de servicio']] : [])]],
     ['Recursos',   'material', [['material','Material']]],
     ...(mando ? [['Administrar', 'usuarios',
       [['usuarios','Usuarios'], ['permisos','Permisos'],
-       ['estructura','Estructura'], ['jerarquias','Jerarquías'],
-       ['fusionar','Fusionar']]]] : [])
+       ['jerarquias','Jerarquías'], ['fusionar','Fusionar']]]] : [])
   ];
 
   // El grupo que contiene la vista abierta arranca desplegado.
@@ -1348,7 +1357,7 @@ function pintarNav(){
 const PADRE = {
   ficha:'personas', lista:'listas', registrar:'registrar',
   evento:'eventos', area:'servicio', lista_oracion:'oracion',
-  bajoSuCargo:'jerarquias', areaGente:'estructura',
+  bajoSuCargo:'jerarquias', areaGente:'grupos', nuevoGrupo:'grupos',
   curso:'procesos', clase:'procesos', quiz:'procesos', resultado:'procesos',
   certificado:'procesos', cursoAdmin:'procesos', quizEditor:'procesos',
   nuevaLista:'listas'
@@ -1378,7 +1387,7 @@ const VISTAS = {
   eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCursoAlumno,
   oracion:vOracion, lista_oracion:vPasarLista,
   jerarquias:vJerarquias, bajoSuCargo:vBajoSuCargo, areaGente:vAreaGente,
-  estructura:vEstructura,
+  grupos:vGrupos, servicios:vServicios, nuevoGrupo:vNuevoGrupo,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -5333,27 +5342,48 @@ function descargarIcs(e, rol){
    ============================================================ */
 const TIPOS_AREA = { red:'Red', ministerio:'Área', servicio:'Servicio', grupo:'Grupo' };
 
-async function vEstructura(){
+// Grupos y áreas de servicio son lo mismo para la base y dos cosas
+// distintas para quien las busca: un grupo de vida es donde alguien
+// PERTENECE, un área de servicio es donde SIRVE. Misma máquina, dos
+// puertas.
+// Declaradas como function y no como const: el mapa de VISTAS está
+// más arriba en el archivo y las nombra, y un const todavía no
+// existe cuando ese mapa se arma.
+function vGrupos()     { return vEstructura('grupos'); }
+function vServicios()  { return vEstructura('servicio'); }
+function vNuevoGrupo() { return vEstructura('grupos', true); }
+
+async function vEstructura(cual, abrirNuevo){
   cargando();
+  cual = cual || 'grupos';
   const yo = V();
   if (!yo.es_admin && !yo.ve_todo)
     return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
 
   const { data:arbol, error } = await SB.rpc('arbol_areas');
   if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
-  const todas = arbol || [];
+
+  const esServicio = cual === 'servicio';
+  const mios = a => esServicio ? a.tipo === 'servicio'
+                               : a.tipo !== 'servicio';
+  const todas = (arbol || []).filter(mios);
   if (S.qEst == null) S.qEst = '';
   if (S.verArchivadas == null) S.verArchivadas = false;
 
   const vivas = todas.filter(a => a.activa || S.verArchivadas);
   const cuenta = t => todas.filter(a => a.tipo === t && a.activa).length;
 
-  let html = cabeza('Estructura',
-    `${cuenta('red')} redes · ${cuenta('grupo')} grupos · ${cuenta('servicio')} áreas de servicio`,
-    `<button class="btn" id="nuevaRed">Nueva red</button>`);
+  let html = esServicio
+    ? cabeza('Áreas de servicio',
+        `${cuenta('servicio')} equipos que sirven el domingo`,
+        `<button class="btn" id="nuevaRed">Nueva área</button>`)
+    : cabeza('Grupos',
+        `${cuenta('red')} redes · ${cuenta('grupo')} grupos de vida`,
+        `<button class="btn" id="nuevaRed">Nueva red</button>`);
 
-  html += cajaBusqueda('qEst', 'Buscar una red, un grupo o un área…', S.qEst);
-  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>El árbol</h2>
+  html += cajaBusqueda('qEst',
+    esServicio ? 'Buscar un área de servicio…' : 'Buscar una red o un grupo…', S.qEst);
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>${esServicio ? 'Los equipos' : 'El árbol'}</h2>
       <label class="campo-op" style="margin:0">
         <input type="checkbox" id="verArch" ${S.verArchivadas ? 'checked' : ''}>
         <span>Ver archivadas</span></label></div>
@@ -5426,9 +5456,9 @@ async function vEstructura(){
     // dentro de un área, otra área. Se preselecciona eso.
     const sugerido = padreTipo === 'red' ? 'grupo' : 'ministerio';
     const r = await dialogo({
-      titulo: padreNom ? `Agregar dentro de ${padreNom}` : 'Nueva red',
+      titulo: padreNom ? `Agregar dentro de ${padreNom}` : (esServicio ? 'Nueva área de servicio' : 'Nueva red'),
       cuerpo: `<label for="naN" style="margin-top:0">Nombre</label>
-               <input type="text" id="naN" placeholder="${padreTipo === 'red' ? 'Juan y Marcela' : 'Ujieres'}">
+               <input type="text" id="naN" placeholder="${esServicio ? 'Ujieres' : (padreTipo === 'red' ? 'Juan y Marcela' : 'Mesas de Caballeros')}">
                ${padreNom ? `<label for="naT">Qué es</label>
                <select id="naT">${Object.entries(TIPOS_AREA).filter(([v]) => v !== 'red')
                  .map(([v,t]) => `<option value="${v}"${v === sugerido ? ' selected' : ''}>${t}</option>`).join('')}</select>` : ''}
@@ -5438,7 +5468,8 @@ async function vEstructura(){
       alMontar: v => () => {
         const n = v.querySelector('#naN').value.trim();
         if (!n){ v.querySelector('#naN').focus(); return undefined; }
-        return { n, t: v.querySelector('#naT') ? v.querySelector('#naT').value : 'red',
+        return { n, t: v.querySelector('#naT') ? v.querySelector('#naT').value
+                                                : (esServicio ? 'servicio' : 'red'),
                  d: v.querySelector('#naD').value.trim() };
       }
     });
@@ -5447,7 +5478,7 @@ async function vEstructura(){
       { p_nombre:r.n, p_tipo:r.t, p_padre:padreId || null, p_desc:r.d || null });
     if (error) return avisar(error.message, true);
     avisar(`${r.n} quedó creada.`);
-    ir('estructura');
+    ir(esServicio ? 'servicios' : 'grupos');
   }
 
   // ---------- renombrar, mover, archivar, borrar ----------
@@ -5496,7 +5527,7 @@ async function vEstructura(){
       const { error } = await SB.rpc('archivar_area', { p_area:a.id, p_archivar:a.activa });
       if (error) return avisar(error.message, true);
       avisar(a.activa ? `${a.nombre} quedó archivada.` : `${a.nombre} volvió.`);
-      return ir('estructura');
+      return ir(esServicio ? 'servicios' : 'grupos');
     }
 
     if (r.accion === 'borrar'){
@@ -5505,7 +5536,7 @@ async function vEstructura(){
       const { error } = await SB.rpc('borrar_area', { p_area:a.id });
       if (error) return avisar(error.message, true);
       avisar(`${a.nombre} se borró.`);
-      return ir('estructura');
+      return ir(esServicio ? 'servicios' : 'grupos');
     }
 
     if (r.n && r.n !== a.nombre || r.d !== (a.descripcion || '')){
@@ -5518,11 +5549,13 @@ async function vEstructura(){
       if (error) return avisar(error.message, true);
     }
     avisar('Guardado.');
-    ir('estructura');
+    ir(esServicio ? 'servicios' : 'grupos');
   }
 
   document.getElementById('nuevaRed').onclick = () => pedirArea(null, null, null);
-  document.getElementById('verArch').onchange = e => { S.verArchivadas = e.target.checked; ir('estructura'); };
+  if (abrirNuevo) setTimeout(() => pedirArea(null, null, null), 60);
+  document.getElementById('verArch').onchange = e => {
+    S.verArchivadas = e.target.checked; ir(esServicio ? 'servicios' : 'grupos'); };
   pintarE();
   engancharBusqueda('qEst', v => { S.qEst = v; pintarE(); });
 }
