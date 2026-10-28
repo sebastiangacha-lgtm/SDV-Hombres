@@ -700,6 +700,28 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
 .btn.chico{padding:6px 12px;font-size:12.5px;border-radius:9px}
 .btn.rojo{background:none;color:var(--barro);border:1px solid var(--barro-tenue);box-shadow:none}
 .btn.rojo:hover{background:var(--barro-tenue);filter:none}
+.btn.ambar{background:none;color:var(--ambar);border:1px solid var(--ambar-tenue);box-shadow:none}
+.btn.ambar:hover{background:var(--ambar-tenue);filter:none}
+
+/* Un dato que no se puede cambiar se ve como dato, no como caja de
+   texto vacia: si solo lidero un grupo, ahi va el nombre y punto. */
+.dato-fijo{margin:0;padding:11px 0;font-size:17px;font-weight:600;color:var(--texto)}
+
+/* El boton de guardar al pie, pegado abajo en el celular: en una
+   lista de catorce nombres, buscar el boton es bajar hasta el final
+   con el pulgar. */
+.guardar-pie{display:flex;gap:9px;flex-wrap:wrap;margin:22px 0 10px}
+.guardar-pie .btn{flex:1 1 auto;justify-content:center;padding:13px 18px;font-size:15px}
+@media (max-width:760px){
+  /* Queda dentro de la caja de contenido a propósito: sacarlo a los
+     bordes con margen negativo le sumaba dos píxeles al ancho de la
+     página y aparecía scroll horizontal en el celular. */
+  .guardar-pie{
+    position:sticky;z-index:4;margin:22px 0 0;padding:12px 0 14px;
+    bottom:calc(72px + env(safe-area-inset-bottom));
+    background:var(--fondo);border-top:1px solid var(--linea-suave);
+  }
+}
 
 label{display:block;font-size:13px;font-weight:600;color:var(--suave);margin:15px 0 6px}
 .tarjeta-cuerpo label:first-child,form label:first-child{margin-top:0}
@@ -1057,6 +1079,8 @@ const I_SERVICIOS = '<svg viewBox="0 0 24 24"><path d="M12 3l2.4 5 5.6.8-4 3.9 1
 const I_MAS = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>';
 
 const I = {
+  reportar:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke-linejoin="round"/><path d="M14 3v5h5M9 13l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  reportes:'<svg viewBox="0 0 24 24"><path d="M5 19V9M10 19V5M15 19v-7M20 19v-4" stroke-linecap="round"/><path d="M3 21h18" stroke-linecap="round"/></svg>',
   inicio:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg>',
   listas:'<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.3"/><circle cx="4.5" cy="12" r="1.3"/><circle cx="4.5" cy="18" r="1.3"/></svg>',
   solicitudes:'<svg viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" stroke-linejoin="round"/><path d="M4 8l8 5 8-5" stroke-linecap="round"/></svg>',
@@ -1118,6 +1142,13 @@ async function entrar(){
   S.procPersona = S.yo.persona_id;
   const { data:gente } = await SB.from('personas').select('id,nombre');
   S.nombres = new Map((gente||[]).map(p => [p.id, p.nombre]));
+
+  // Si lidera algo que se reporta, el menu le pone «Reportar mi
+  // grupo». Si no, no: un renglon que al abrirlo dice «esto no es
+  // para ti» es peor que no tenerlo.
+  const { count:nGrupos } = await SB.from('mis_grupos_reportables')
+    .select('area_id', { count:'exact', head:true });
+  S.misGrupos = (nGrupos || 0) > 0;
 
   // Primer ingreso: la clave de arranque no sirve para quedarse.
   if (S.yo.debe_cambiar_clave) return pantallaCambioClave();
@@ -1249,7 +1280,9 @@ function pintarNav(){
        ...(mando ? [['solicitudes','Solicitudes'], ['revisar','Por revisar']] : [])]],
     ['Encuentros', 'eventos',  [['eventos','Eventos'], ['oracion','Oración']]],
     ['Grupos', 'estructura',
-      [['grupos','Listado de grupos'],
+      [...(S.misGrupos ? [['reportar','Reportar mi grupo']] : []),
+       ...(mando ? [['grupos','Listado de grupos']] : []),
+       ...(S.misGrupos || mando ? [['reportes','Reportes de grupos']] : []),
        ...(mando ? [['nuevoGrupo','Nuevo grupo']] : [])]],
     ['Servicio',   'servicio',
       [['servicio','Mi servicio'],
@@ -1354,10 +1387,19 @@ function pintarNav(){
    una clase). Para que el menú no quede sin nada marcado al abrirlas
    —sobre todo si se llega por un enlace directo— cada una apunta al
    renglón del que cuelga. */
+/* La pantalla de un área cuelga de tres sitios distintos: de Grupos
+   si es un grupo de vida, de Áreas de servicio si es un equipo, y de
+   Jerarquías si se entró por ahí. Un padre fijo marcaba «Grupos»
+   estando dentro de Alabanza, que es mentira. Por eso el padre puede
+   ser una función que se resuelve al momento de marcar. */
+let padreDeArea = null;
+
 const PADRE = {
   ficha:'personas', lista:'listas', registrar:'registrar',
   evento:'eventos', area:'servicio', lista_oracion:'oracion',
-  bajoSuCargo:'jerarquias', areaGente:'grupos', nuevoGrupo:'grupos',
+  bajoSuCargo:'jerarquias', nuevoGrupo:'grupos',
+  areaGente: () => padreDeArea || 'grupos',
+  reportar:'grupos', reportes:'grupos',
   curso:'procesos', clase:'procesos', quiz:'procesos', resultado:'procesos',
   certificado:'procesos', cursoAdmin:'procesos', quizEditor:'procesos',
   nuevaLista:'listas'
@@ -1365,7 +1407,9 @@ const PADRE = {
 
 function marcar(v){
   // Si la vista no está en el menú, se marca la de la que cuelga.
-  const enMenu = document.querySelector(`.lado [data-v="${v}"]`) ? v : (PADRE[v] || v);
+  let p = PADRE[v];
+  if (typeof p === 'function') p = p();
+  const enMenu = document.querySelector(`.lado [data-v="${v}"]`) ? v : (p || v);
   document.querySelectorAll('[data-v]').forEach(b =>
     b.dataset.v === enMenu ? b.setAttribute('aria-current','page') : b.removeAttribute('aria-current'));
   // El grupo que contiene la vista abierta se marca en verde, aunque
@@ -1388,6 +1432,7 @@ const VISTAS = {
   oracion:vOracion, lista_oracion:vPasarLista,
   jerarquias:vJerarquias, bajoSuCargo:vBajoSuCargo, areaGente:vAreaGente,
   grupos:vGrupos, servicios:vServicios, nuevoGrupo:vNuevoGrupo,
+  reportar:vReportar, reportes:vReportes,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -1419,7 +1464,7 @@ function leerDireccion(){
 
 // Dónde quedó la pantalla la última vez que se pintó, para saber si
 // lo que viene es una pantalla nueva o la misma de nuevo.
-let vistaAnterior = null, argAnterior = null;
+let vistaAnterior = null, argAnterior = null, vistaPrevia = null;
 
 async function pintarVista(vista, arg){
   if (!S.yo) return;
@@ -1434,6 +1479,7 @@ async function pintarVista(vista, arg){
                         String(arg ?? '') === String(argAnterior ?? '');
   const altura = mismaPantalla ? window.scrollY : 0;
 
+  if (vista !== vistaAnterior) vistaPrevia = vistaAnterior;
   vistaAnterior = vista; argAnterior = arg;
   S.vista = vista; marcar(vista);
   if (!mismaPantalla) window.scrollTo(0,0);
@@ -5788,7 +5834,17 @@ async function vAreaGente(id){
 
   const suyos = gente || [];
 
-  let html = `<button class="volver" id="atras">← Volver a Jerarquías</button>` +
+  // De dónde se entró decide el renglón que queda marcado en el menú
+  // y a dónde devuelve el botón de atrás. Entrar a Alabanza y ver
+  // «Grupos» marcado en el menú despista.
+  const volverA = (vistaPrevia === 'jerarquias' || vistaPrevia === 'bajoSuCargo')
+    ? { v:'jerarquias', t:'Jerarquías' }
+    : (area.tipo === 'servicio' ? { v:'servicios', t:'Áreas de servicio' }
+                                : { v:'grupos',    t:'Grupos' });
+  padreDeArea = volverA.v;
+  marcar('areaGente');
+
+  let html = `<button class="volver" id="atras">← Volver a ${volverA.t}</button>` +
     cabeza(esc(area.nombre),
       `${esc(area.tipo)}${area.area_padre ? ' · dentro de ' + esc(area.area_padre) : ''}` +
       `${area.cabeza ? ' · ' + (area.cabeza_rol === 'encargado' ? 'encargado ' : 'cabeza ') + esc(area.cabeza) : ''}`);
@@ -5816,7 +5872,7 @@ async function vAreaGente(id){
     html += `<div class="vacio"><strong>Todavía no hay nadie en esta área</strong>
       Búscalos arriba y agrégalos.</div>`;
     app.innerHTML = html;
-    document.getElementById('atras').onclick = () => ir('jerarquias');
+    document.getElementById('atras').onclick = () => ir(volverA.v);
     engancharAgregar();
     return;
   }
@@ -5853,7 +5909,7 @@ async function vAreaGente(id){
     </div></div>`;
 
   app.innerHTML = html;
-  document.getElementById('atras').onclick = () => ir('jerarquias');
+  document.getElementById('atras').onclick = () => ir(volverA.v);
   engancharAgregar();
 
   const marcadas = () => [...app.querySelectorAll('[data-sel]:checked')].map(c => c.dataset.sel);
@@ -5952,6 +6008,480 @@ async function vAreaGente(id){
       avisar(`${data} ${data === 1 ? 'persona entró' : 'personas entraron'} a ${area.nombre}.`);
       ir('areaGente', id);
     };
+  }
+}
+
+
+/* ============================================================
+   Reportar mi grupo — una sola pantalla
+   ------------------------------------------------------------
+   Redil partía esto en cinco pasos y un calendario. El calendario
+   era el problema: la semana de Redil arranca el domingo y la del
+   tablero el lunes, así que un grupo que se reunía el domingo y
+   reportaba el jueves dejaba dos reportes en una semana y otra en
+   blanco. Aquí no se elige un día: se elige una SEMANA, de una
+   lista corta, y la base no deja más de un reporte por semana.
+   Si ya se reportó, esta misma pantalla lo abre lleno y lo corrige.
+   ============================================================ */
+
+// Lunes de la semana de una fecha, igual que semana_de() en la base.
+function lunesDe(f){
+  const [a,m,d] = f.split('-').map(Number);
+  const x = new Date(Date.UTC(a, m-1, d));
+  const dow = x.getUTCDay() || 7;            // domingo = 7
+  x.setUTCDate(x.getUTCDate() - (dow - 1));
+  return x.toISOString().slice(0,10);
+}
+const masDias = (f, n) => {
+  const [a,m,d] = f.split('-').map(Number);
+  const x = new Date(Date.UTC(a, m-1, d));
+  x.setUTCDate(x.getUTCDate() + n);
+  return x.toISOString().slice(0,10);
+};
+// «26 oct – 1 nov», que es como se nombra una semana al hablar.
+const rangoSemana = l => {
+  const f = masDias(l, 6);
+  const mes = s => ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][Number(s.slice(5,7))-1];
+  const dia = s => Number(s.slice(8,10));
+  return mes(l) === mes(f) ? `${dia(l)} – ${dia(f)} ${mes(f)}`
+                           : `${dia(l)} ${mes(l)} – ${dia(f)} ${mes(f)}`;
+};
+
+async function vReportar(argGrupo){
+  cargando();
+  const { data:grupos, error } = await SB.from('mis_grupos_reportables').select('*').order('grupo');
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  if (!grupos || !grupos.length)
+    return app.innerHTML = cabeza('Reportar mi grupo') +
+      `<div class="vacio"><strong>No tienes un grupo a cargo</strong>
+        Esta pantalla es para quien lidera un grupo de vida o un área.
+        Si deberías tener uno, avísale a quien administra la plataforma.</div>`;
+
+  const { data:motivos } = await SB.from('motivos_inasistencia')
+    .select('*').eq('activo', true).order('orden');
+
+  // Lo que se está reportando vive en S mientras dura la pantalla:
+  // así un repintado de la lista no borra lo que ya se marcó.
+  const R = S.rep && S.rep.vivo ? S.rep : null;
+  const elegido = (argGrupo && grupos.find(g => g.area_id === argGrupo))
+               || (R && grupos.find(g => g.area_id === R.area))
+               || grupos[0];
+
+  // Las cinco semanas más recientes, de la de hoy hacia atrás. Nadie
+  // reporta algo de hace dos meses, y si hace falta se corrige desde
+  // la lista de reportes.
+  const estaSemana = lunesDe(hoy());
+  const semanas = [0,1,2,3,4].map(i => masDias(estaSemana, -7*i));
+
+  if (!R || R.area !== elegido.area_id){
+    S.rep = { vivo:true, area:elegido.area_id, semana:estaSemana,
+              hizo:null, tema:'', obs:'', marcas:{}, invitados:[] };
+  }
+  const rep = S.rep;
+
+  await pintarReporte(grupos, elegido, semanas, motivos || []);
+
+  /* Cada vez que cambia el grupo o la semana hay que traer otra
+     lista: la de ese grupo, y lo que ya se reportó esa semana. */
+  async function pintarReporte(grupos, g, semanas, motivos){
+    const [{ data:miembros }, { data:previo }] = await Promise.all([
+      SB.from('servidores_por_area').select('*').eq('area_id', rep.area).order('nombre'),
+      SB.from('reportes_grupo').select('*').eq('area_id', rep.area).eq('semana', rep.semana).maybeSingle()
+    ]);
+
+    // Si esa semana ya tiene reporte, la pantalla se abre llena: se
+    // está corrigiendo, no empezando de cero.
+    let detalle = [];
+    if (previo){
+      const { data:d } = await SB.from('reporte_detalle').select('*').eq('evento_id', previo.id);
+      detalle = d || [];
+      if (!rep.cargado || rep.cargadoDe !== previo.id){
+        rep.hizo = previo.se_realizo;
+        rep.tema = previo.tema || '';
+        rep.obs  = previo.observaciones || '';
+        rep.marcas = {};
+        // Un invitado SÍ tiene persona_id: se crea como persona con
+        // estado «visitante». Lo que los separa de la lista del grupo
+        // es ese estado, no la falta de id.
+        detalle.filter(x => x.estado_persona !== 'visitante').forEach(x => {
+          rep.marcas[x.persona_id] = { estado:x.estado, motivo:x.motivo_id || '', nota:x.nota || '' };
+        });
+        rep.invitados = detalle.filter(x => x.estado_persona === 'visitante')
+          .map(x => ({ nombre:x.nombre, celular:x.celular || '', veces:x.veces || 0 }));
+        rep.cargado = true; rep.cargadoDe = previo.id;
+      }
+    } else { rep.cargado = false; rep.cargadoDe = null; }
+
+    const lista = (miembros || []).filter(m => m.estado !== 'visitante');
+    const pideNota = new Set(motivos.filter(m => m.pide_nota).map(m => m.id));
+    if (S.qRep == null) S.qRep = '';
+
+    const esLaDeHoy = rep.semana === lunesDe(hoy());
+    let html = cabeza('Reportar mi grupo',
+      previo ? `${esLaDeHoy ? 'Esta semana' : rangoSemana(rep.semana)} ya tiene reporte · lo estás corrigiendo`
+             : `Un reporte por semana. No importa el día en que se reunieron.`);
+
+    /* ---------- el grupo y la semana ---------- */
+    html += `<div class="tarjeta"><div class="tarjeta-cuerpo">
+      <div class="par">
+        <div><label for="rGrupo" style="margin-top:0">Mi grupo</label>
+          ${grupos.length > 1
+            ? `<select id="rGrupo">${grupos.map(x => `<option value="${x.area_id}"${x.area_id === rep.area ? ' selected' : ''}>${esc(x.grupo)}</option>`).join('')}</select>`
+            : `<p class="dato-fijo">${esc(grupos[0].grupo)}</p>`}</div>
+        <div><label for="rSem" style="margin-top:0">¿De qué semana?</label>
+          <select id="rSem">${semanas.map((s,i) => `<option value="${s}"${s === rep.semana ? ' selected' : ''}>${
+            (i === 0 ? 'Esta semana' : i === 1 ? 'La semana pasada' : `Hace ${i} semanas`)} · ${rangoSemana(s)}</option>`).join('')}</select></div>
+      </div>
+
+      <label style="margin-top:18px">¿Se reunieron?</label>
+      <div class="paso-acc" style="margin-top:4px">
+        <button class="btn ${rep.hizo === true ? '' : 'seco'}" data-hizo="1">Sí, nos reunimos</button>
+        <button class="btn ${rep.hizo === false ? 'rojo' : 'seco'}" data-hizo="0">No hubo reunión</button>
+      </div>
+
+      <div id="rSi" ${rep.hizo === true ? '' : 'hidden'}>
+        <label for="rTema">¿Qué vieron?</label>
+        <input id="rTema" type="text" value="${esc(rep.tema)}" placeholder="El tema, el pasaje, la serie…">
+      </div>
+      <label for="rObs">Algo que contar (opcional)</label>
+      <textarea id="rObs" rows="2" placeholder="${rep.hizo === false ? 'Por qué no hubo reunión' : 'Lo que haya que saber de esta semana'}">${esc(rep.obs)}</textarea>
+    </div></div>`;
+
+    /* ---------- la lista ---------- */
+    if (rep.hizo === true){
+      html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quién vino</h2>
+          <span class="ruta-conteo" id="rConteo"></span></div>
+        ${lista.length > 10 ? `<div class="tarjeta-cuerpo" style="padding-bottom:0">
+          ${cajaBusqueda('qRep', 'Buscar en el grupo…', S.qRep)}</div>` : ''}
+        <ul class="registro" id="rLista"></ul>
+        <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+          <span class="sub"><span>A quien no marques le queda «ausente» al guardar.</span></span>
+        </div></div>`;
+
+      /* ---------- invitados ---------- */
+      html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Invitados</h2>
+          <span class="ruta-conteo" id="rInvConteo"></span>
+          <button class="btn seco chico" id="rAddInv">Agregar invitado</button></div>
+        <ul class="registro" id="rInv"></ul>
+        <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+          <span class="sub"><span>Con el nombre basta. A la tercera visita la plataforma pide meterlo al grupo.</span></span>
+        </div></div>`;
+    }
+
+    html += `<div class="guardar-pie">
+      <button class="btn" id="rGuardar">${previo ? 'Guardar la corrección' : 'Guardar el reporte'}</button>
+      <a class="btn seco" href="${direccion('reportes')}">Ver los reportes</a>
+    </div>`;
+
+    app.innerHTML = html;
+
+    /* ---------- enganchar ---------- */
+    const sg = document.getElementById('rGrupo');
+    if (sg) sg.onchange = e => {
+      rep.area = e.target.value; rep.hizo = null; rep.tema = ''; rep.obs = '';
+      rep.marcas = {}; rep.invitados = []; rep.cargado = false; S.qRep = '';
+      pintarReporte(grupos, grupos.find(x => x.area_id === rep.area), semanas, motivos);
+    };
+    document.getElementById('rSem').onchange = e => {
+      rep.semana = e.target.value; rep.cargado = false;
+      rep.hizo = null; rep.tema = ''; rep.obs = ''; rep.marcas = {}; rep.invitados = [];
+      pintarReporte(grupos, g, semanas, motivos);
+    };
+    app.querySelectorAll('[data-hizo]').forEach(b => b.onclick = () => {
+      guardarCampos();
+      rep.hizo = b.dataset.hizo === '1';
+      pintarReporte(grupos, g, semanas, motivos);
+    });
+
+    const campoTema = document.getElementById('rTema');
+    const campoObs  = document.getElementById('rObs');
+    function guardarCampos(){
+      if (campoTema) rep.tema = campoTema.value;
+      if (campoObs)  rep.obs  = campoObs.value;
+    }
+    if (campoTema) campoTema.oninput = () => rep.tema = campoTema.value;
+    if (campoObs)  campoObs.oninput  = () => rep.obs  = campoObs.value;
+
+    if (rep.hizo !== true){
+      document.getElementById('rGuardar').onclick = enviar;
+      return;
+    }
+
+    /* ---------- la lista, repintada por fila ---------- */
+    const filaP = p => {
+      const m = rep.marcas[p.persona_id] || {};
+      const es = m.estado;
+      const necesita = es === 'ausente' && m.motivo && pideNota.has(m.motivo);
+      return `<li id="rp-${p.persona_id}"><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(p.nombre)}</span>
+          ${selloRol(p.rol_en_area)}</span>
+        <span class="paso-acc" style="margin-top:9px">
+          <button class="btn ${es === 'presente' ? '' : 'seco'} chico" data-rp="${p.persona_id}" data-e="presente">Vino</button>
+          <button class="btn ${es === 'ausente' ? 'rojo' : 'seco'} chico" data-rp="${p.persona_id}" data-e="ausente">No vino</button>
+          <button class="btn ${es === 'permiso' ? 'ambar' : 'seco'} chico" data-rp="${p.persona_id}" data-e="permiso">Con permiso</button>
+        </span>
+        ${es === 'ausente' || es === 'permiso' ? `
+          <div style="margin-top:11px;max-width:460px">
+            <select data-rmot="${p.persona_id}" aria-label="Por qué no vino ${esc(p.nombre)}">
+              <option value="">¿Por qué? (opcional)</option>
+              ${motivos.map(mo => `<option value="${mo.id}"${mo.id === m.motivo ? ' selected' : ''}>${esc(mo.nombre)}</option>`).join('')}
+            </select>
+            ${necesita ? `<textarea data-rnota="${p.persona_id}" rows="2" style="margin-top:8px"
+               placeholder="Qué pasó y qué hiciste">${esc(m.nota || '')}</textarea>
+               <span class="sub" data-rfalta="${p.persona_id}" ${(m.nota || '').trim() ? 'hidden' : ''}>
+                 <span style="color:var(--barro)">Este motivo necesita una nota.</span></span>` : ''}
+          </div>` : ''}
+      </div></li>`;
+    };
+
+    const visibles = () => {
+      const q = sinT(S.qRep.trim());
+      return q ? lista.filter(p => sinT(p.nombre).includes(q)) : lista;
+    };
+
+    function pintarLista(){
+      const v = visibles();
+      document.getElementById('rLista').innerHTML = v.length ? v.map(filaP).join('')
+        : `<li><div class="tarjeta-cuerpo" style="padding-top:0">
+            <span class="sub"><span>Nadie con «${esc(S.qRep.trim())}» en el grupo</span></span></div></li>`;
+      enlazarLista();
+      contar();
+    }
+    function repintarFila(pid){
+      const li = document.getElementById('rp-' + pid);
+      const p = lista.find(x => x.persona_id === pid);
+      if (!li || !p) return pintarLista();
+      li.outerHTML = filaP(p);
+      enlazarLista();
+      contar();
+    }
+    function contar(){
+      const n = k => Object.values(rep.marcas).filter(m => m.estado === k).length;
+      const c = document.getElementById('rConteo');
+      if (c) c.textContent = `${n('presente')} de ${lista.length}`;
+      const ci = document.getElementById('rInvConteo');
+      if (ci) ci.textContent = rep.invitados.length || '';
+    }
+    function enlazarLista(){
+      app.querySelectorAll('[data-rp]').forEach(b => b.onclick = () => {
+        const pid = b.dataset.rp, e = b.dataset.e;
+        const m = rep.marcas[pid] || {};
+        // Volver a tocar el mismo botón desmarca: así se corrige sin
+        // tener que recargar la pantalla.
+        if (m.estado === e) delete rep.marcas[pid];
+        else rep.marcas[pid] = { estado:e, motivo:e === 'presente' ? '' : (m.motivo || ''), nota:m.nota || '' };
+        repintarFila(pid);
+      });
+      app.querySelectorAll('[data-rmot]').forEach(s => s.onchange = () => {
+        const pid = s.dataset.rmot;
+        // El select entrega texto y los motivos son números: sin el
+        // Number, «Enfermedad» nunca pedía la nota.
+        rep.marcas[pid] = { ...(rep.marcas[pid] || { estado:'ausente' }),
+                            motivo:s.value ? Number(s.value) : '' };
+        repintarFila(pid);
+      });
+      app.querySelectorAll('[data-rnota]').forEach(t => t.oninput = () => {
+        const pid = t.dataset.rnota;
+        rep.marcas[pid] = { ...(rep.marcas[pid] || { estado:'ausente' }), nota:t.value };
+        // No se repinta la fila: eso sacaría el cursor del renglón a
+        // la primera letra. Solo se esconde el aviso.
+        const av = app.querySelector(`[data-rfalta="${pid}"]`);
+        if (av) av.hidden = !!t.value.trim();
+      });
+    }
+    pintarLista();
+    engancharBusqueda('qRep', v => { S.qRep = v; pintarLista(); });
+
+    /* ---------- invitados ---------- */
+    function pintarInv(){
+      document.getElementById('rInv').innerHTML = rep.invitados.length
+        ? rep.invitados.map((x,i) => `<li><div class="fila" style="cursor:default">
+            <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(x.nombre)}</span>
+              ${x.veces >= 2 ? '<span class="marca-est m-alerta">ya vino ' + x.veces + ' veces</span>' : ''}</span>
+            <span class="sub">${x.celular ? `<span>${esc(x.celular)}</span>` : '<span>sin celular</span>'}</span>
+            <span style="display:flex;gap:7px;margin-top:9px">
+              <button class="btn seco chico" data-rinvq="${i}">Quitar</button></span>
+          </div></li>`).join('')
+        : `<li><div class="tarjeta-cuerpo" style="padding-top:0">
+            <span class="sub"><span>Sin invitados esta semana</span></span></div></li>`;
+      app.querySelectorAll('[data-rinvq]').forEach(b => b.onclick = () => {
+        rep.invitados.splice(Number(b.dataset.rinvq), 1); pintarInv(); contar();
+      });
+    }
+    pintarInv();
+
+    document.getElementById('rAddInv').onclick = async () => {
+      const r = await dialogo({
+        titulo:'¿Quién vino de visita?',
+        cuerpo:`<label for="inN" style="margin-top:0">Nombre</label>
+                <input type="text" id="inN" placeholder="Como se presentó">
+                <label for="inC">Celular (opcional)</label>
+                <input type="text" id="inC" inputmode="numeric">`,
+        aceptar:'Agregar',
+        alMontar: v => () => {
+          const n = v.querySelector('#inN').value.trim();
+          if (!n){ v.querySelector('#inN').focus(); return undefined; }
+          return { n, c:v.querySelector('#inC').value.trim() };
+        }
+      });
+      if (!r) return;
+      if (rep.invitados.some(x => sinT(x.nombre) === sinT(r.n)))
+        return avisar('Ese invitado ya está en la lista.', true);
+      // Cuántas veces ha venido antes a ESTE grupo: si ya va en dos,
+      // el aviso sale ahora y no al guardar.
+      const { data:veces } = await SB.rpc('veces_de_invitado_asi',
+        { p_area:rep.area, p_nombre:r.n, p_celular:r.c || null });
+      rep.invitados.push({ nombre:r.n, celular:r.c, veces:veces || 0 });
+      pintarInv(); contar();
+      if ((veces || 0) >= 2)
+        avisar(`${r.n} ya había venido ${veces} veces. Al guardar hay que meterlo al grupo.`, true);
+    };
+
+    document.getElementById('rGuardar').onclick = enviar;
+  }
+
+  /* ---------- guardar ---------- */
+  async function enviar(){
+    if (rep.hizo === null) return avisar('Falta decir si se reunieron.', true);
+
+    const b = document.getElementById('rGuardar');
+    const marcas = Object.entries(rep.marcas).map(([pid,m]) => ({
+      persona_id:pid, estado:m.estado,
+      motivo_id:m.motivo ? Number(m.motivo) : null, nota:(m.nota || '').trim() || null
+    }));
+
+    if (rep.hizo === true && !marcas.length &&
+        !await confirmar('No marcaste a nadie', 'Todo el grupo va a quedar como ausente. ¿Así es?', false))
+      return;
+
+    b.disabled = true; b.textContent = 'Guardando…';
+    const { error } = await SB.rpc('reportar_grupo', {
+      p_area:rep.area, p_semana:rep.semana, p_se_realizo:rep.hizo,
+      p_tema:rep.hizo ? (rep.tema.trim() || null) : null,
+      p_observaciones:rep.obs.trim() || null,
+      p_marcas:rep.hizo ? marcas : [],
+      p_invitados:rep.hizo ? rep.invitados.map(x => ({ nombre:x.nombre, celular:x.celular || null })) : []
+    });
+    b.disabled = false; b.textContent = 'Guardar el reporte';
+    if (error) return avisar(error.message, true);
+    S.rep = null; S.qRep = '';
+    avisar('Reporte guardado.');
+    ir('reportes');
+  }
+}
+
+/* ------------------------------------------------------------
+   Los reportes que ya se guardaron
+   ------------------------------------------------------------ */
+async function vReportes(){
+  cargando();
+  const { data:filas, error } = await SB.from('reportes_grupo').select('*')
+    .order('semana', { ascending:false }).order('grupo').limit(400);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+  const [{ data:porVincular }, { data:faltantes }] = await Promise.all([
+    SB.from('invitados_por_vincular').select('*'),
+    SB.from('grupos_sin_reportar').select('*').order('red').order('grupo')
+  ]);
+
+  if (S.qRepL == null) S.qRepL = '';
+  const lista = filas || [];
+  const semanaHoy = lunesDe(hoy());
+  const deEstaSemana = lista.filter(r => r.semana === semanaHoy);
+
+  const noHubo = deEstaSemana.filter(r => !r.se_realizo).length;
+  let html = cabeza('Reportes de los grupos',
+    `${deEstaSemana.length} ${deEstaSemana.length === 1 ? 'reporte' : 'reportes'} de esta semana` +
+    (noHubo ? ` · ${noHubo} ${noHubo === 1 ? 'grupo no se reunió' : 'grupos no se reunieron'}` : ''),
+    `<a class="btn" href="${direccion('reportar')}">Reportar mi grupo</a>`);
+
+  const sinReportar = faltantes || [];
+  html += cifras([
+    { icono:'personas', color:'verde', valor:deEstaSemana.filter(r => r.se_realizo).length, texto:'grupos se reunieron' },
+    { icono:'alerta',   color:'ambar', valor:sinReportar.length, texto:'sin reportar' },
+    { icono:'personas', color:'azul',
+      valor:deEstaSemana.reduce((s,r) => s + (r.presentes || 0), 0), texto:'personas en grupos' },
+    { icono:'puerta',   color:'ambar',
+      valor:deEstaSemana.reduce((s,r) => s + (r.invitados || 0), 0), texto:'invitados' }
+  ]);
+
+  // Lo primero que se busca un lunes no es quién reportó: es quién
+  // no. Una lista de reportes muestra solo a los que sí, y el
+  // silencio no aparece por ninguna parte.
+  if (sinReportar.length){
+    if (S.qFalta == null) S.qFalta = '';
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Todavía no han reportado</h2>
+        <span class="ruta-conteo" id="fConteo">${sinReportar.length}</span></div>
+      ${sinReportar.length > 10 ? `<div class="tarjeta-cuerpo" style="padding-bottom:0">
+        ${cajaBusqueda('qFalta', 'Buscar un grupo o una red…', S.qFalta)}</div>` : ''}
+      <ul class="registro" id="fLista"></ul></div>`;
+  }
+
+  if (porVincular && porVincular.length)
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Invitados que ya son del grupo</h2>
+        <span class="ruta-conteo">${porVincular.length}</span></div>
+      <ul class="registro">${porVincular.map(v => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(v.nombre)}</span>
+          <span class="marca-est m-alerta">${v.veces} visitas</span></span>
+        <span class="sub"><span>${esc(v.grupo)}</span>
+          ${v.celular ? `<span>· ${esc(v.celular)}</span>` : ''}</span>
+      </div></li>`).join('')}</ul>
+      <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+        <span class="sub"><span>Ya vinieron dos veces o más. Vale la pena registrarlos como personas.</span></span>
+      </div></div>`;
+
+  html += cajaBusqueda('qRepL', 'Buscar un grupo o una semana…', S.qRepL);
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Semana por semana</h2>
+      <span class="ruta-conteo" id="rlConteo"></span></div>
+    <ul class="registro" id="rlLista"></ul></div>`;
+
+  app.innerHTML = html;
+
+  const fila = r => `<li><div class="fila" style="cursor:default">
+      <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(r.grupo)}</span>
+        ${r.se_realizo ? '<span class="marca-est m-cuidado">se reunió</span>'
+                       : '<span class="marca-est m-alerta">no hubo</span>'}</span>
+      <span class="sub"><span>${rangoSemana(r.semana)}</span>
+        ${r.se_realizo ? `<span>· ${r.presentes} de ${r.en_grupo}</span>
+          ${r.invitados ? `<span>· ${r.invitados} ${r.invitados === 1 ? 'invitado' : 'invitados'}</span>` : ''}` : ''}
+        ${r.tema ? `<span>· ${esc(r.tema)}</span>` : ''}</span>
+      ${r.observaciones ? `<span class="sub"><span>${esc(r.observaciones)}</span></span>` : ''}
+    </div></li>`;
+
+  const pintar = () => {
+    const q = sinT(S.qRepL.trim());
+    const v = q ? lista.filter(r => sinT(r.grupo).includes(q) || sinT(rangoSemana(r.semana)).includes(q)) : lista;
+    document.getElementById('rlConteo').textContent = `${v.length} de ${lista.length}`;
+    document.getElementById('rlLista').innerHTML = v.length ? v.map(fila).join('')
+      : `<li><div class="vacio" style="margin:0"><strong>Nada con «${esc(S.qRepL.trim())}»</strong>
+           Prueba con el nombre del grupo.</div></li>`;
+  };
+  pintar();
+  engancharBusqueda('qRepL', v => { S.qRepL = v; pintar(); });
+
+  if (sinReportar.length){
+    const filaF = f => `<li>
+      <a class="fila" href="${direccion('areaGente', f.area_id)}">
+        <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(f.grupo)}</span>
+          ${f.ultima_semana_reportada
+            ? `<span class="marca-est m-alerta">último: ${rangoSemana(f.ultima_semana_reportada)}</span>`
+            : '<span class="marca-est m-desconectado">nunca ha reportado</span>'}</span>
+        <span class="sub">
+          ${f.red ? `<span>${esc(f.red)}</span>` : '<span>sin red</span>'}
+          <span>· ${f.miembros} ${f.miembros === 1 ? 'persona' : 'personas'}</span>
+          ${f.lidera ? `<span>· ${esc(f.lidera)}</span>` : '<span>· sin líder</span>'}</span>
+      </a></li>`;
+    const pintarF = () => {
+      const q = sinT(S.qFalta.trim());
+      const v = q ? sinReportar.filter(f => sinT(f.grupo).includes(q) || sinT(f.red || '').includes(q))
+                  : sinReportar;
+      document.getElementById('fConteo').textContent = q ? `${v.length} de ${sinReportar.length}` : sinReportar.length;
+      document.getElementById('fLista').innerHTML = v.length ? v.map(filaF).join('')
+        : `<li><div class="vacio" style="margin:0"><strong>Nada con «${esc(S.qFalta.trim())}»</strong>
+             Prueba con el nombre del grupo o de la red.</div></li>`;
+    };
+    pintarF();
+    engancharBusqueda('qFalta', v => { S.qFalta = v; pintarF(); });
   }
 }
 
