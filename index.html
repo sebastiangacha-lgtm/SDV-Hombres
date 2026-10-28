@@ -1060,6 +1060,7 @@ const I = {
   usuarios:'<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11" stroke-linecap="round"/></svg>',
   fusionar:'<svg viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="5"/><circle cx="15.5" cy="12" r="5"/></svg>',
   jerarquias:'<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1.5"/><rect x="2.5" y="16" width="6" height="5" rx="1.5"/><rect x="15.5" y="16" width="6" height="5" rx="1.5"/><path d="M12 8v4M5.5 16v-2.5h13V16" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  estructura:'<svg viewBox="0 0 24 24"><path d="M4 5h7M4 12h11M4 19h7" stroke-linecap="round"/><circle cx="18.5" cy="5" r="2"/><circle cx="18.5" cy="19" r="2"/></svg>',
   oracion:'<svg viewBox="0 0 24 24"><path d="M12 3c1.8 2.6 3.8 4.4 3.8 7a3.8 3.8 0 0 1-7.6 0c0-2.6 2-4.4 3.8-7z" stroke-linejoin="round"/><path d="M5 20h14M8 20v-2.5a4 4 0 0 1 8 0V20" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   flecha:'<svg class="flecha" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   salir:'<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M14 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2" stroke-linecap="round"/><path d="M18 15l3-3-3-3M21 12H9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -1246,7 +1247,8 @@ function pintarNav(){
     ['Recursos',   'material', [['material','Material']]],
     ...(mando ? [['Administrar', 'usuarios',
       [['usuarios','Usuarios'], ['permisos','Permisos'],
-       ['jerarquias','Jerarquías'], ['fusionar','Fusionar']]]] : [])
+       ['estructura','Estructura'], ['jerarquias','Jerarquías'],
+       ['fusionar','Fusionar']]]] : [])
   ];
 
   // El grupo que contiene la vista abierta arranca desplegado.
@@ -1346,7 +1348,7 @@ function pintarNav(){
 const PADRE = {
   ficha:'personas', lista:'listas', registrar:'registrar',
   evento:'eventos', area:'servicio', lista_oracion:'oracion',
-  bajoSuCargo:'jerarquias', areaGente:'jerarquias',
+  bajoSuCargo:'jerarquias', areaGente:'estructura',
   curso:'procesos', clase:'procesos', quiz:'procesos', resultado:'procesos',
   certificado:'procesos', cursoAdmin:'procesos', quizEditor:'procesos',
   nuevaLista:'listas'
@@ -1376,6 +1378,7 @@ const VISTAS = {
   eventos:vEventos, evento:vEvento, servicio:vServicio, area:vArea, curso:vCursoAlumno,
   oracion:vOracion, lista_oracion:vPasarLista,
   jerarquias:vJerarquias, bajoSuCargo:vBajoSuCargo, areaGente:vAreaGente,
+  estructura:vEstructura,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -5321,6 +5324,210 @@ function descargarIcs(e, rol){
 /* ============================================================
    Mi servicio
    ============================================================ */
+/* ============================================================
+   Estructura — el esqueleto de la iglesia
+   ------------------------------------------------------------
+   Las redes con sus grupos, y las áreas de servicio. Aquí se arma
+   el hueso: crear, renombrar, mover y archivar. La gente se pone
+   desde cada área.
+   ============================================================ */
+const TIPOS_AREA = { red:'Red', ministerio:'Área', servicio:'Servicio', grupo:'Grupo' };
+
+async function vEstructura(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+
+  const { data:arbol, error } = await SB.rpc('arbol_areas');
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+  const todas = arbol || [];
+  if (S.qEst == null) S.qEst = '';
+  if (S.verArchivadas == null) S.verArchivadas = false;
+
+  const vivas = todas.filter(a => a.activa || S.verArchivadas);
+  const cuenta = t => todas.filter(a => a.tipo === t && a.activa).length;
+
+  let html = cabeza('Estructura',
+    `${cuenta('red')} redes · ${cuenta('grupo')} grupos · ${cuenta('servicio')} áreas de servicio`,
+    `<button class="btn" id="nuevaRed">Nueva red</button>`);
+
+  html += cajaBusqueda('qEst', 'Buscar una red, un grupo o un área…', S.qEst);
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>El árbol</h2>
+      <label class="campo-op" style="margin:0">
+        <input type="checkbox" id="verArch" ${S.verArchivadas ? 'checked' : ''}>
+        <span>Ver archivadas</span></label></div>
+    <ul class="registro" id="arbolE"></ul></div>`;
+
+  app.innerHTML = html;
+
+  // Al buscar se muestran las coincidencias y, para no dejarlas
+  // huérfanas, también sus padres: un grupo sin su red encima no
+  // dice dónde está.
+  const filtrar = () => {
+    const q = sinT(S.qEst.trim());
+    if (!q) return vivas;
+    const pega = a => sinT(a.nombre).includes(q) || sinT(TIPOS_AREA[a.tipo]).includes(q);
+    const dejar = new Set();
+    const porId = new Map(todas.map(a => [a.id, a]));
+    vivas.filter(pega).forEach(a => {
+      dejar.add(a.id);
+      let p = a.area_padre_id;
+      while (p && porId.has(p)){ dejar.add(p); p = porId.get(p).area_padre_id; }
+    });
+    return vivas.filter(a => dejar.has(a.id));
+  };
+
+  const fila = a => {
+    // La sangría se topa en el nivel 3: más allá, en el celular la
+    // columna de texto se vuelve un hilo.
+    const sangria = Math.min(a.nivel, 3) * 18;
+    return `<li>
+      <div class="fila" style="cursor:default;padding-left:${12 + sangria}px;
+           ${a.nivel ? 'border-left:2px solid var(--linea-suave);margin-left:' + (6 + (Math.min(a.nivel,3)-1)*18) + 'px' : ''}
+           ${a.activa ? '' : 'opacity:.55'}">
+        <a href="${direccion('areaGente', a.id)}" style="display:block;color:inherit;text-decoration:none">
+          <span class="fila-alto">
+            <span class="nombre" style="${a.tipo === 'red' ? 'font-size:18px' : ''}">${esc(a.nombre)}</span>
+            <span class="sello">${TIPOS_AREA[a.tipo] || a.tipo}</span>
+            ${a.activa ? '' : '<span class="marca-est m-desconectado">archivada</span>'}</span>
+          <span class="sub">
+            ${a.cabeza ? `<span>${a.cabeza_rol === 'encargado' ? 'encargado' : 'cabeza'} ${esc(a.cabeza)}</span>`
+                       : '<span>sin cabeza</span>'}
+            <span>· ${a.gente} ${a.gente === 1 ? 'persona' : 'personas'}</span>
+            ${a.hijos ? `<span>· ${a.hijos} adentro</span>` : ''}</span>
+        </a>
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px">
+          ${a.tipo !== 'grupo' ? `<button class="btn seco chico" data-add-en="${a.id}"
+             data-nom="${esc(a.nombre)}" data-tipo="${a.tipo}">+ Agregar adentro</button>` : ''}
+          <button class="btn seco chico" data-edit="${a.id}">Editar</button>
+        </span>
+      </div></li>`;
+  };
+
+  const pintarE = () => {
+    const v = filtrar();
+    document.getElementById('arbolE').innerHTML = v.length ? v.map(fila).join('')
+      : `<li><div class="vacio" style="margin:0"><strong>Nada con «${esc(S.qEst.trim())}»</strong>
+           Prueba con otra parte del nombre.</div></li>`;
+    enlazarE();
+  };
+
+  function enlazarE(){
+    app.querySelectorAll('[data-add-en]').forEach(b => b.onclick = () =>
+      pedirArea(b.dataset.addEn, b.dataset.nom, b.dataset.tipo));
+    app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () =>
+      editarArea(todas.find(x => x.id === b.dataset.edit)));
+  }
+
+  // ---------- crear ----------
+  async function pedirArea(padreId, padreNom, padreTipo){
+    // Lo que se crea dentro de una red casi siempre es un grupo;
+    // dentro de un área, otra área. Se preselecciona eso.
+    const sugerido = padreTipo === 'red' ? 'grupo' : 'ministerio';
+    const r = await dialogo({
+      titulo: padreNom ? `Agregar dentro de ${padreNom}` : 'Nueva red',
+      cuerpo: `<label for="naN" style="margin-top:0">Nombre</label>
+               <input type="text" id="naN" placeholder="${padreTipo === 'red' ? 'Juan y Marcela' : 'Ujieres'}">
+               ${padreNom ? `<label for="naT">Qué es</label>
+               <select id="naT">${Object.entries(TIPOS_AREA).filter(([v]) => v !== 'red')
+                 .map(([v,t]) => `<option value="${v}"${v === sugerido ? ' selected' : ''}>${t}</option>`).join('')}</select>` : ''}
+               <label for="naD">Una línea sobre qué es (opcional)</label>
+               <input type="text" id="naD">`,
+      aceptar: 'Crear',
+      alMontar: v => () => {
+        const n = v.querySelector('#naN').value.trim();
+        if (!n){ v.querySelector('#naN').focus(); return undefined; }
+        return { n, t: v.querySelector('#naT') ? v.querySelector('#naT').value : 'red',
+                 d: v.querySelector('#naD').value.trim() };
+      }
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('crear_area',
+      { p_nombre:r.n, p_tipo:r.t, p_padre:padreId || null, p_desc:r.d || null });
+    if (error) return avisar(error.message, true);
+    avisar(`${r.n} quedó creada.`);
+    ir('estructura');
+  }
+
+  // ---------- renombrar, mover, archivar, borrar ----------
+  async function editarArea(a){
+    if (!a) return;
+    const candidatos = todas.filter(x => x.id !== a.id && x.activa);
+    const r = await dialogo({
+      titulo: `Editar ${a.nombre}`,
+      cuerpo: `<label for="eaN" style="margin-top:0">Nombre</label>
+               <input type="text" id="eaN" value="${esc(a.nombre)}">
+               <label for="eaD">Descripción</label>
+               <input type="text" id="eaD" value="${esc(a.descripcion || '')}">
+               <label for="eaP">Dentro de</label>
+               <select id="eaP"><option value="">Nada · queda de primer nivel</option>
+                 ${candidatos.map(x => `<option value="${x.id}"${x.id === a.area_padre_id ? ' selected' : ''}>
+                   ${esc(x.camino)}</option>`).join('')}</select>
+               <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:18px;
+                    padding-top:14px;border-top:1px solid var(--linea-suave)">
+                 <button class="btn seco chico" id="eaArch">${a.activa ? 'Archivar' : 'Desarchivar'}</button>
+                 ${a.gente === 0 && a.hijos === 0
+                   ? '<button class="btn rojo chico" id="eaDel">Borrar</button>' : ''}
+               </div>`,
+      aceptar: 'Guardar',
+      cancelar: 'Cerrar',
+      alMontar: v => {
+        // Archivar y borrar salen por el mismo botón de aceptar, con
+        // una marca: así el diálogo se cierra solo y no hay que
+        // inventarle otro camino de salida.
+        const pulsar = accion => {
+          v.dataset.accion = accion;
+          v.querySelector('[data-si]').click();
+        };
+        const ar = v.querySelector('#eaArch'); if (ar) ar.onclick = () => pulsar('archivar');
+        const de = v.querySelector('#eaDel');  if (de) de.onclick = () => pulsar('borrar');
+        return () => ({
+          accion: v.dataset.accion || 'guardar',
+          n: v.querySelector('#eaN').value.trim(),
+          d: v.querySelector('#eaD').value.trim(),
+          p: v.querySelector('#eaP').value || null
+        });
+      }
+    });
+    if (!r) return;
+
+    if (r.accion === 'archivar'){
+      const { error } = await SB.rpc('archivar_area', { p_area:a.id, p_archivar:a.activa });
+      if (error) return avisar(error.message, true);
+      avisar(a.activa ? `${a.nombre} quedó archivada.` : `${a.nombre} volvió.`);
+      return ir('estructura');
+    }
+
+    if (r.accion === 'borrar'){
+      if (!await confirmar(`¿Borrar ${a.nombre}?`,
+        'Nunca tuvo gente adentro, así que no se pierde historial. Si llegara a tenerla, la base no deja borrarla y hay que archivarla.')) return;
+      const { error } = await SB.rpc('borrar_area', { p_area:a.id });
+      if (error) return avisar(error.message, true);
+      avisar(`${a.nombre} se borró.`);
+      return ir('estructura');
+    }
+
+    if (r.n && r.n !== a.nombre || r.d !== (a.descripcion || '')){
+      const { error } = await SB.rpc('renombrar_area',
+        { p_area:a.id, p_nombre:r.n || a.nombre, p_desc:r.d || null });
+      if (error) return avisar(error.message, true);
+    }
+    if (r.p !== a.area_padre_id){
+      const { error } = await SB.rpc('mover_area', { p_area:a.id, p_padre:r.p });
+      if (error) return avisar(error.message, true);
+    }
+    avisar('Guardado.');
+    ir('estructura');
+  }
+
+  document.getElementById('nuevaRed').onclick = () => pedirArea(null, null, null);
+  document.getElementById('verArch').onchange = e => { S.verArchivadas = e.target.checked; ir('estructura'); };
+  pintarE();
+  engancharBusqueda('qEst', v => { S.qEst = v; pintarE(); });
+}
+
+
 /* ============================================================
    Jerarquías — las dos, lado a lado
    ------------------------------------------------------------
