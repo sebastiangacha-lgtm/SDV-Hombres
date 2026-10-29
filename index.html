@@ -499,6 +499,42 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
 }
 .buscador .limpiar:hover{background:var(--velo);color:var(--texto)}
 
+/* Elegir escribiendo, no desplegando. Una lista de cuarenta y
+   cinco grupos en un <select> es un larguero que tapa media
+   pantalla; escribir tres letras y ver dos resultados, no. */
+.buscasel{position:relative}
+.buscasel > input[type=text]{padding-right:38px}
+.buscasel .limpiar{
+  /* Anclado arriba y no al centro: cuando la lista va en el flujo
+     (dentro de un diálogo) la caja crece y el centro deja de ser
+     el centro del campo. */
+  position:absolute;right:8px;top:7px;z-index:3;
+  background:none;border:0;cursor:pointer;color:var(--tenue);font-size:17px;
+  width:30px;height:30px;border-radius:50%;line-height:1;
+}
+.buscasel .limpiar:hover{background:var(--velo);color:var(--texto)}
+.buscasel-lista{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:120;
+  list-style:none;margin:0;padding:5px;max-height:244px;overflow-y:auto;
+  background:var(--panel-solido);border:1px solid var(--linea);
+  border-radius:var(--r-chico);box-shadow:var(--sombra-alta);
+}
+.buscasel-lista li{
+  padding:9px 11px;border-radius:9px;cursor:pointer;font-size:15px;color:var(--texto);
+}
+.buscasel-lista li:hover, .buscasel-lista li[aria-selected=true]{background:var(--velo)}
+.buscasel-lista li .sub2{display:block;font-size:12.5px;color:var(--tenue);margin-top:2px}
+.buscasel-lista li.nada{color:var(--tenue);cursor:default}
+.buscasel-lista li.nada:hover{background:none}
+
+/* Dentro de un diálogo el cuerpo lleva scroll propio, y un
+   desplegable flotante queda recortado por ese scroll: en el
+   celular la lista aparecía debajo del botón de guardar y no se
+   veía. Ahí va en el flujo normal y empuja lo de abajo. */
+.modal-cuerpo .buscasel-lista{
+  position:static;margin-top:6px;max-height:190px;box-shadow:none;
+}
+
 .wid.tocable{cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit;
   transition:transform .22s var(--brinco), box-shadow .22s var(--brinco), border-color .2s}
 .wid.tocable:hover{transform:translateY(-2px);box-shadow:var(--sombra-alta)}
@@ -1123,6 +1159,112 @@ function engancharBusqueda(id, alEscribir){
   if (!caja || !x) return;
   caja.oninput = e => { x.hidden = !e.target.value; alEscribir(e.target.value); };
   x.onclick = () => { caja.value = ''; x.hidden = true; caja.focus(); alEscribir(''); };
+}
+
+/* ============================================================
+   Elegir escribiendo — la pieza que reemplaza a los <select>
+   largos. Regla de la casa: una lista de opciones fija y corta
+   (sí/no, un rol, un motivo) sigue siendo un select; cualquier
+   lista de personas, grupos o áreas se busca escribiendo.
+   opciones: [{ id, nombre, sub }]
+   ============================================================ */
+function selectorBuscable(id, opciones, valor, marcador){
+  const puesto = (opciones || []).find(o => String(o.id) === String(valor));
+  return `<div class="buscasel" id="${id}_caja">
+    <input type="text" id="${id}_q" autocomplete="off" role="combobox"
+      aria-expanded="false" aria-autocomplete="list"
+      placeholder="${esc(marcador || 'Escribe para buscar…')}"
+      value="${puesto ? esc(puesto.nombre) : ''}">
+    <button type="button" class="limpiar" id="${id}_x" ${puesto ? '' : 'hidden'}
+      aria-label="Limpiar">✕</button>
+    <input type="hidden" id="${id}" value="${puesto ? esc(String(puesto.id)) : ''}">
+    <ul class="buscasel-lista" id="${id}_l" role="listbox" hidden></ul>
+  </div>`;
+}
+
+function engancharSelector(id, opciones, alElegir){
+  const q    = document.getElementById(id + '_q');
+  const oculto = document.getElementById(id);
+  const lista= document.getElementById(id + '_l');
+  const x    = document.getElementById(id + '_x');
+  if (!q || !oculto || !lista) return;
+
+  const todas = opciones || [];
+  let marcado = -1;
+
+  const visibles = () => {
+    const t = sinT(q.value.trim());
+    const puesto = todas.find(o => String(o.id) === String(oculto.value));
+    // Si lo que está escrito es justo lo que ya se eligió, se
+    // muestran todas: si no, al volver a tocar la caja solo se
+    // vería la opción que ya estaba puesta.
+    if (!t || (puesto && sinT(puesto.nombre) === t)) return todas.slice(0, 60);
+    return todas.filter(o => sinT(o.nombre).includes(t) || sinT(o.sub || '').includes(t)).slice(0, 60);
+  };
+
+  const pintar = () => {
+    const v = visibles();
+    marcado = -1;
+    lista.innerHTML = v.length
+      ? v.map((o,i) => `<li role="option" data-op="${esc(String(o.id))}" data-i="${i}">
+          ${esc(o.nombre)}${o.sub ? `<span class="sub2">${esc(o.sub)}</span>` : ''}</li>`).join('')
+      : `<li class="nada">Nada con «${esc(q.value.trim())}»</li>`;
+    lista.hidden = false;
+    q.setAttribute('aria-expanded', 'true');
+    // Dentro de un diálogo la lista empuja hacia abajo: si la caja
+    // estaba al fondo, hay que acercarla para que se vea.
+    if (q.closest('.modal-cuerpo'))
+      requestAnimationFrame(() => lista.scrollIntoView({ block:'nearest' }));
+    lista.querySelectorAll('[data-op]').forEach(li =>
+      li.onmousedown = e => { e.preventDefault(); elegir(li.dataset.op); });
+  };
+
+  const cerrar = () => { lista.hidden = true; q.setAttribute('aria-expanded', 'false'); };
+
+  function elegir(valor){
+    const o = todas.find(x => String(x.id) === String(valor));
+    oculto.value = o ? String(o.id) : '';
+    q.value = o ? o.nombre : '';
+    x.hidden = !o;
+    cerrar();
+    if (alElegir) alElegir(oculto.value, o);
+  }
+
+  q.oninput = () => { oculto.value = ''; x.hidden = !q.value; pintar(); };
+  q.onfocus = pintar;
+  q.onblur  = () => setTimeout(() => {
+    cerrar();
+    // Texto a medio escribir que no corresponde a nada: se limpia,
+    // para que no parezca que quedó elegido algo que no se eligió.
+    const puesto = todas.find(o => String(o.id) === String(oculto.value));
+    if (!puesto){ q.value = ''; x.hidden = true; }
+    else q.value = puesto.nombre;
+  }, 140);
+
+  q.onkeydown = e => {
+    // Enter dentro del buscador elige la opción; sin frenarlo aquí
+    // también lo oye el diálogo y lo cierra antes de tiempo.
+    if (e.key === 'Escape'){ e.stopPropagation(); cerrar(); q.blur(); return; }
+    if (lista.hidden && (e.key === 'ArrowDown' || e.key === 'Enter')){
+      e.preventDefault(); e.stopPropagation(); pintar(); return;
+    }
+    const ops = [...lista.querySelectorAll('[data-op]')];
+    if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault(); e.stopPropagation();
+    }
+    if (!ops.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      marcado = e.key === 'ArrowDown'
+        ? Math.min(marcado + 1, ops.length - 1) : Math.max(marcado - 1, 0);
+      ops.forEach((li,i) => li.setAttribute('aria-selected', i === marcado));
+      ops[marcado].scrollIntoView({ block:'nearest' });
+    } else if (e.key === 'Enter'){
+      elegir(ops[marcado >= 0 ? marcado : 0].dataset.op);
+    }
+  };
+
+  if (x) x.onclick = () => { elegir(''); q.focus(); };
+  return { elegir, valor: () => oculto.value };
 }
 
 const I_GRUPOS = '<svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.4"/><path d="M3 19v-1.5a5 5 0 0 1 10 0V19M14.5 19v-1.2a4 4 0 0 1 6.5-3.1" stroke-linecap="round"/></svg>';
@@ -1964,9 +2106,10 @@ async function vFicha(id){
     const lideres = (dir || []).filter(d => d.id !== p.id && (d.rango === 'escudero' || d.rango === 'caballero'));
     const libres  = (todasAreas || []).filter(a => !(areasP || []).some(x => x.area_id === a.id));
     html += `<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--linea-suave)">
-      <label style="margin-top:0" for="nuevoLider">¿Quién lo cuida?</label>
-      <div class="par"><div><select id="nuevoLider">
-        ${lideres.map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}</select></div>
+      <label style="margin-top:0" for="nuevoLider_q">¿Quién lo cuida?</label>
+      <div class="par"><div>${selectorBuscable('nuevoLider',
+          lideres.map(l => ({ id:l.id, nombre:l.nombre, sub:l.areas || null })),
+          null, 'Escribe el nombre de quien lo va a cuidar…')}</div>
         <div><button class="btn" id="moverCuidado" style="width:100%">Pasar a su cuidado</button></div></div>
 
       <label for="nuevaArea">Áreas (máximo 3)</label>
@@ -1974,7 +2117,9 @@ async function vFicha(id){
         `<button class="chip" aria-pressed="true" data-quitararea="${a.id}">${esc(a.areas.nombre)} ✕</button>`).join('')
         || '<span class="ruta-conteo">Ninguna todavía</span>'}</div>
       ${(areasP || []).length < 3 && libres.length ? `<div class="par">
-        <div><select id="nuevaArea">${libres.map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}</select></div>
+        <div>${selectorBuscable('nuevaArea',
+          libres.map(a => ({ id:a.id, nombre:a.nombre, sub:TIPOS_AREA[a.tipo] || a.tipo })),
+          null, 'Escribe el grupo o el área…')}</div>
         <div><button class="btn seco" id="addArea" style="width:100%">Agregar área</button></div></div>` : ''}
     </div>`;
   }
@@ -2029,7 +2174,8 @@ async function vFicha(id){
         <div style="display:flex;gap:9px;flex-wrap:wrap">
           ${retirado
             ? '<button class="btn" id="fReactivar">Reactivar</button>'
-            : '<button class="btn seco" id="fDesactivar">Desactivar</button>'}
+            : `${segAbierto ? '' : '<button class="btn seco" id="fReasignar">Reasignar a otro grupo</button>'}
+               <button class="btn seco" id="fDesactivar">Desactivar</button>`}
           ${yo.es_admin ? '<button class="btn rojo" id="fEliminar">Eliminar</button>' : ''}
         </div>
       </div></div>`;
@@ -2126,6 +2272,14 @@ async function vFicha(id){
     ir('ficha', id);
   };
 
+  if (mando){
+    const lid = (dir || []).filter(d => d.id !== p.id && (d.rango === 'escudero' || d.rango === 'caballero'));
+    engancharSelector('nuevoLider', lid.map(l => ({ id:l.id, nombre:l.nombre, sub:l.areas || null })));
+    const lib = (todasAreas || []).filter(a => !(areasP || []).some(x => x.area_id === a.id));
+    engancharSelector('nuevaArea',
+      lib.map(a => ({ id:a.id, nombre:a.nombre, sub:TIPOS_AREA[a.tipo] || a.tipo })));
+  }
+
   const selCat = document.getElementById('fCat');
   if (selCat) selCat.onchange = async () => {
     const { error } = await SB.rpc('cambiar_categoria',
@@ -2135,6 +2289,19 @@ async function vFicha(id){
       ? `Ahora es ${selCat.options[selCat.selectedIndex].text}.`
       : 'Quedó sin categoría.');
     ir('ficha', id);
+  };
+
+  const bre = document.getElementById('fReasignar');
+  if (bre) bre.onclick = async () => {
+    const motivo = await pedirTexto(`Reasignar a ${p.nombre}`, {
+      texto: 'Entra al recorrido para que un líder de red lo ubique en otro grupo.',
+      marcador: 'Se divorció y sale de matrimonios' });
+    if (motivo == null) return;
+    const { data, error } = await SB.rpc('reasignar_persona',
+      { p_persona:id, p_nota:motivo || null, p_desde_area:null });
+    if (error) return avisar(error.message, true);
+    avisar('Entró al recorrido para reubicarlo.');
+    ir('seguimiento', data);
   };
 
   const bd = document.getElementById('fDesactivar');
@@ -5767,9 +5934,9 @@ async function vEstructura(cual, abrirNuevo){
                <label for="eaD">Descripción</label>
                <input type="text" id="eaD" value="${esc(a.descripcion || '')}">
                <label for="eaP">Dentro de</label>
-               <select id="eaP"><option value="">Nada · queda de primer nivel</option>
-                 ${candidatos.map(x => `<option value="${x.id}"${x.id === a.area_padre_id ? ' selected' : ''}>
-                   ${esc(x.camino)}</option>`).join('')}</select>
+               ${selectorBuscable('eaP',
+                 candidatos.map(x => ({ id:x.id, nombre:x.nombre, sub:x.camino })),
+                 a.area_padre_id, 'Nada · queda de primer nivel')}
                <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:18px;
                     padding-top:14px;border-top:1px solid var(--linea-suave)">
                  <button class="btn seco chico" id="eaArch">${a.activa ? 'Archivar' : 'Desarchivar'}</button>
@@ -5788,6 +5955,8 @@ async function vEstructura(cual, abrirNuevo){
         };
         const ar = v.querySelector('#eaArch'); if (ar) ar.onclick = () => pulsar('archivar');
         const de = v.querySelector('#eaDel');  if (de) de.onclick = () => pulsar('borrar');
+        engancharSelector('eaP',
+          candidatos.map(x => ({ id:x.id, nombre:x.nombre, sub:x.camino })));
         return () => ({
           accion: v.dataset.accion || 'guardar',
           n: v.querySelector('#eaN').value.trim(),
@@ -5981,15 +6150,16 @@ async function vBajoSuCargo(id){
         <button class="btn seco chico" id="todosJ">Seleccionar todos</button>
         <button class="btn seco chico" id="ningunoJ">Ninguno</button>
       </div>
-      <label for="nuevoLider" style="margin-top:0">Pasarlos a otro líder</label>
-      <select id="nuevoLider"><option value="">Elige un líder…</option>
-        ${(lideres || []).filter(l => l.id !== id)
-          .map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}</select>
+      <label for="nuevoLider_q" style="margin-top:0">Pasarlos a otro líder</label>
+      ${selectorBuscable('nuevoLider',
+        (lideres || []).filter(l => l.id !== id).map(l => ({ id:l.id, nombre:l.nombre })),
+        null, 'Escribe el nombre del líder…')}
       <div style="margin-top:12px"><button class="btn" id="moverCuidado">Mover el cuidado</button></div>
 
-      <label for="nuevaArea">O meterlos a un área o una red</label>
-      <select id="nuevaArea"><option value="">Elige un área…</option>
-        ${(areas || []).map(a => `<option value="${a.id}">${esc(a.nombre)} · ${esc(a.tipo)}</option>`).join('')}</select>
+      <label for="nuevaArea_q">O meterlos a un área o una red</label>
+      ${selectorBuscable('nuevaArea',
+        (areas || []).map(a => ({ id:a.id, nombre:a.nombre, sub:TIPOS_AREA[a.tipo] || a.tipo })),
+        null, 'Escribe el grupo, el área o la red…')}
       <div style="margin-top:12px"><button class="btn seco" id="moverArea">Meterlos al área</button></div>
     </div></div>`;
 
@@ -6011,6 +6181,11 @@ async function vBajoSuCargo(id){
     app.querySelectorAll('[data-sel]').forEach(c => c.checked = true); contar(); };
   document.getElementById('ningunoJ').onclick = () => {
     app.querySelectorAll('[data-sel]').forEach(c => c.checked = false); contar(); };
+
+  engancharSelector('nuevoLider',
+    (lideres || []).filter(l => l.id !== id).map(l => ({ id:l.id, nombre:l.nombre })));
+  engancharSelector('nuevaArea', (areas || []).map(a => ({ id:a.id, nombre:a.nombre,
+    sub:TIPOS_AREA[a.tipo] || a.tipo })));
 
   document.getElementById('moverCuidado').onclick = async () => {
     const sel = marcadas(), destino = document.getElementById('nuevoLider').value;
@@ -6122,24 +6297,58 @@ async function vAreaGente(id){
         <button class="btn seco chico" id="todosA">Seleccionar todos</button>
         <button class="btn seco chico" id="ningunoA">Ninguno</button>
       </div>
-      <label for="areaDestino" style="margin-top:0">Pasarlos a otra área o red</label>
-      <select id="areaDestino"><option value="">Elige el destino…</option>
-        ${(areas || []).filter(a => a.id !== id)
-          .map(a => `<option value="${a.id}">${esc(a.nombre)} · ${esc(a.tipo)}</option>`).join('')}</select>
+      <label for="areaDestino_q" style="margin-top:0">Pasarlos a otra área o red</label>
+      ${selectorBuscable('areaDestino',
+        (areas || []).filter(a => a.id !== id)
+          .map(a => ({ id:a.id, nombre:a.nombre, sub:TIPOS_AREA[a.tipo] || a.tipo })),
+        null, 'Escribe el grupo, el área o la red…')}
       <label class="campo-op" style="margin-top:12px">
         <input type="checkbox" id="sacarDe" checked>
         <span>Sacarlos de ${esc(area.nombre)}</span></label>
       <div style="margin-top:12px"><button class="btn" id="moverAreaA">Moverlos</button></div>
 
-      <label for="liderDestino">O pasarlos todos a un líder de cuidado</label>
-      <select id="liderDestino"><option value="">Elige un líder…</option>
-        ${(lideres || []).map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}</select>
+      <label for="liderDestino_q">O pasarlos todos a un líder de cuidado</label>
+      ${selectorBuscable('liderDestino',
+        (lideres || []).map(l => ({ id:l.id, nombre:l.nombre })), null, 'Escribe el nombre…')}
       <div style="margin-top:12px"><button class="btn seco" id="moverCuidadoA">Mover el cuidado</button></div>
+
+      ${area.tipo === 'grupo' ? `<div style="margin-top:16px;padding-top:14px;
+           border-top:1px solid var(--linea-suave)">
+        <button class="btn rojo" id="sacarDelGrupo">Sacarlos del grupo</button>
+      </div>` : ''}
     </div></div>`;
 
   app.innerHTML = html;
   document.getElementById('atras').onclick = () => ir(volverA.v);
   engancharAgregar();
+  engancharSelector('areaDestino', (areas || []).filter(a => a.id !== id)
+    .map(a => ({ id:a.id, nombre:a.nombre, sub:TIPOS_AREA[a.tipo] || a.tipo })));
+  engancharSelector('liderDestino', (lideres || []).map(l => ({ id:l.id, nombre:l.nombre })));
+
+  // Sacar a alguien de un grupo de vida no es un borrado: es que
+  // se quedó sin casa. Por eso le llega a quien decide si se
+  // reubica o se desactiva, en vez de desaparecer en silencio.
+  const bsg = document.getElementById('sacarDelGrupo');
+  if (bsg) bsg.onclick = async () => {
+    const sel = marcadas();
+    if (!sel.length) return avisar('No has seleccionado a nadie.', true);
+    const motivo = await pedirTexto(
+      sel.length === 1 ? 'Sacar del grupo' : `Sacar a ${sel.length} personas del grupo`,
+      { texto: `Salen de ${area.nombre}. Si no les queda otro grupo, entran al recorrido para que se decida si se reubican o se desactivan.`,
+        marcador: 'Se mudaron, dejaron de venir…' });
+    if (motivo == null) return;
+    let abiertos = 0;
+    for (const pid of sel){
+      const { data, error } = await SB.rpc('sacar_de_grupo',
+        { p_persona:pid, p_area:id, p_motivo:motivo || null });
+      if (error) return avisar(error.message, true);
+      if (data) abiertos++;
+    }
+    avisar(abiertos
+      ? `${sel.length === 1 ? 'Salió del grupo' : 'Salieron del grupo'}. ${abiertos === 1 ? '1 quedó' : abiertos + ' quedaron'} en el recorrido por reubicar.`
+      : `${sel.length === 1 ? 'Salió del grupo' : 'Salieron del grupo'}.`);
+    ir('areaGente', id);
+  };
 
   const marcadas = () => [...app.querySelectorAll('[data-sel]:checked')].map(c => c.dataset.sel);
   const contar = () => {
@@ -6317,11 +6526,14 @@ async function vDesactivados(){
       const r = await dialogo({
         titulo: `Reactivar a ${b.dataset.nom}`,
         cuerpo: `<label for="raL" style="margin-top:0">¿Quién lo va a cuidar?</label>
-          <select id="raL"><option value="">Por ahora nadie</option>
-            ${(lideres || []).map(l => `<option value="${l.id}">${esc(l.nombre)}</option>`).join('')}
-          </select>`,
+          ${selectorBuscable('raL',
+            (lideres || []).map(l => ({ id:l.id, nombre:l.nombre })),
+            null, 'Por ahora nadie')}`,
         aceptar: 'Reactivar',
-        alMontar: v => () => ({ lider: v.querySelector('#raL').value || null })
+        alMontar: v => {
+          engancharSelector('raL', (lideres || []).map(l => ({ id:l.id, nombre:l.nombre })));
+          return () => ({ lider: v.querySelector('#raL').value || null });
+        }
       });
       if (!r) return;
       const { error } = await SB.rpc('reactivar_persona',
@@ -6347,6 +6559,10 @@ async function vDesactivados(){
    «Mi red», que es la pantalla de al lado.
    ============================================================ */
 
+const MOTIVOS_FLUJO = {
+  nuevo:'Nuevo', reasignacion:'Reasignación', salida:'Salió de un grupo'
+};
+
 async function vFlujo(){
   cargando();
   const yo = V();
@@ -6363,13 +6579,17 @@ async function vFlujo(){
   const red = abiertos.filter(x => x.ambito === 'red');
   const quietos = abiertos.filter(x => (x.dias_quieto ?? 0) >= 7);
 
-  let html = cabeza('Recorrido de nuevos',
-    `${abiertos.length} ${abiertos.length === 1 ? 'persona' : 'personas'} en camino`);
+  const salidas = abiertos.filter(x => x.motivo === 'salida');
+
+  let html = cabeza('Recorrido',
+    `${abiertos.length} ${abiertos.length === 1 ? 'persona' : 'personas'} en camino`,
+    `<button class="btn seco" id="fluReasignar">Reasignar a alguien</button>`);
 
   html += cifras([
     { icono:'personas', color:'ambar', valor:gen.length,     texto:'por contactar y entregar' },
     { icono:'estructura', color:'azul', valor:red.length,     texto:'ya en una red' },
-    { icono:'alerta',   color:'barro', valor:quietos.length, texto:'llevan una semana quietos' },
+    { icono:'alerta',   color:'barro', valor:salidas.length, texto:'salieron de un grupo' },
+    { icono:'alerta',   color:'ambar', valor:quietos.length, texto:'llevan una semana quietos' },
     { icono:'personas', color:'verde',
       valor:todos.filter(x => x.estado === 'terminado' && x.es_final).length, texto:'llegaron a un grupo' }
   ]);
@@ -6380,6 +6600,9 @@ async function vFlujo(){
       <label for="fluAmb" style="margin-top:0">Qué ver</label>
       <select id="fluAmb" style="max-width:420px">
         ${[['abierto','Los que están en camino'],
+           ['salida','Los que salieron de un grupo'],
+           ['reasignacion','Los que hay que reubicar'],
+           ['nuevo','Solo los nuevos'],
            ['general','Solo los que no se han entregado'],
            ['red','Solo los que ya están en una red'],
            ['terminado','Los que ya terminaron'],
@@ -6397,12 +6620,14 @@ async function vFlujo(){
       <a class="fila" href="${direccion('seguimiento', x.id)}">
         <span class="fila-alto">
           <span class="nombre" style="font-size:17px">${esc(x.nombre)}</span>
+          ${x.motivo !== 'nuevo' ? `<span class="sello">${esc(MOTIVOS_FLUJO[x.motivo] || x.motivo)}</span>` : ''}
           ${x.estado === 'abierto' && quieto >= 7
             ? `<span class="marca-est m-alerta">quieto hace ${quieto} días</span>`
             : x.estado === 'perdido' ? '<span class="marca-est m-desconectado">se dejó de seguir</span>'
             : x.estado === 'terminado' ? '<span class="marca-est m-cuidado">terminó</span>' : ''}</span>
         <span class="sub">
-          ${x.red ? `<span>${esc(x.red)}</span>` : '<span>sin red todavía</span>'}
+          ${x.salio_de ? `<span>salió de ${esc(x.salio_de)}</span>` : ''}
+          ${x.red ? `<span>${esc(x.red)}</span>` : (x.salio_de ? '' : '<span>sin red todavía</span>')}
           ${x.responsable ? `<span>· ${esc(x.responsable)}</span>` : '<span>· sin responsable</span>'}
           ${x.edad ? `<span>· ${x.edad} años</span>` : ''}
           ${x.celular ? `<span>· ${esc(x.celular)}</span>` : ''}</span>
@@ -6417,6 +6642,8 @@ async function vFlujo(){
        (S.fluAmb === 'abierto'   && x.estado === 'abierto') ||
        (S.fluAmb === 'general'   && x.estado === 'abierto' && x.ambito === 'general') ||
        (S.fluAmb === 'red'       && x.estado === 'abierto' && x.ambito === 'red') ||
+       (['nuevo','reasignacion','salida'].includes(S.fluAmb)
+                                 && x.estado === 'abierto' && x.motivo === S.fluAmb) ||
        (S.fluAmb === 'terminado' && x.estado === 'terminado') ||
        (S.fluAmb === 'perdido'   && x.estado === 'perdido')) &&
       (!q || sinT(x.nombre).includes(q) || sinT(x.red || '').includes(q)
@@ -6447,6 +6674,38 @@ async function vFlujo(){
   pintar();
   engancharBusqueda('qFlu', v => { S.qFlu = v; pintar(); });
   document.getElementById('fluAmb').onchange = e => { S.fluAmb = e.target.value; pintar(); };
+
+  // Reasignar: alguien que ya es de la casa y necesita otro grupo.
+  // Se divorció y sale de matrimonios, pasó de jóvenes a
+  // profesionales. Termina en el mismo sitio que un nuevo.
+  document.getElementById('fluReasignar').onclick = async () => {
+    const { data:gente } = await SB.from('directorio').select('*').order('nombre');
+    const r = await dialogo({
+      titulo: 'Reasignar a alguien',
+      cuerpo: `<label for="reP_q" style="margin-top:0">¿A quién?</label>
+        ${selectorBuscable('reP',
+          (gente || []).map(g => ({ id:g.id, nombre:g.nombre, sub:g.areas || null })),
+          null, 'Escribe el nombre…')}
+        <label for="reN">¿Por qué?</label>
+        <textarea id="reN" rows="3" placeholder="Se divorció y sale de matrimonios. Pasó de jóvenes a profesionales."></textarea>`,
+      aceptar: 'Meterlo al recorrido',
+      alMontar: v => {
+        engancharSelector('reP',
+          (gente || []).map(g => ({ id:g.id, nombre:g.nombre, sub:g.areas || null })));
+        return () => {
+          const quien = v.querySelector('#reP').value;
+          if (!quien){ v.querySelector('#reP_q').focus(); return undefined; }
+          return { quien, nota:v.querySelector('#reN').value.trim() };
+        };
+      }
+    });
+    if (!r) return;
+    const { data, error } = await SB.rpc('reasignar_persona',
+      { p_persona:r.quien, p_nota:r.nota || null, p_desde_area:null });
+    if (error) return avisar(error.message, true);
+    avisar('Entró al recorrido para reubicarlo.');
+    ir('seguimiento', data);
+  };
 }
 
 
@@ -6475,7 +6734,9 @@ async function vSeguimiento(id){
 
   let html = `<button class="volver" id="atras">← Volver al recorrido</button>` +
     cabeza(esc(s.nombre),
-      `${s.ambito === 'red' ? esc(s.red || 'en una red') : 'con el equipo que recibe'}` +
+      `${esc(MOTIVOS_FLUJO[s.motivo] || s.motivo)}` +
+      `${s.salio_de ? ' · salió de ' + esc(s.salio_de) : ''}` +
+      ` · ${s.ambito === 'red' ? esc(s.red || 'en una red') : 'con el equipo que recibe'}` +
       `${s.responsable ? ' · ' + esc(s.responsable) : ''}` +
       `${s.estado === 'abierto' ? ` · lleva ${s.dias_en_el_flujo} ${s.dias_en_el_flujo === 1 ? 'día' : 'días'}` : ''}`,
       `<a class="btn seco" href="${direccion('ficha', s.persona_id)}">Ver su ficha</a>`);
@@ -6508,6 +6769,8 @@ async function vSeguimiento(id){
         </div>` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;
              padding-top:14px;border-top:1px solid var(--linea-suave)">
+          ${(V().es_admin || V().ve_todo) && s.estado_persona !== 'retirado'
+            ? '<button class="btn rojo chico" id="segDesactivar">Desactivar la ficha</button>' : ''}
           <button class="btn rojo chico" id="segPerder">Dejar de seguirlo</button>
         </div>`
       : `<div style="margin-top:18px">
@@ -6563,17 +6826,21 @@ async function vSeguimiento(id){
     const r = await dialogo({
       titulo: esEntrega ? `Entregar a ${s.nombre} a una red` : `Pasar a ${b.dataset.nom}`,
       cuerpo: `${esEntrega ? `<label for="mvRed" style="margin-top:0">¿A qué red va?</label>
-          <select id="mvRed">${(redes || []).map(x =>
-            `<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select>` : ''}
+          ${selectorBuscable('mvRed',
+            (redes || []).map(x => ({ id:x.id, nombre:x.nombre })), null, 'Escribe la red…')}` : ''}
         <label for="mvN"${esEntrega ? '' : ' style="margin-top:0"'}>Una nota (opcional)</label>
         <textarea id="mvN" rows="3" placeholder="${esEntrega
           ? 'Lo que el líder de red necesita saber para elegir el grupo'
           : 'Qué pasó'}"></textarea>`,
       aceptar: esEntrega ? 'Entregar' : 'Pasar',
-      alMontar: v => () => ({
-        red: v.querySelector('#mvRed') ? v.querySelector('#mvRed').value : null,
-        nota: v.querySelector('#mvN').value.trim()
-      })
+      alMontar: v => {
+        if (esEntrega)
+          engancharSelector('mvRed', (redes || []).map(x => ({ id:x.id, nombre:x.nombre })));
+        return () => ({
+          red: v.querySelector('#mvRed') ? v.querySelector('#mvRed').value || null : null,
+          nota: v.querySelector('#mvN').value.trim()
+        });
+      }
     });
     if (!r) return;
 
@@ -6586,6 +6853,19 @@ async function vSeguimiento(id){
                      : `Pasa a ${b.dataset.nom}.`);
     ir('seguimiento', data || id);
   });
+
+  const bdes = document.getElementById('segDesactivar');
+  if (bdes) bdes.onclick = async () => {
+    const motivo = await pedirTexto(`Desactivar a ${s.nombre}`, {
+      texto: 'Sale del cuidado y de sus áreas, y el recorrido se cierra. No se pierde nada: se puede reactivar desde Administrar → Desactivados.',
+      marcador: 'No quiso seguir' });
+    if (motivo == null) return;
+    const { error } = await SB.rpc('cerrar_por_desactivacion',
+      { p_seguimiento:id, p_motivo:motivo || null });
+    if (error) return avisar(error.message, true);
+    avisar(`${s.nombre.split(' ')[0]} quedó desactivado.`);
+    ir('flujo');
+  };
 
   const bp = document.getElementById('segPerder');
   if (bp) bp.onclick = async () => {
@@ -6910,8 +7190,11 @@ async function vInvitados(){
      Pide lo mismo que la base le pide a cualquier persona: sin
      eso no entra, que es justamente el punto. */
   async function pasarALaBase(x){
-    const { data:areas } = await SB.from('areas_vista')
-      .select('id, nombre, tipo').eq('activa', true).order('nombre');
+    // areas_buscar trae el camino (la red de la que cuelga), que es
+    // lo que hace que «Jairo y Paola» se distinga de los otros
+    // cuarenta grupos al buscar.
+    const { data:areas } = await SB.from('areas_buscar')
+      .select('*').order('red').order('nombre');
 
     const r = await dialogo({
       titulo: `Pasar a ${x.nombre} a la base`,
@@ -6928,18 +7211,25 @@ async function vInvitados(){
         <label for="pbD">Documento (opcional)</label>
         <input type="text" id="pbD" inputmode="numeric">
         <label for="pbA">¿A qué grupo o área entra?</label>
-        <select id="pbA"><option value="">Por ahora a ninguna</option>
-          ${(areas || []).map(a => `<option value="${a.id}"${a.id === x.area_id ? ' selected' : ''}>${esc(a.nombre)}</option>`).join('')}
-        </select>`,
+        ${selectorBuscable('pbA',
+          (areas || []).map(a => ({ id:a.id, nombre:a.nombre,
+            sub:[TIPOS_AREA[a.tipo] || a.tipo, a.red && a.red !== a.nombre ? a.red : null]
+                .filter(Boolean).join(' · ') })),
+          x.area_id, 'Por ahora a ninguna')}`,
       aceptar: 'Pasarlo a la base',
-      alMontar: v => () => ({
-        n: v.querySelector('#pbN').value.trim(),
-        c: v.querySelector('#pbC').value.trim(),
-        f: v.querySelector('#pbF').value || null,
-        m: v.querySelector('#pbM').value.trim(),
-        d: v.querySelector('#pbD').value.trim(),
-        a: v.querySelector('#pbA').value || null
-      })
+      alMontar: v => {
+        engancharSelector('pbA', (areas || []).map(a => ({ id:a.id, nombre:a.nombre,
+          sub:[TIPOS_AREA[a.tipo] || a.tipo, a.red && a.red !== a.nombre ? a.red : null]
+              .filter(Boolean).join(' · ') })));
+        return () => ({
+          n: v.querySelector('#pbN').value.trim(),
+          c: v.querySelector('#pbC').value.trim(),
+          f: v.querySelector('#pbF').value || null,
+          m: v.querySelector('#pbM').value.trim(),
+          d: v.querySelector('#pbD').value.trim(),
+          a: v.querySelector('#pbA').value || null
+        });
+      }
     });
     if (!r) return;
 
