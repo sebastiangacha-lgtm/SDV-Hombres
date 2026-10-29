@@ -707,6 +707,49 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
    texto vacia: si solo lidero un grupo, ahi va el nombre y punto. */
 .dato-fijo{margin:0;padding:11px 0;font-size:17px;font-weight:600;color:var(--texto)}
 
+/* Tomar asistencia tocando caras, no leyendo una lista de botones.
+   Apagada = no vino. Se enciende al tocarla. Mañana, cuando haya
+   fotos, la foto reemplaza las iniciales y no cambia nada más. */
+.rejilla-gente{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));
+  gap:10px;padding:16px;
+}
+@media (max-width:420px){ .rejilla-gente{grid-template-columns:repeat(3,1fr);gap:8px;padding:12px} }
+.tarj-gente{
+  position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:14px 8px 12px;border-radius:var(--r-chico);cursor:pointer;
+  background:var(--velo);border:1px solid var(--linea-suave);
+  color:var(--tenue);font-family:inherit;font-size:13px;line-height:1.25;text-align:center;
+  transition:background .16s, border-color .16s, color .16s, transform .12s;
+}
+.tarj-gente:hover{border-color:var(--linea);color:var(--suave)}
+.tarj-gente:active{transform:scale(.97)}
+.tarj-gente .cara{
+  width:48px;height:48px;border-radius:50%;display:grid;place-items:center;
+  background:var(--alto);color:var(--tenue);font-size:16px;font-weight:600;
+  border:1px solid var(--linea-suave);overflow:hidden;
+  transition:background .16s, color .16s, border-color .16s;
+}
+.tarj-gente .cara img{width:100%;height:100%;object-fit:cover}
+.tarj-gente .quien{display:block;font-weight:500;overflow-wrap:anywhere}
+.tarj-gente .mando{
+  display:block;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--tenue)
+}
+.tarj-gente[aria-pressed="true"]{
+  background:var(--verde-tenue);border-color:var(--verde);color:var(--texto);
+}
+.tarj-gente[aria-pressed="true"] .cara{
+  background:var(--verde);color:#fff;border-color:var(--verde);
+}
+.tarj-gente[aria-pressed="true"] .mando{color:var(--verde)}
+.tarj-gente .palomita{
+  position:absolute;top:7px;right:7px;width:17px;height:17px;border-radius:50%;
+  background:var(--verde);display:none;place-items:center;
+}
+.tarj-gente .palomita svg{width:11px;height:11px;stroke:#fff;stroke-width:2.6;fill:none}
+.tarj-gente[aria-pressed="true"] .palomita{display:grid}
+:root[data-tema="oscuro"] .tarj-gente{background:rgba(255,255,255,.03)}
+
 /* El boton de guardar al pie, pegado abajo en el celular: en una
    lista de catorce nombres, buscar el boton es bajar hasta el final
    con el pulgar. */
@@ -1079,6 +1122,8 @@ const I_SERVICIOS = '<svg viewBox="0 0 24 24"><path d="M12 3l2.4 5 5.6.8-4 3.9 1
 const I_MAS = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>';
 
 const I = {
+  invitados:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8.5" r="3.2"/><path d="M4 20v-1.6a6 6 0 0 1 12 0V20" stroke-linecap="round"/><path d="M18 7v6M21 10h-6" stroke-linecap="round"/></svg>',
+  palomita:'<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   reportar:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke-linejoin="round"/><path d="M14 3v5h5M9 13l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   reportes:'<svg viewBox="0 0 24 24"><path d="M5 19V9M10 19V5M15 19v-7M20 19v-4" stroke-linecap="round"/><path d="M3 21h18" stroke-linecap="round"/></svg>',
   inicio:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg>',
@@ -1273,8 +1318,9 @@ function pintarNav(){
   const grupos = [
     ['Cuidado', 'registrar',
       [...(cuida ? [['registrar','Registrar cuidado']] : []), ['inicio','Inicio'],
-       ...(mando ? [['personas','Personas'], ['listas','Listas'],
-                    ['nuevaPersona','Registrar persona']] : [])]],
+       ...(mando ? [['personas','Personas']] : []),
+       ...(mando || cuida ? [['invitados','Invitados']] : []),
+       ...(mando ? [['listas','Listas'], ['nuevaPersona','Registrar persona']] : [])]],
     ['Escuela', 'procesos',
       [['procesos','Cursos y procesos'],
        ...(mando ? [['solicitudes','Solicitudes'], ['revisar','Por revisar']] : [])]],
@@ -1432,7 +1478,7 @@ const VISTAS = {
   oracion:vOracion, lista_oracion:vPasarLista,
   jerarquias:vJerarquias, bajoSuCargo:vBajoSuCargo, areaGente:vAreaGente,
   grupos:vGrupos, servicios:vServicios, nuevoGrupo:vNuevoGrupo,
-  reportar:vReportar, reportes:vReportes,
+  reportar:vReportar, reportes:vReportes, invitados:vInvitados,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -1738,6 +1784,9 @@ async function vFicha(id){
   ]);
   if (error || !p) return app.innerHTML = `<div class="error">No se encontró a esa persona, o está fuera de lo que puedes ver.</div>`;
 
+  const { data:cats } = await SB.from('categorias_persona')
+    .select('*').eq('activa', true).order('orden');
+
   const c = claseEstado(p.situacion);
   const esMio   = p.id === S.yo.persona_id;
   const puedo   = yo.puede_cuidar && !esMio;
@@ -1760,6 +1809,21 @@ async function vFicha(id){
     </div><span class="cuenta ${c}">${p.dias}<small>días</small></span></div>
     <span class="medida ${c}" style="margin-top:14px"><i style="width:${Math.min(100,Math.round(p.dias/90*100))}%"></i><b style="left:33.3%"></b></span>
   </div></div>`;
+
+  /* ---------- categoria de la iglesia ----------
+     Va aparte del proceso de hombres a propósito: son dos escalas
+     distintas y no se mueven juntas. Alguien puede ser paje y
+     Líder de Grupo de Vida, o escudero y solo Miembro. */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>En la iglesia</h2>
+      <span class="ruta-conteo">${esc(p.categoria || 'sin categoría')}</span></div>
+    <div class="tarjeta-cuerpo">
+      ${puedoMarcar || mando ? `<label for="fCat" style="margin-top:0">Categoría</label>
+        <select id="fCat" style="max-width:420px">
+          <option value="">Sin categoría</option>
+          ${(cats || []).map(ct => `<option value="${ct.id}"${ct.id === p.categoria_id ? ' selected' : ''}>${esc(ct.nombre)}</option>`).join('')}
+        </select>`
+      : `<p class="dato-fijo">${esc(p.categoria || 'Sin categoría')}</p>`}
+    </div></div>`;
 
   /* ---------- camino y rutas ---------- */
   html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Su proceso</h2>
@@ -1968,6 +2032,17 @@ async function vFicha(id){
     avisar('Área quitada.');
     ir('ficha', id);
   });
+
+  const selCat = document.getElementById('fCat');
+  if (selCat) selCat.onchange = async () => {
+    const { error } = await SB.rpc('cambiar_categoria',
+      { p_persona:id, p_categoria:selCat.value ? Number(selCat.value) : null });
+    if (error) return avisar(error.message, true);
+    avisar(selCat.value
+      ? `Ahora es ${selCat.options[selCat.selectedIndex].text}.`
+      : 'Quedó sin categoría.');
+    ir('ficha', id);
+  };
 
   app.querySelectorAll('[data-subir]').forEach(b => b.onclick = async () => {
     const { error } = await SB.from('rangos').insert({
@@ -5044,7 +5119,7 @@ async function vEvento(id){
   const [{ data:e, error }, { data:asis }, { data:dir },
          { data:equipo }, { data:cob }, { data:areasServ }, { data:disponibles }] = await Promise.all([
     SB.from('eventos_resumen').select('*').eq('id', id).maybeSingle(),
-    SB.from('asistencias').select('*').eq('evento_id', id),
+    SB.from('asistencias').select('*, invitados(id, nombre, celular)').eq('evento_id', id),
     SB.from('directorio').select('*').order('nombre'),
     SB.from('equipo_evento').select('*').eq('evento_id', id),
     SB.from('cobertura_evento').select('*').eq('evento_id', id),
@@ -5053,9 +5128,13 @@ async function vEvento(id){
   ]);
   if (error || !e) return app.innerHTML = `<div class="error">No se encontró ese evento.</div>`;
 
-  const marcados   = new Map((asis || []).map(a => [a.persona_id, a]));
+  const marcados   = new Map((asis || []).filter(a => a.persona_id).map(a => [a.persona_id, a]));
   const miembros   = (dir || []).filter(p => p.estado === 'activo');
-  const visitas    = (dir || []).filter(p => p.estado === 'visitante' && marcados.has(p.id));
+  // Los invitados ya no son personas: vienen pegados a la asistencia.
+  const visitas    = (asis || []).filter(a => a.invitados)
+    .map(a => ({ id:a.invitados.id, nombre:a.invitados.nombre,
+                 celular:a.invitados.celular, es_invitado:true }));
+  visitas.forEach(v => marcados.set(v.id, { asistio:true, estado:'presente' }));
   const encargados = (equipo || []).filter(x => x.rol === 'encargado');
   const servidores = (equipo || []).filter(x => x.rol === 'servidor');
   const faltan     = (cob || []).reduce((a,c) => a + Number(c.faltan), 0);
@@ -5148,12 +5227,15 @@ async function vEvento(id){
     return `<li id="as-${p.id}"><div class="fila" style="cursor:default;display:flex;align-items:center;gap:12px">
       <span style="flex:1;min-width:0">
         <span class="nombre" style="font-size:17px">${esc(p.nombre)}</span>
-        <span class="sub">${p.estado === 'visitante' ? '<span class="sello">Visitante</span>' : ''}
+        <span class="sub">${p.es_invitado ? '<span class="sello">Invitado</span>' : ''}
           <span>${fue ? 'Asistió' : (a ? 'No asistió' : 'Sin marcar')}</span></span></span>
-      ${puede ? `<span class="paso-acc">
-        <button class="btn ${fue ? '' : 'seco'} chico" data-as="${p.id}" data-fue="1">Vino</button>
-        <button class="btn ${a && !fue ? 'rojo' : 'seco'} chico" data-as="${p.id}" data-fue="0">No</button>
-      </span>` : ''}
+      ${!puede ? '' : p.es_invitado
+        ? `<span class="paso-acc">
+            <button class="btn seco chico" data-quitarinv="${p.id}">Quitar</button></span>`
+        : `<span class="paso-acc">
+            <button class="btn ${fue ? '' : 'seco'} chico" data-as="${p.id}" data-fue="1">Vino</button>
+            <button class="btn ${a && !fue ? 'rojo' : 'seco'} chico" data-as="${p.id}" data-fue="0">No</button>
+          </span>`}
     </div></li>`;
   };
 
@@ -5311,12 +5393,22 @@ async function vEvento(id){
   function enlazarAsis(raiz){
     (raiz || app).querySelectorAll('[data-as]').forEach(b => b.onclick = () =>
       marcarAsistencia(b.dataset.as, b.dataset.fue === '1' ? 'presente' : 'ausente'));
+    (raiz || app).querySelectorAll('[data-quitarinv]').forEach(b => b.onclick = async () => {
+      const v = visitas.find(x => x.id === b.dataset.quitarinv);
+      if (!await confirmar(`¿Quitar a ${v.nombre} de esta lista?`,
+        'Sigue en Invitados con las otras veces que vino.', false)) return;
+      const { error } = await SB.from('asistencias').delete()
+        .eq('evento_id', id).eq('invitado_id', v.id);
+      if (error) return avisar(error.message, true);
+      avisar(`${v.nombre} ya no está en esta lista.`);
+      ir('evento', id);
+    });
   }
   enlazarAsis();
 
   const cl = document.getElementById('cerrarLista');
   if (cl) cl.onclick = async () => {
-    const sin = enLista.filter(p => !marcados.has(p.id));
+    const sin = enLista.filter(p => !p.es_invitado && !marcados.has(p.id));
     if (!sin.length) return avisar('No queda nadie sin marcar.');
     if (!await confirmar('¿Cerrar la lista?',
       `${sin.length === 1 ? 'Una persona queda como que no asistió' : sin.length + ' personas quedan como que no asistieron'}. Se puede reabrir.`, false)) return;
@@ -6013,6 +6105,215 @@ async function vAreaGente(id){
 
 
 /* ============================================================
+   Invitados — los que todavía no son de la base
+   ------------------------------------------------------------
+   Gente que vino, de la que se sabe el nombre y poco más. No
+   están en Personas y no deben estarlo: para tener ficha hay que
+   tener datos. Aquí se les sigue la pista hasta que los den, y
+   ahí mismo pasan a la base con todo lo que ya vinieron.
+   ============================================================ */
+const DE_DONDE = { grupo:'Grupo de vida', oracion:'Oración', evento:'Evento',
+                   domingo:'Domingo', otro:'Otro' };
+const QUIETO = [['','Todos'], ['15','Más de 15 días'], ['30','Más de 30 días'], ['60','Más de 60 días']];
+
+async function vInvitados(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo && !yo.puede_cuidar)
+    return app.innerHTML = `<div class="error">Esto lo manejan quienes cuidan y la dirección.</div>`;
+
+  const { data:filas, error } = await SB.from('invitados_vista').select('*').order('nombre');
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const todos = filas || [];
+  if (S.qInv == null)    S.qInv = '';
+  if (S.invDonde == null) S.invDonde = '';
+  if (S.invQuieto == null) S.invQuieto = '';
+  if (S.invEstado == null) S.invEstado = 'activo';
+
+  const activos = todos.filter(x => x.estado === 'activo');
+  const listos  = activos.filter(x => x.veces >= 2);
+  const quietos = activos.filter(x => (x.dias_quieto ?? 0) >= 30);
+
+  let html = cabeza('Invitados',
+    `${activos.length} ${activos.length === 1 ? 'persona' : 'personas'} que han venido y todavía no están en la base`);
+
+  html += cifras([
+    { icono:'puerta',   color:'ambar', valor:activos.length, texto:'siguen de visita' },
+    { icono:'personas', color:'verde', valor:listos.length,  texto:'ya vinieron 2 veces o más' },
+    { icono:'alerta',   color:'barro', valor:quietos.length, texto:'llevan más de un mes quietos' },
+    { icono:'personas', color:'azul',
+      valor:todos.filter(x => x.estado === 'vinculado').length, texto:'ya pasaron a la base' }
+  ]);
+
+  html += cajaBusqueda('qInv', 'Buscar un invitado…', S.qInv);
+
+  html += `<div class="tarjeta"><div class="tarjeta-cuerpo" style="padding-bottom:16px">
+      <div class="par">
+        <div><label for="iDonde" style="margin-top:0">Por dónde llegó</label>
+          <select id="iDonde"><option value="">Por cualquier lado</option>
+            ${Object.entries(DE_DONDE).map(([v,t]) =>
+              `<option value="${v}"${v === S.invDonde ? ' selected' : ''}>${t}</option>`).join('')}
+          </select></div>
+        <div><label for="iQuieto" style="margin-top:0">Cuánto lleva quieto</label>
+          <select id="iQuieto">
+            ${QUIETO.map(([v,t]) =>
+              `<option value="${v}"${v === S.invQuieto ? ' selected' : ''}>${t}</option>`).join('')}
+          </select></div>
+        <div><label for="iEstado" style="margin-top:0">Estado</label>
+          <select id="iEstado">
+            ${[['activo','De visita'],['perdido','Se dejó de seguir'],
+               ['vinculado','Ya está en la base'],['','Todos']].map(([v,t]) =>
+              `<option value="${v}"${v === S.invEstado ? ' selected' : ''}>${t}</option>`).join('')}
+          </select></div>
+      </div></div></div>`;
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quiénes son</h2>
+      <span class="ruta-conteo" id="iConteo"></span></div>
+    <ul class="registro" id="iLista"></ul></div>`;
+
+  app.innerHTML = html;
+
+  const fila = x => {
+    const quieto = x.dias_quieto;
+    const alerta = x.estado === 'activo' && quieto != null && quieto >= 30;
+    return `<li><div class="fila" style="cursor:default">
+      <span class="fila-alto">
+        <span class="nombre" style="font-size:17px">${esc(x.nombre)}</span>
+        ${x.estado === 'vinculado' ? '<span class="marca-est m-cuidado">ya está en la base</span>'
+          : x.estado === 'perdido' ? '<span class="marca-est m-desconectado">se dejó de seguir</span>'
+          : x.veces >= 2 ? `<span class="marca-est m-alerta">${x.veces} visitas</span>`
+          : `<span class="sello">${x.veces} ${x.veces === 1 ? 'visita' : 'visitas'}</span>`}</span>
+      <span class="sub">
+        <span>${esc(DE_DONDE[x.de_donde] || x.de_donde)}</span>
+        ${x.area ? `<span>· ${esc(x.area)}</span>` : ''}
+        ${x.serie ? `<span>· ${esc(x.serie)}</span>` : ''}
+        ${x.celular ? `<span>· ${esc(x.celular)}</span>` : '<span>· sin celular</span>'}
+        ${x.lo_trajo ? `<span>· lo trajo ${esc(x.lo_trajo)}</span>` : ''}</span>
+      <span class="sub">
+        ${x.primera_vez ? `<span>primera vez el ${fechaCorta(x.primera_vez)}</span>` : '<span>todavía no ha venido</span>'}
+        ${quieto != null ? `<span style="${alerta ? 'color:var(--barro)' : ''}">· ${
+          quieto === 0 ? 'vino esta semana' : `quieto hace ${quieto} ${quieto === 1 ? 'día' : 'días'}`}</span>` : ''}</span>
+      ${x.estado === 'vinculado'
+        ? `<span style="display:flex;gap:7px;margin-top:10px">
+             <a class="btn seco chico" href="${direccion('ficha', x.persona_id)}">Ver su ficha</a></span>`
+        : `<span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+             <button class="btn chico" data-ipasar="${x.id}">Pasar a la base</button>
+             ${x.celular ? `<button class="btn seco chico" data-iwa="${x.id}">WhatsApp</button>` : ''}
+             <button class="btn seco chico" data-imarcar="${x.id}"
+               data-a="${x.estado === 'perdido' ? 'activo' : 'perdido'}">${
+               x.estado === 'perdido' ? 'Volver a seguirlo' : 'Dejar de seguirlo'}</button>
+             ${V().es_admin || V().ve_todo
+               ? `<button class="btn rojo chico" data-iborrar="${x.id}">Borrar</button>` : ''}
+           </span>`}
+    </div></div></li>`;
+  };
+
+  const filtrar = () => {
+    const q = sinT(S.qInv.trim());
+    return todos.filter(x =>
+      (!S.invEstado || x.estado === S.invEstado) &&
+      (!S.invDonde  || x.de_donde === S.invDonde) &&
+      (!S.invQuieto || (x.dias_quieto ?? 0) >= Number(S.invQuieto)) &&
+      (!q || sinT(x.nombre).includes(q) || sinT(x.celular || '').includes(q)
+          || sinT(x.area || '').includes(q) || sinT(x.lo_trajo || '').includes(q)));
+  };
+
+  const pintar = () => {
+    const v = filtrar();
+    document.getElementById('iConteo').textContent = `${v.length} de ${todos.length}`;
+    document.getElementById('iLista').innerHTML = v.length ? v.map(fila).join('')
+      : `<li><div class="vacio" style="margin:0"><strong>Nadie con estos filtros</strong>
+           Prueba con otro nombre o quita alguno de los filtros.</div></li>`;
+    enlazar();
+  };
+
+  function enlazar(){
+    app.querySelectorAll('[data-iwa]').forEach(b => b.onclick = () => {
+      const x = todos.find(t => t.id === b.dataset.iwa);
+      const tel = (x.celular || '').replace(/\D/g, '');
+      window.open(`https://wa.me/57${tel.slice(-10)}`, '_blank');
+    });
+
+    app.querySelectorAll('[data-imarcar]').forEach(b => b.onclick = async () => {
+      const { error } = await SB.rpc('marcar_invitado',
+        { p_invitado:b.dataset.imarcar, p_estado:b.dataset.a });
+      if (error) return avisar(error.message, true);
+      avisar(b.dataset.a === 'perdido' ? 'Ya no aparece entre los de visita.' : 'Vuelve a estar de visita.');
+      ir('invitados');
+    });
+
+    app.querySelectorAll('[data-iborrar]').forEach(b => b.onclick = async () => {
+      const x = todos.find(t => t.id === b.dataset.iborrar);
+      if (!await confirmar(`¿Borrar a ${x.nombre}?`,
+        'Se va con las veces que vino. Si lo que quieres es dejar de seguirlo, usa el otro botón.', true)) return;
+      const { error } = await SB.rpc('borrar_invitado', { p_invitado:x.id });
+      if (error) return avisar(error.message, true);
+      avisar(`${x.nombre} se borró.`);
+      ir('invitados');
+    });
+
+    app.querySelectorAll('[data-ipasar]').forEach(b => b.onclick = () =>
+      pasarALaBase(todos.find(t => t.id === b.dataset.ipasar)));
+  }
+
+  /* ---------- pasar a la base ----------
+     Pide lo mismo que la base le pide a cualquier persona: sin
+     eso no entra, que es justamente el punto. */
+  async function pasarALaBase(x){
+    const { data:areas } = await SB.from('areas_vista')
+      .select('id, nombre, tipo').eq('activa', true).order('nombre');
+
+    const r = await dialogo({
+      titulo: `Pasar a ${x.nombre} a la base`,
+      cuerpo: `<label for="pbN" style="margin-top:0">Nombre</label>
+        <input type="text" id="pbN" value="${esc(x.nombre)}">
+        <div class="par">
+          <div><label for="pbC">Celular</label>
+            <input type="text" id="pbC" inputmode="numeric" value="${esc(x.celular || '')}"></div>
+          <div><label for="pbF">Fecha de nacimiento</label>
+            <input type="date" id="pbF"></div>
+        </div>
+        <label for="pbM">Correo</label>
+        <input type="email" id="pbM" value="${esc(x.correo || '')}">
+        <label for="pbD">Documento (opcional)</label>
+        <input type="text" id="pbD" inputmode="numeric">
+        <label for="pbA">¿A qué grupo o área entra?</label>
+        <select id="pbA"><option value="">Por ahora a ninguna</option>
+          ${(areas || []).map(a => `<option value="${a.id}"${a.id === x.area_id ? ' selected' : ''}>${esc(a.nombre)}</option>`).join('')}
+        </select>`,
+      aceptar: 'Pasarlo a la base',
+      alMontar: v => () => ({
+        n: v.querySelector('#pbN').value.trim(),
+        c: v.querySelector('#pbC').value.trim(),
+        f: v.querySelector('#pbF').value || null,
+        m: v.querySelector('#pbM').value.trim(),
+        d: v.querySelector('#pbD').value.trim(),
+        a: v.querySelector('#pbA').value || null
+      })
+    });
+    if (!r) return;
+
+    const { error } = await SB.rpc('convertir_invitado', {
+      p_invitado:x.id, p_nombre:r.n, p_correo:r.m || null,
+      p_documento:r.d || null, p_fecha_nacimiento:r.f,
+      p_celular:r.c || null, p_area:r.a
+    });
+    if (error) return avisar(error.message, true);
+    avisar(x.veces === 1 ? `${r.n} ya está en la base, con la vez que vino.`
+                         : `${r.n} ya está en la base, con sus ${x.veces} visitas.`);
+    ir('invitados');
+  }
+
+  pintar();
+  engancharBusqueda('qInv', v => { S.qInv = v; pintar(); });
+  document.getElementById('iDonde').onchange  = e => { S.invDonde  = e.target.value; pintar(); };
+  document.getElementById('iQuieto').onchange = e => { S.invQuieto = e.target.value; pintar(); };
+  document.getElementById('iEstado').onchange = e => { S.invEstado = e.target.value; pintar(); };
+}
+
+
+/* ============================================================
    Reportar mi grupo — una sola pantalla
    ------------------------------------------------------------
    Redil partía esto en cinco pasos y un calendario. El calendario
@@ -6101,19 +6402,16 @@ async function vReportar(argGrupo){
         rep.tema = previo.tema || '';
         rep.obs  = previo.observaciones || '';
         rep.marcas = {};
-        // Un invitado SÍ tiene persona_id: se crea como persona con
-        // estado «visitante». Lo que los separa de la lista del grupo
-        // es ese estado, no la falta de id.
-        detalle.filter(x => x.estado_persona !== 'visitante').forEach(x => {
+        detalle.filter(x => !x.es_invitado).forEach(x => {
           rep.marcas[x.persona_id] = { estado:x.estado, motivo:x.motivo_id || '', nota:x.nota || '' };
         });
-        rep.invitados = detalle.filter(x => x.estado_persona === 'visitante')
-          .map(x => ({ nombre:x.nombre, celular:x.celular || '', veces:x.veces || 0 }));
+        rep.invitados = detalle.filter(x => x.es_invitado)
+          .map(x => ({ id:x.invitado_id, nombre:x.nombre, celular:x.celular || '', veces:x.veces || 0 }));
         rep.cargado = true; rep.cargadoDe = previo.id;
       }
     } else { rep.cargado = false; rep.cargadoDe = null; }
 
-    const lista = (miembros || []).filter(m => m.estado !== 'visitante');
+    const lista = miembros || [];
     const pideNota = new Set(motivos.filter(m => m.pide_nota).map(m => m.id));
     if (S.qRep == null) S.qRep = '';
 
@@ -6152,21 +6450,22 @@ async function vReportar(argGrupo){
     if (rep.hizo === true){
       html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quién vino</h2>
           <span class="ruta-conteo" id="rConteo"></span></div>
-        ${lista.length > 10 ? `<div class="tarjeta-cuerpo" style="padding-bottom:0">
+        ${lista.length > 12 ? `<div class="tarjeta-cuerpo" style="padding-bottom:0">
           ${cajaBusqueda('qRep', 'Buscar en el grupo…', S.qRep)}</div>` : ''}
-        <ul class="registro" id="rLista"></ul>
-        <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
-          <span class="sub"><span>A quien no marques le queda «ausente» al guardar.</span></span>
-        </div></div>`;
+        <div class="rejilla-gente" id="rLista"></div></div>`;
+
+      /* Los que quedaron apagados, para ponerles el motivo. Sale
+         solo: no hay que ir a buscarlo ni abrir nada. */
+      html += `<div class="tarjeta" id="rFaltaron" hidden>
+          <div class="tarjeta-alto"><h2>No vinieron</h2>
+            <span class="ruta-conteo" id="rFaltaConteo"></span></div>
+          <ul class="registro" id="rFaltas"></ul></div>`;
 
       /* ---------- invitados ---------- */
       html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Invitados</h2>
           <span class="ruta-conteo" id="rInvConteo"></span>
           <button class="btn seco chico" id="rAddInv">Agregar invitado</button></div>
-        <ul class="registro" id="rInv"></ul>
-        <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
-          <span class="sub"><span>Con el nombre basta. A la tercera visita la plataforma pide meterlo al grupo.</span></span>
-        </div></div>`;
+        <ul class="registro" id="rInv"></ul></div>`;
     }
 
     html += `<div class="guardar-pie">
@@ -6209,31 +6508,17 @@ async function vReportar(argGrupo){
     }
 
     /* ---------- la lista, repintada por fila ---------- */
-    const filaP = p => {
-      const m = rep.marcas[p.persona_id] || {};
-      const es = m.estado;
-      const necesita = es === 'ausente' && m.motivo && pideNota.has(m.motivo);
-      return `<li id="rp-${p.persona_id}"><div class="fila" style="cursor:default">
-        <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(p.nombre)}</span>
-          ${selloRol(p.rol_en_area)}</span>
-        <span class="paso-acc" style="margin-top:9px">
-          <button class="btn ${es === 'presente' ? '' : 'seco'} chico" data-rp="${p.persona_id}" data-e="presente">Vino</button>
-          <button class="btn ${es === 'ausente' ? 'rojo' : 'seco'} chico" data-rp="${p.persona_id}" data-e="ausente">No vino</button>
-          <button class="btn ${es === 'permiso' ? 'ambar' : 'seco'} chico" data-rp="${p.persona_id}" data-e="permiso">Con permiso</button>
-        </span>
-        ${es === 'ausente' || es === 'permiso' ? `
-          <div style="margin-top:11px;max-width:460px">
-            <select data-rmot="${p.persona_id}" aria-label="Por qué no vino ${esc(p.nombre)}">
-              <option value="">¿Por qué? (opcional)</option>
-              ${motivos.map(mo => `<option value="${mo.id}"${mo.id === m.motivo ? ' selected' : ''}>${esc(mo.nombre)}</option>`).join('')}
-            </select>
-            ${necesita ? `<textarea data-rnota="${p.persona_id}" rows="2" style="margin-top:8px"
-               placeholder="Qué pasó y qué hiciste">${esc(m.nota || '')}</textarea>
-               <span class="sub" data-rfalta="${p.persona_id}" ${(m.nota || '').trim() ? 'hidden' : ''}>
-                 <span style="color:var(--barro)">Este motivo necesita una nota.</span></span>` : ''}
-          </div>` : ''}
-      </div></li>`;
-    };
+    /* ---------- la rejilla: se toca y se enciende ---------- */
+    const vino = pid => (rep.marcas[pid] || {}).estado === 'presente';
+
+    const tarjeta = p => `<button type="button" class="tarj-gente" data-rp="${p.persona_id}"
+        aria-pressed="${vino(p.persona_id)}" title="${esc(p.nombre)}">
+        <span class="palomita">${I.palomita}</span>
+        <span class="cara">${esc(iniciales(p.nombre))}</span>
+        <span class="quien">${esc(p.nombre)}</span>
+        ${MANDA_AREA(p.rol_en_area)
+          ? `<span class="mando">${esc(ROLES_AREA[p.rol_en_area] || p.rol_en_area)}</span>` : ''}
+      </button>`;
 
     const visibles = () => {
       const q = sinT(S.qRep.trim());
@@ -6242,55 +6527,88 @@ async function vReportar(argGrupo){
 
     function pintarLista(){
       const v = visibles();
-      document.getElementById('rLista').innerHTML = v.length ? v.map(filaP).join('')
-        : `<li><div class="tarjeta-cuerpo" style="padding-top:0">
-            <span class="sub"><span>Nadie con «${esc(S.qRep.trim())}» en el grupo</span></span></div></li>`;
-      enlazarLista();
-      contar();
-    }
-    function repintarFila(pid){
-      const li = document.getElementById('rp-' + pid);
-      const p = lista.find(x => x.persona_id === pid);
-      if (!li || !p) return pintarLista();
-      li.outerHTML = filaP(p);
-      enlazarLista();
-      contar();
-    }
-    function contar(){
-      const n = k => Object.values(rep.marcas).filter(m => m.estado === k).length;
-      const c = document.getElementById('rConteo');
-      if (c) c.textContent = `${n('presente')} de ${lista.length}`;
-      const ci = document.getElementById('rInvConteo');
-      if (ci) ci.textContent = rep.invitados.length || '';
-    }
-    function enlazarLista(){
-      app.querySelectorAll('[data-rp]').forEach(b => b.onclick = () => {
-        const pid = b.dataset.rp, e = b.dataset.e;
-        const m = rep.marcas[pid] || {};
-        // Volver a tocar el mismo botón desmarca: así se corrige sin
-        // tener que recargar la pantalla.
-        if (m.estado === e) delete rep.marcas[pid];
-        else rep.marcas[pid] = { estado:e, motivo:e === 'presente' ? '' : (m.motivo || ''), nota:m.nota || '' };
-        repintarFila(pid);
+      document.getElementById('rLista').innerHTML = v.length ? v.map(tarjeta).join('')
+        : `<div class="sub" style="grid-column:1/-1"><span>Nadie con «${esc(S.qRep.trim())}» en el grupo</span></div>`;
+      app.querySelectorAll('.tarj-gente').forEach(b => b.onclick = () => {
+        const pid = b.dataset.rp;
+        if (vino(pid)) delete rep.marcas[pid];
+        else rep.marcas[pid] = { estado:'presente' };
+        // Solo esta tarjeta cambia: repintar la rejilla entera en un
+        // grupo de veinte haría parpadear la pantalla en cada toque.
+        b.setAttribute('aria-pressed', vino(pid));
+        contar();
+        pintarFaltas();
       });
-      app.querySelectorAll('[data-rmot]').forEach(s => s.onchange = () => {
-        const pid = s.dataset.rmot;
+      contar();
+    }
+
+    /* ---------- los que no vinieron, con su motivo ---------- */
+    const faltaron = () => lista.filter(p => !vino(p.persona_id));
+
+    const filaFalta = p => {
+      const m = rep.marcas[p.persona_id] || {};
+      const necesita = m.motivo && pideNota.has(m.motivo);
+      return `<li id="rf-${p.persona_id}"><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre" style="font-size:16px">${esc(p.nombre)}</span></span>
+        <div style="margin-top:9px;max-width:460px">
+          <select data-rmot="${p.persona_id}" aria-label="Por qué no vino ${esc(p.nombre)}">
+            <option value="">¿Por qué? (opcional)</option>
+            ${motivos.map(mo => `<option value="${mo.id}"${mo.id === m.motivo ? ' selected' : ''}>${esc(mo.nombre)}</option>`).join('')}
+          </select>
+          ${necesita ? `<textarea data-rnota="${p.persona_id}" rows="2" style="margin-top:8px"
+             placeholder="Qué pasó y qué hiciste">${esc(m.nota || '')}</textarea>
+             <span class="sub" data-rfalta="${p.persona_id}" ${(m.nota || '').trim() ? 'hidden' : ''}>
+               <span style="color:var(--barro)">Este motivo necesita una nota.</span></span>` : ''}
+        </div>
+      </div></li>`;
+    };
+
+    function pintarFaltas(){
+      const v = faltaron();
+      const caja = document.getElementById('rFaltaron');
+      if (!caja) return;
+      caja.hidden = !v.length;
+      if (!v.length) return;
+      document.getElementById('rFaltaConteo').textContent = v.length;
+      document.getElementById('rFaltas').innerHTML = v.map(filaFalta).join('');
+      enlazarFaltas();
+    }
+    function repintarFalta(pid){
+      const li = document.getElementById('rf-' + pid);
+      const p = lista.find(x => x.persona_id === pid);
+      if (!li || !p) return pintarFaltas();
+      li.outerHTML = filaFalta(p);
+      enlazarFaltas();
+    }
+    function enlazarFaltas(){
+      app.querySelectorAll('[data-rmot]').forEach(sel => sel.onchange = () => {
+        const pid = sel.dataset.rmot;
         // El select entrega texto y los motivos son números: sin el
         // Number, «Enfermedad» nunca pedía la nota.
-        rep.marcas[pid] = { ...(rep.marcas[pid] || { estado:'ausente' }),
-                            motivo:s.value ? Number(s.value) : '' };
-        repintarFila(pid);
+        rep.marcas[pid] = { ...(rep.marcas[pid] || {}), estado:'ausente',
+                            motivo:sel.value ? Number(sel.value) : '' };
+        repintarFalta(pid);
       });
       app.querySelectorAll('[data-rnota]').forEach(t => t.oninput = () => {
         const pid = t.dataset.rnota;
-        rep.marcas[pid] = { ...(rep.marcas[pid] || { estado:'ausente' }), nota:t.value };
-        // No se repinta la fila: eso sacaría el cursor del renglón a
-        // la primera letra. Solo se esconde el aviso.
+        rep.marcas[pid] = { ...(rep.marcas[pid] || {}), estado:'ausente', nota:t.value };
+        // Sin repintar: eso sacaría el cursor del renglón a la
+        // primera letra. Solo se esconde el aviso.
         const av = app.querySelector(`[data-rfalta="${pid}"]`);
         if (av) av.hidden = !!t.value.trim();
       });
     }
+
+    function contar(){
+      const n = lista.filter(p => vino(p.persona_id)).length;
+      const c = document.getElementById('rConteo');
+      if (c) c.textContent = `${n} de ${lista.length}`;
+      const ci = document.getElementById('rInvConteo');
+      if (ci) ci.textContent = rep.invitados.length || '';
+    }
+
     pintarLista();
+    pintarFaltas();
     engancharBusqueda('qRep', v => { S.qRep = v; pintarLista(); });
 
     /* ---------- invitados ---------- */
@@ -6347,12 +6665,13 @@ async function vReportar(argGrupo){
 
     const b = document.getElementById('rGuardar');
     const marcas = Object.entries(rep.marcas).map(([pid,m]) => ({
-      persona_id:pid, estado:m.estado,
+      persona_id:pid, estado:m.estado || 'ausente',
       motivo_id:m.motivo ? Number(m.motivo) : null, nota:(m.nota || '').trim() || null
     }));
 
-    if (rep.hizo === true && !marcas.length &&
-        !await confirmar('No marcaste a nadie', 'Todo el grupo va a quedar como ausente. ¿Así es?', false))
+    const vinieron = marcas.filter(m => m.estado === 'presente').length;
+    if (rep.hizo === true && !vinieron &&
+        !await confirmar('No encendiste a nadie', 'Todo el grupo va a quedar como ausente. ¿Así es?', false))
       return;
 
     b.disabled = true; b.textContent = 'Guardando…';
@@ -6361,7 +6680,8 @@ async function vReportar(argGrupo){
       p_tema:rep.hizo ? (rep.tema.trim() || null) : null,
       p_observaciones:rep.obs.trim() || null,
       p_marcas:rep.hizo ? marcas : [],
-      p_invitados:rep.hizo ? rep.invitados.map(x => ({ nombre:x.nombre, celular:x.celular || null })) : []
+      p_invitados:rep.hizo ? rep.invitados.map(x =>
+        ({ invitado_id:x.id || null, nombre:x.nombre, celular:x.celular || null })) : []
     });
     b.disabled = false; b.textContent = 'Guardar el reporte';
     if (error) return avisar(error.message, true);
@@ -6425,10 +6745,7 @@ async function vReportes(){
           <span class="marca-est m-alerta">${v.veces} visitas</span></span>
         <span class="sub"><span>${esc(v.grupo)}</span>
           ${v.celular ? `<span>· ${esc(v.celular)}</span>` : ''}</span>
-      </div></li>`).join('')}</ul>
-      <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
-        <span class="sub"><span>Ya vinieron dos veces o más. Vale la pena registrarlos como personas.</span></span>
-      </div></div>`;
+      </div></li>`).join('')}</ul></div>`;
 
   html += cajaBusqueda('qRepL', 'Buscar un grupo o una semana…', S.qRepL);
   html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Semana por semana</h2>
@@ -6598,7 +6915,8 @@ async function vOracion(){
           <span>· desde ${fechaCorta(v.primera_vez)}</span>
           ${v.lo_trajo ? `<span>· lo trajo ${esc(v.lo_trajo)}</span>` : ''}</span>
         ${yo.es_admin || yo.ve_todo ? `<span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
-          <button class="btn chico" data-sumar="${v.persona_id}" data-nom="${esc(v.nombre)}">Pasarlo al padrón</button>
+          <button class="btn chico" data-sumar="${v.invitado_id}" data-nom="${esc(v.nombre)}"
+            data-cel="${esc(v.celular || '')}" data-cor="${esc(v.correo || '')}">Pasarlo al padrón</button>
           ${v.celular ? `<a class="btn seco chico" target="_blank" rel="noopener"
              href="https://wa.me/57${esc(v.celular)}">Escribirle</a>` : ''}
         </span>` : ''}
@@ -6723,11 +7041,35 @@ async function vOracion(){
     avisar('Sesión cancelada.'); ir('oracion');
   });
 
+  // Pasar un invitado al padrón es meterlo a la base, y a la base
+  // no se entra sin datos. Por eso ahora pide los que faltan en vez
+  // de ser un sí/no.
   app.querySelectorAll('[data-sumar]').forEach(b => b.onclick = async () => {
-    if (!await confirmar(`¿Pasar a ${b.dataset.nom} al padrón?`,
-      'Deja de ser visitante, entra al área de Oración y desde el próximo viernes cuenta en los indicadores y en el semáforo como todos los demás.', false)) return;
-    const { error } = await SB.rpc('sumar_al_padron',
-      { p_persona:b.dataset.sumar, p_serie:serie.serie_id });
+    const r = await dialogo({
+      titulo: `Pasar a ${b.dataset.nom} al padrón`,
+      cuerpo: `<div class="par">
+          <div><label for="spC" style="margin-top:0">Celular</label>
+            <input type="text" id="spC" inputmode="numeric" value="${esc(b.dataset.cel)}"></div>
+          <div><label for="spF" style="margin-top:0">Fecha de nacimiento</label>
+            <input type="date" id="spF"></div>
+        </div>
+        <label for="spM">Correo</label>
+        <input type="email" id="spM" value="${esc(b.dataset.cor)}">
+        <label for="spD">Documento (opcional)</label>
+        <input type="text" id="spD" inputmode="numeric">`,
+      aceptar: 'Pasarlo al padrón',
+      alMontar: v => () => ({
+        c: v.querySelector('#spC').value.trim(),
+        f: v.querySelector('#spF').value || null,
+        m: v.querySelector('#spM').value.trim(),
+        d: v.querySelector('#spD').value.trim()
+      })
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('sumar_al_padron', {
+      p_invitado:b.dataset.sumar, p_serie:serie.serie_id,
+      p_correo:r.m || null, p_documento:r.d || null,
+      p_fecha_nacimiento:r.f, p_celular:r.c || null });
     if (error) return avisar(error.message, true);
     avisar(`${b.dataset.nom.split(' ')[0]} ya es del padrón.`);
     ir('oracion');
@@ -6840,7 +7182,7 @@ async function vPasarLista(id){
 
   const [{ data:padron }, { data:marcas }, { data:dir }] = await Promise.all([
     SB.from('oracion_padron').select('*').eq('serie_id', ses.serie_id).order('nombre'),
-    SB.from('asistencias').select('persona_id, estado').eq('evento_id', id),
+    SB.from('asistencias').select('persona_id, estado, invitado_id, invitados(id, nombre)').eq('evento_id', id),
     SB.from('directorio').select('id, nombre')
   ]);
 
@@ -6870,17 +7212,15 @@ async function vPasarLista(id){
     return;
   }
 
-  const puesto = new Map((marcas || []).map(m => [m.persona_id, m.estado]));
+  const puesto = new Map((marcas || []).filter(m => m.persona_id).map(m => [m.persona_id, m.estado]));
 
-  // Quien aparece en la lista de esta mañana sin estar en el padrón
-  // es un invitado. Va al final y marcado como tal: cuenta como
-  // presente en la reunión, pero no entra en los porcentajes.
-  const nombres  = new Map((dir || []).map(d => [d.id, d.nombre]));
-  const delPadron = new Set((padron || []).map(p => p.persona_id));
-  const invitados = (marcas || [])
-    .filter(m => !delPadron.has(m.persona_id))
-    .map(m => ({ persona_id:m.persona_id, nombre:nombres.get(m.persona_id) || 'Invitado',
+  // Los invitados vienen pegados a la asistencia: ya no son personas
+  // de la base. Van al final y marcados como tales: cuentan como
+  // presentes en la reunión, pero no entran en los porcentajes.
+  const invitados = (marcas || []).filter(m => m.invitados)
+    .map(m => ({ persona_id:m.invitados.id, nombre:m.invitados.nombre,
                  invitado:true, semaforo:'verde', presentes:0, sesiones:0, permisos:0 }));
+  invitados.forEach(v => puesto.set(v.persona_id, 'presente'));
 
   const gente = [...(padron || []), ...invitados];
 
@@ -6976,9 +7316,12 @@ async function vPasarLista(id){
   const botones = ['guardarLista','guardarLista2'].map(x => document.getElementById(x)).filter(Boolean);
   const guardar = async () => {
     botones.forEach(b => b.disabled = true);
+    // Los invitados no van en la lista: su asistencia ya quedó
+    // escrita al registrarlos, y pasar_lista solo entiende personas.
     const { error } = await SB.rpc('pasar_lista', {
       p_evento: id,
-      p_marcas: gente.map(p => ({ persona_id:p.persona_id, estado:estado.get(p.persona_id) }))
+      p_marcas: gente.filter(p => !p.invitado)
+                     .map(p => ({ persona_id:p.persona_id, estado:estado.get(p.persona_id) }))
     });
     if (error){ avisar(error.message, true); botones.forEach(b => b.disabled = false); return; }
     avisar('Lista guardada.');
