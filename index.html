@@ -1122,6 +1122,8 @@ const I_SERVICIOS = '<svg viewBox="0 0 24 24"><path d="M12 3l2.4 5 5.6.8-4 3.9 1
 const I_MAS = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>';
 
 const I = {
+  flujo:'<svg viewBox="0 0 24 24"><circle cx="5.5" cy="6" r="2.2"/><circle cx="5.5" cy="18" r="2.2"/><circle cx="18.5" cy="12" r="2.2"/><path d="M7.7 6h5.3a3 3 0 0 1 3 3v.8M7.7 18H13a3 3 0 0 0 3-3v-.8" stroke-linecap="round"/></svg>',
+  mired:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" stroke-linecap="round"/></svg>',
   invitados:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8.5" r="3.2"/><path d="M4 20v-1.6a6 6 0 0 1 12 0V20" stroke-linecap="round"/><path d="M18 7v6M21 10h-6" stroke-linecap="round"/></svg>',
   palomita:'<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   reportar:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke-linejoin="round"/><path d="M14 3v5h5M9 13l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -1321,6 +1323,8 @@ function pintarNav(){
        ...(mando ? [['personas','Personas']] : []),
        ...(mando || cuida ? [['invitados','Invitados']] : []),
        ...(mando ? [['listas','Listas'], ['nuevaPersona','Registrar persona']] : [])]],
+    ['Seguimiento', 'flujo',
+      [['flujo','Recorrido de nuevos'], ['mired','Mi red']]],
     ['Escuela', 'procesos',
       [['procesos','Cursos y procesos'],
        ...(mando ? [['solicitudes','Solicitudes'], ['revisar','Por revisar']] : [])]],
@@ -1445,7 +1449,7 @@ const PADRE = {
   evento:'eventos', area:'servicio', lista_oracion:'oracion',
   bajoSuCargo:'jerarquias', nuevoGrupo:'grupos',
   areaGente: () => padreDeArea || 'grupos',
-  reportar:'grupos', reportes:'grupos',
+  reportar:'grupos', reportes:'grupos', seguimiento:'flujo',
   curso:'procesos', clase:'procesos', quiz:'procesos', resultado:'procesos',
   certificado:'procesos', cursoAdmin:'procesos', quizEditor:'procesos',
   nuevaLista:'listas'
@@ -1479,6 +1483,7 @@ const VISTAS = {
   jerarquias:vJerarquias, bajoSuCargo:vBajoSuCargo, areaGente:vAreaGente,
   grupos:vGrupos, servicios:vServicios, nuevoGrupo:vNuevoGrupo,
   reportar:vReportar, reportes:vReportes, invitados:vInvitados,
+  flujo:vFlujo, seguimiento:vSeguimiento, mired:vMiRed,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -1784,8 +1789,11 @@ async function vFicha(id){
   ]);
   if (error || !p) return app.innerHTML = `<div class="error">No se encontró a esa persona, o está fuera de lo que puedes ver.</div>`;
 
-  const { data:cats } = await SB.from('categorias_persona')
-    .select('*').eq('activa', true).order('orden');
+  const [{ data:cats }, { data:notasFlujo }, { data:segs }] = await Promise.all([
+    SB.from('categorias_persona').select('*').eq('activa', true).order('orden'),
+    SB.from('flujo_notas').select('*').eq('persona_id', id).order('cuando', { ascending:false }),
+    SB.from('flujo_tablero').select('*').eq('persona_id', id).order('abierto_en', { ascending:false })
+  ]);
 
   const c = claseEstado(p.situacion);
   const esMio   = p.id === S.yo.persona_id;
@@ -1809,6 +1817,36 @@ async function vFicha(id){
     </div><span class="cuenta ${c}">${p.dias}<small>días</small></span></div>
     <span class="medida ${c}" style="margin-top:14px"><i style="width:${Math.min(100,Math.round(p.dias/90*100))}%"></i><b style="left:33.3%"></b></span>
   </div></div>`;
+
+  /* ---------- lo que sabemos: las notas del recorrido ----------
+     Siguen aquí después de que el recorrido se cierra: son el
+     contexto de alguien que está a cargo de una red, no el
+     expediente de un trámite que ya pasó. */
+  const segAbierto = (segs || []).find(x => x.estado === 'abierto');
+  if ((notasFlujo || []).length || (segs || []).length || mando || yo.puede_cuidar){
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Lo que sabemos</h2>
+        ${segAbierto
+          ? `<a class="sello" href="${direccion('seguimiento', segAbierto.id)}"
+               style="text-decoration:none">${esc(segAbierto.etapa || 'en el recorrido')}</a>`
+          : (segs || []).length ? '<span class="sello">recorrido terminado</span>' : ''}
+        <span class="ruta-conteo">${(notasFlujo || []).length}</span></div>
+      <div class="tarjeta-cuerpo">
+        <textarea id="fNota" rows="2" placeholder="Lo que haya que saber de esta persona"></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn seco chico" id="fNotaOk">Dejar la nota</button>
+          ${!segAbierto && (mando || yo.puede_cuidar)
+            ? '<button class="btn seco chico" id="fAlFlujo">Meterlo al recorrido</button>' : ''}
+        </div>
+      </div>
+      ${(notasFlujo || []).length ? `<ul class="registro">${notasFlujo.slice(0,8).map(n => `
+        <li><div class="fila" style="cursor:default">
+          <span class="fila-alto"><span class="nombre" style="font-size:15.5px;font-weight:500">${esc(n.texto)}</span></span>
+          <span class="sub"><span>${esc(n.quien || 'alguien')}</span>
+            <span>· ${fechaCorta(n.cuando.slice(0,10))}</span>
+            ${n.etapa ? `<span>· ${esc(n.etapa)}</span>` : ''}</span>
+        </div></li>`).join('')}</ul>` : ''}
+      </div>`;
+  }
 
   /* ---------- categoria de la iglesia ----------
      Va aparte del proceso de hombres a propósito: son dos escalas
@@ -2032,6 +2070,26 @@ async function vFicha(id){
     avisar('Área quitada.');
     ir('ficha', id);
   });
+
+  const bf = document.getElementById('fAlFlujo');
+  if (bf) bf.onclick = async () => {
+    if (!await confirmar(`¿Meter a ${p.nombre} al recorrido?`,
+      'Entra por la primera etapa y queda a tu cargo.', false)) return;
+    const { data, error } = await SB.rpc('abrir_seguimiento', { p_persona:id, p_nota:null });
+    if (error) return avisar(error.message, true);
+    avisar(`${p.nombre.split(' ')[0]} entró al recorrido.`);
+    ir('seguimiento', data);
+  };
+
+  const bn = document.getElementById('fNotaOk');
+  if (bn) bn.onclick = async () => {
+    const t = document.getElementById('fNota').value.trim();
+    if (!t) return avisar('La nota está vacía.', true);
+    const { error } = await SB.rpc('nota_de_flujo', { p_persona:id, p_texto:t });
+    if (error) return avisar(error.message, true);
+    avisar('Nota guardada.');
+    ir('ficha', id);
+  };
 
   const selCat = document.getElementById('fCat');
   if (selCat) selCat.onchange = async () => {
@@ -6101,6 +6159,386 @@ async function vAreaGente(id){
       ir('areaGente', id);
     };
   }
+}
+
+
+/* ============================================================
+   El recorrido de los nuevos
+   ------------------------------------------------------------
+   Quien recibe a un nuevo lo contacta, deja notas y lo entrega a
+   una red. El líder de red lo recibe CON esas notas, que es lo
+   que le dice a qué grupo mandarlo. Cuando llega al grupo el
+   recorrido termina — pero la persona no desaparece: pasa a
+   «Mi red», que es la pantalla de al lado.
+   ============================================================ */
+
+async function vFlujo(){
+  cargando();
+  const yo = V();
+  const { data:filas, error } = await SB.from('flujo_tablero').select('*')
+    .order('etapa_orden').order('dias_quieto', { ascending:false });
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const todos = filas || [];
+  if (S.qFlu == null)   S.qFlu = '';
+  if (S.fluAmb == null) S.fluAmb = 'abierto';
+
+  const abiertos = todos.filter(x => x.estado === 'abierto');
+  const gen = abiertos.filter(x => x.ambito === 'general');
+  const red = abiertos.filter(x => x.ambito === 'red');
+  const quietos = abiertos.filter(x => (x.dias_quieto ?? 0) >= 7);
+
+  let html = cabeza('Recorrido de nuevos',
+    `${abiertos.length} ${abiertos.length === 1 ? 'persona' : 'personas'} en camino`);
+
+  html += cifras([
+    { icono:'personas', color:'ambar', valor:gen.length,     texto:'por contactar y entregar' },
+    { icono:'estructura', color:'azul', valor:red.length,     texto:'ya en una red' },
+    { icono:'alerta',   color:'barro', valor:quietos.length, texto:'llevan una semana quietos' },
+    { icono:'personas', color:'verde',
+      valor:todos.filter(x => x.estado === 'terminado' && x.es_final).length, texto:'llegaron a un grupo' }
+  ]);
+
+  html += cajaBusqueda('qFlu', 'Buscar a alguien…', S.qFlu);
+
+  html += `<div class="tarjeta"><div class="tarjeta-cuerpo" style="padding-bottom:16px">
+      <label for="fluAmb" style="margin-top:0">Qué ver</label>
+      <select id="fluAmb" style="max-width:420px">
+        ${[['abierto','Los que están en camino'],
+           ['general','Solo los que no se han entregado'],
+           ['red','Solo los que ya están en una red'],
+           ['terminado','Los que ya terminaron'],
+           ['perdido','Los que se dejaron de seguir'],
+           ['', 'Todos']].map(([v,t]) =>
+          `<option value="${v}"${v === S.fluAmb ? ' selected' : ''}>${t}</option>`).join('')}
+      </select></div></div>`;
+
+  html += `<div id="fluCajas"></div>`;
+  app.innerHTML = html;
+
+  const fila = x => {
+    const quieto = x.dias_quieto ?? 0;
+    return `<li>
+      <a class="fila" href="${direccion('seguimiento', x.id)}">
+        <span class="fila-alto">
+          <span class="nombre" style="font-size:17px">${esc(x.nombre)}</span>
+          ${x.estado === 'abierto' && quieto >= 7
+            ? `<span class="marca-est m-alerta">quieto hace ${quieto} días</span>`
+            : x.estado === 'perdido' ? '<span class="marca-est m-desconectado">se dejó de seguir</span>'
+            : x.estado === 'terminado' ? '<span class="marca-est m-cuidado">terminó</span>' : ''}</span>
+        <span class="sub">
+          ${x.red ? `<span>${esc(x.red)}</span>` : '<span>sin red todavía</span>'}
+          ${x.responsable ? `<span>· ${esc(x.responsable)}</span>` : '<span>· sin responsable</span>'}
+          ${x.edad ? `<span>· ${x.edad} años</span>` : ''}
+          ${x.celular ? `<span>· ${esc(x.celular)}</span>` : ''}</span>
+        ${x.ultima_nota ? `<span class="sub"><span>${esc(x.ultima_nota)}</span></span>` : ''}
+      </a></li>`;
+  };
+
+  const filtrar = () => {
+    const q = sinT(S.qFlu.trim());
+    return todos.filter(x =>
+      (S.fluAmb === '' ||
+       (S.fluAmb === 'abierto'   && x.estado === 'abierto') ||
+       (S.fluAmb === 'general'   && x.estado === 'abierto' && x.ambito === 'general') ||
+       (S.fluAmb === 'red'       && x.estado === 'abierto' && x.ambito === 'red') ||
+       (S.fluAmb === 'terminado' && x.estado === 'terminado') ||
+       (S.fluAmb === 'perdido'   && x.estado === 'perdido')) &&
+      (!q || sinT(x.nombre).includes(q) || sinT(x.red || '').includes(q)
+          || sinT(x.responsable || '').includes(q) || sinT(x.ultima_nota || '').includes(q)));
+  };
+
+  // Agrupado por etapa: lo que se mira en este tablero es dónde
+  // se está atascando la gente, no una lista plana de nombres.
+  const pintar = () => {
+    const v = filtrar();
+    const etapas = [];
+    v.forEach(x => {
+      const clave = `${x.ambito}·${x.etapa || 'sin etapa'}`;
+      let g = etapas.find(e => e.clave === clave);
+      if (!g) etapas.push(g = { clave, etapa:x.etapa || 'Sin etapa', ambito:x.ambito, gente:[] });
+      g.gente.push(x);
+    });
+    document.getElementById('fluCajas').innerHTML = etapas.length
+      ? etapas.map(g => `<div class="tarjeta"><div class="tarjeta-alto">
+            <h2>${esc(g.etapa)}</h2>
+            <span class="sello">${g.ambito === 'red' ? 'en la red' : 'equipo que recibe'}</span>
+            <span class="ruta-conteo">${g.gente.length}</span></div>
+          <ul class="registro">${g.gente.map(fila).join('')}</ul></div>`).join('')
+      : `<div class="vacio"><strong>Nadie por aquí</strong>
+           Prueba con otro nombre o cambia lo que estás viendo.</div>`;
+  };
+
+  pintar();
+  engancharBusqueda('qFlu', v => { S.qFlu = v; pintar(); });
+  document.getElementById('fluAmb').onchange = e => { S.fluAmb = e.target.value; pintar(); };
+}
+
+
+/* ------------------------------------------------------------
+   Un seguimiento: las notas y el siguiente paso
+   ------------------------------------------------------------ */
+async function vSeguimiento(id){
+  cargando();
+  if (!id) return ir('flujo');
+
+  const [{ data:s }, { data:etapas }] = await Promise.all([
+    SB.from('flujo_tablero').select('*').eq('id', id).maybeSingle(),
+    SB.rpc('etapas_de', { p_seguimiento:id })
+  ]);
+  if (!s) return app.innerHTML = `<div class="error">No se encontró ese seguimiento.</div>`;
+
+  const [{ data:notas }, { data:redes }] = await Promise.all([
+    SB.from('flujo_notas').select('*').eq('persona_id', s.persona_id)
+      .order('cuando', { ascending:false }),
+    SB.from('areas_vista').select('id, nombre, tipo').eq('tipo', 'red').eq('activa', true).order('nombre')
+  ]);
+
+  const abierto = s.estado === 'abierto';
+  const pasos = etapas || [];
+  const iAhora = pasos.findIndex(e => e.id === s.etapa_id);
+
+  let html = `<button class="volver" id="atras">← Volver al recorrido</button>` +
+    cabeza(esc(s.nombre),
+      `${s.ambito === 'red' ? esc(s.red || 'en una red') : 'con el equipo que recibe'}` +
+      `${s.responsable ? ' · ' + esc(s.responsable) : ''}` +
+      `${s.estado === 'abierto' ? ` · lleva ${s.dias_en_el_flujo} ${s.dias_en_el_flujo === 1 ? 'día' : 'días'}` : ''}`,
+      `<a class="btn seco" href="${direccion('ficha', s.persona_id)}">Ver su ficha</a>`);
+
+  /* ---------- dónde va ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Dónde va</h2>
+      ${abierto ? '' : `<span class="marca-est ${s.estado === 'perdido' ? 'm-desconectado' : 'm-cuidado'}">${
+        s.estado === 'perdido' ? 'se dejó de seguir' : 'terminó'}</span>`}</div>
+    <div class="tarjeta-cuerpo">
+      <div class="escala">${pasos.map((e,i) => {
+        const cls = i < iAhora ? 'hecho' : (i === iAhora ? 'actual' : '');
+        return (i ? `<span class="grada-raya${i <= iAhora ? ' hecha' : ''}"></span>` : '') +
+          `<span class="grada-punto ${cls}"><span class="grada-bola">${i+1}</span>
+            <span>${esc(e.nombre)}</span>
+            ${e.propia ? '<span style="font-size:11px;color:var(--tenue)">propia de la red</span>' : ''}
+          </span>`;
+      }).join('')}</div>
+      ${s.motivo_cierre ? `<p class="ayuda" style="margin-top:14px">${esc(s.motivo_cierre)}</p>` : ''}
+      ${abierto ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">
+          ${pasos.map((e,i) => ({ e, i })).filter(x => x.i > iAhora).map(({e}) =>
+            `<button class="btn ${e.entrega ? '' : 'seco'} chico" data-mover="${e.id}"
+               data-nom="${esc(e.nombre)}" data-entrega="${e.entrega ? 1 : 0}">${
+               e.entrega ? 'Entregar a una red' : 'Pasar a ' + esc(e.nombre)}</button>`).join('')}
+        </div>
+        ${pasos.some((e,i) => i < iAhora) ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          ${pasos.map((e,i) => ({ e, i })).filter(x => x.i < iAhora).map(({e}) =>
+            `<button class="btn seco chico" data-mover="${e.id}"
+               data-nom="${esc(e.nombre)}" data-entrega="0"
+               style="color:var(--suave)">Devolver a ${esc(e.nombre)}</button>`).join('')}
+        </div>` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;
+             padding-top:14px;border-top:1px solid var(--linea-suave)">
+          <button class="btn rojo chico" id="segPerder">Dejar de seguirlo</button>
+        </div>`
+      : `<div style="margin-top:18px">
+           <button class="btn seco chico" id="segAbrir">Volver a abrirlo</button></div>`}
+    </div></div>`;
+
+  /* ---------- lo que sabemos ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Lo que sabemos</h2>
+      <span class="ruta-conteo">${(notas || []).length}</span></div>
+    <div class="tarjeta-cuerpo">
+      <textarea id="segNota" rows="3" placeholder="Responde al primer contacto y quiere grupo. Tiene 35 años, casada, un hijo…"></textarea>
+      <div style="margin-top:12px"><button class="btn" id="segGuardarNota">Dejar la nota</button></div>
+    </div>
+    <ul class="registro" id="segNotas"></ul></div>`;
+
+  app.innerHTML = html;
+  document.getElementById('atras').onclick = () => ir('flujo');
+
+  const pintarNotas = () => {
+    document.getElementById('segNotas').innerHTML = (notas || []).length
+      ? notas.map(n => `<li><div class="fila" style="cursor:default">
+          <span class="fila-alto"><span class="nombre" style="font-size:15.5px;font-weight:500">${esc(n.texto)}</span></span>
+          <span class="sub"><span>${esc(n.quien || 'alguien')}</span>
+            <span>· ${fechaCorta(n.cuando.slice(0,10))}</span>
+            ${n.etapa ? `<span>· ${esc(n.etapa)}</span>` : ''}</span>
+          ${n.es_mia || V().es_admin ? `<span style="display:flex;gap:7px;margin-top:9px">
+            <button class="btn seco chico" data-nborrar="${n.id}">Borrar</button></span>` : ''}
+        </div></li>`).join('')
+      : `<li><div class="tarjeta-cuerpo" style="padding-top:0">
+          <span class="sub"><span>Todavía no hay notas</span></span></div></li>`;
+    app.querySelectorAll('[data-nborrar]').forEach(b => b.onclick = async () => {
+      if (!await confirmar('¿Borrar la nota?', 'No se puede recuperar.', true)) return;
+      const { error } = await SB.rpc('borrar_nota_flujo', { p_nota:b.dataset.nborrar });
+      if (error) return avisar(error.message, true);
+      avisar('Nota borrada.');
+      ir('seguimiento', id);
+    });
+  };
+  pintarNotas();
+
+  document.getElementById('segGuardarNota').onclick = async () => {
+    const t = document.getElementById('segNota').value.trim();
+    if (!t) return avisar('La nota está vacía.', true);
+    const { error } = await SB.rpc('nota_de_flujo', { p_persona:s.persona_id, p_texto:t });
+    if (error) return avisar(error.message, true);
+    avisar('Nota guardada.');
+    ir('seguimiento', id);
+  };
+
+  app.querySelectorAll('[data-mover]').forEach(b => b.onclick = async () => {
+    const esEntrega = b.dataset.entrega === '1';
+
+    const r = await dialogo({
+      titulo: esEntrega ? `Entregar a ${s.nombre} a una red` : `Pasar a ${b.dataset.nom}`,
+      cuerpo: `${esEntrega ? `<label for="mvRed" style="margin-top:0">¿A qué red va?</label>
+          <select id="mvRed">${(redes || []).map(x =>
+            `<option value="${x.id}">${esc(x.nombre)}</option>`).join('')}</select>` : ''}
+        <label for="mvN"${esEntrega ? '' : ' style="margin-top:0"'}>Una nota (opcional)</label>
+        <textarea id="mvN" rows="3" placeholder="${esEntrega
+          ? 'Lo que el líder de red necesita saber para elegir el grupo'
+          : 'Qué pasó'}"></textarea>`,
+      aceptar: esEntrega ? 'Entregar' : 'Pasar',
+      alMontar: v => () => ({
+        red: v.querySelector('#mvRed') ? v.querySelector('#mvRed').value : null,
+        nota: v.querySelector('#mvN').value.trim()
+      })
+    });
+    if (!r) return;
+
+    const { data, error } = await SB.rpc('mover_etapa', {
+      p_seguimiento:id, p_etapa:Number(b.dataset.mover),
+      p_nota:r.nota || null, p_red:r.red
+    });
+    if (error) return avisar(error.message, true);
+    avisar(esEntrega ? `${s.nombre.split(' ')[0]} quedó entregado.`
+                     : `Pasa a ${b.dataset.nom}.`);
+    ir('seguimiento', data || id);
+  });
+
+  const bp = document.getElementById('segPerder');
+  if (bp) bp.onclick = async () => {
+    const motivo = await pedirTexto('Dejar de seguirlo', {
+      texto: `${s.nombre} sale del recorrido. Se puede volver a abrir cuando quieras.`,
+      marcador: 'No contesta hace tres semanas' });
+    if (motivo == null) return;
+    const { error } = await SB.rpc('cerrar_seguimiento',
+      { p_seguimiento:id, p_estado:'perdido', p_motivo:motivo || null });
+    if (error) return avisar(error.message, true);
+    avisar('Sale del recorrido.');
+    ir('seguimiento', id);
+  };
+
+  const ba = document.getElementById('segAbrir');
+  if (ba) ba.onclick = async () => {
+    const { error } = await SB.rpc('cerrar_seguimiento',
+      { p_seguimiento:id, p_estado:'abierto', p_motivo:null });
+    if (error) return avisar(error.message, true);
+    avisar('Vuelve a estar en el recorrido.');
+    ir('seguimiento', id);
+  };
+}
+
+
+/* ------------------------------------------------------------
+   Mi red — lo que pasa después de que el recorrido termina
+   ------------------------------------------------------------
+   La persona llegó al grupo y la tarea de quien la recibió se
+   acabó. La del líder de red no: sigue siendo suya. Aquí ve lo
+   que necesita saber sin tener que ir a buscarlo.
+   ------------------------------------------------------------ */
+async function vMiRed(){
+  cargando();
+  const { data:filas, error } = await SB.from('vigilancia_red').select('*')
+    .order('urgencia').order('nombre');
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const todos = filas || [];
+  if (!todos.length)
+    return app.innerHTML = cabeza('Mi red') +
+      `<div class="vacio"><strong>Todavía no tienes gente a cargo en una red</strong>
+        Esta pantalla es para quien lidera una red o un grupo.</div>`;
+
+  if (S.qRed == null)   S.qRed = '';
+  if (S.redAlerta == null) S.redAlerta = 'con';
+
+  const conAlerta = todos.filter(x => x.alerta);
+  const redes = [...new Set(todos.map(x => x.red).filter(Boolean))];
+
+  let html = cabeza('Mi red',
+    `${todos.length} ${todos.length === 1 ? 'persona' : 'personas'}` +
+    (redes.length === 1 ? ` en ${redes[0]}` : ` en ${redes.length} redes`));
+
+  html += cifras([
+    { icono:'alerta',   color:'barro', valor:conAlerta.length, texto:'piden atención' },
+    { icono:'alerta',   color:'ambar',
+      valor:todos.filter(x => (x.dias_sin_cuidado ?? 0) > 30).length, texto:'más de un mes sin cuidado' },
+    { icono:'personas', color:'ambar',
+      valor:todos.filter(x => x.semanas_sin_ir != null && x.semanas_sin_ir >= 3).length,
+      texto:'dejaron de ir al grupo' },
+    { icono:'personas', color:'verde',
+      valor:todos.filter(x => !x.alerta).length, texto:'sin novedad' }
+  ]);
+
+  html += cajaBusqueda('qRed', 'Buscar a alguien o un grupo…', S.qRed);
+
+  html += `<div class="tarjeta"><div class="tarjeta-cuerpo" style="padding-bottom:16px">
+      <label for="redAl" style="margin-top:0">Qué ver</label>
+      <select id="redAl" style="max-width:420px">
+        ${[['con','Los que piden atención'],
+           ['cuidado','Más de un mes sin cuidado'],
+           ['grupo','Dejaron de ir al grupo'],
+           ['nunca','Nunca han ido al grupo'],
+           ['sale','Van a salir de la base'],
+           ['','Toda mi red']].map(([v,t]) =>
+          `<option value="${v}"${v === S.redAlerta ? ' selected' : ''}>${t}</option>`).join('')}
+      </select></div></div>`;
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quiénes son</h2>
+      <span class="ruta-conteo" id="redConteo"></span></div>
+    <ul class="registro" id="redLista"></ul></div>`;
+
+  app.innerHTML = html;
+
+  const fila = x => `<li>
+      <a class="fila" href="${direccion('ficha', x.persona_id)}">
+        <span class="fila-alto">
+          <span class="nombre" style="font-size:17px">${esc(x.nombre)}</span>
+          ${x.alerta ? `<span class="marca-est ${x.urgencia <= 2 ? 'm-desconectado' : 'm-alerta'}">${esc(x.alerta)}</span>`
+                     : '<span class="marca-est m-cuidado">sin novedad</span>'}</span>
+        <span class="sub">
+          ${x.grupo ? `<span>${esc(x.grupo)}</span>` : '<span>sin grupo</span>'}
+          ${x.red && x.red !== x.grupo ? `<span>· ${esc(x.red)}</span>` : ''}
+          ${x.lo_cuida ? `<span>· lo cuida ${esc(x.lo_cuida)}</span>` : '<span>· nadie lo cuida</span>'}</span>
+        <span class="sub">
+          ${x.dias_sin_cuidado != null
+            ? `<span>${x.dias_sin_cuidado} días sin cuidado</span>`
+            : '<span>sin reuniones de cuidado</span>'}
+          ${x.ultima_vez_en_grupo
+            ? `<span>· última vez en el grupo hace ${x.semanas_sin_ir} ${x.semanas_sin_ir === 1 ? 'semana' : 'semanas'}</span>`
+            : '<span>· nunca ha ido al grupo</span>'}</span>
+      </a></li>`;
+
+  const filtrar = () => {
+    const q = sinT(S.qRed.trim());
+    return todos.filter(x =>
+      (S.redAlerta === '' ||
+       (S.redAlerta === 'con'     && x.alerta) ||
+       (S.redAlerta === 'cuidado' && (x.dias_sin_cuidado ?? 0) > 30) ||
+       (S.redAlerta === 'grupo'   && x.semanas_sin_ir != null && x.semanas_sin_ir >= 3) ||
+       (S.redAlerta === 'nunca'   && x.ultima_vez_en_grupo == null) ||
+       (S.redAlerta === 'sale'    && x.estado_persona === 'retirado')) &&
+      (!q || sinT(x.nombre).includes(q) || sinT(x.grupo || '').includes(q)
+          || sinT(x.red || '').includes(q)));
+  };
+
+  const pintar = () => {
+    const v = filtrar();
+    document.getElementById('redConteo').textContent = `${v.length} de ${todos.length}`;
+    document.getElementById('redLista').innerHTML = v.length ? v.map(fila).join('')
+      : `<li><div class="vacio" style="margin:0"><strong>Nadie por aquí</strong>
+           Prueba con otro nombre o cambia lo que estás viendo.</div></li>`;
+  };
+
+  pintar();
+  engancharBusqueda('qRed', v => { S.qRed = v; pintar(); });
+  document.getElementById('redAl').onchange = e => { S.redAlerta = e.target.value; pintar(); };
 }
 
 
