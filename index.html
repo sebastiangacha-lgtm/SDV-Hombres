@@ -761,6 +761,23 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
 .titulo-bloque h2{
   font-family:var(--serif);font-size:19px;font-weight:600;margin:0;letter-spacing:-.01em;
 }
+.leyenda{
+  display:flex;gap:15px;flex-wrap:wrap;justify-content:center;
+  margin-top:10px;font-size:12.5px;color:var(--suave);
+}
+.leyenda span{display:flex;align-items:center;gap:6px}
+.leyenda i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.sin-grafico{
+  padding:30px 12px;text-align:center;color:var(--tenue);font-size:14px;
+}
+.sel-chico{
+  width:auto;max-width:220px;padding:5px 10px;font-size:13px;border-radius:9px;
+}
+/* Dos tarjetas lado a lado en el computador, una sobre otra en el
+   celular: dos gráficos apretados en 390px no se leen. */
+.rejilla-dos{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:860px){ .rejilla-dos{grid-template-columns:1fr} }
+
 .titulo-bloque span{
   font-size:12.5px;font-weight:600;color:var(--tenue);
   background:var(--velo);border-radius:999px;padding:2px 9px;
@@ -1287,6 +1304,8 @@ const I_SERVICIOS = '<svg viewBox="0 0 24 24"><path d="M12 3l2.4 5 5.6.8-4 3.9 1
 const I_MAS = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>';
 
 const I = {
+  informes:'<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16" stroke-linecap="round"/><path d="M8 16V11M12.5 16V7M17 16v-3" stroke-linecap="round"/></svg>',
+  duplicados:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg>',
   desactivados:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8.5" r="3.2"/><path d="M4 20v-1.6a6 6 0 0 1 10.5-4" stroke-linecap="round"/><path d="M15 17h6" stroke-linecap="round"/></svg>',
   flujo:'<svg viewBox="0 0 24 24"><circle cx="5.5" cy="6" r="2.2"/><circle cx="5.5" cy="18" r="2.2"/><circle cx="18.5" cy="12" r="2.2"/><path d="M7.7 6h5.3a3 3 0 0 1 3 3v.8M7.7 18H13a3 3 0 0 0 3-3v-.8" stroke-linecap="round"/></svg>',
   mired:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" stroke-linecap="round"/></svg>',
@@ -1486,6 +1505,7 @@ function pintarNav(){
   // opciones en null es un renglón suelto: no se despliega.
   const grupos = [
     ['Inicio', 'inicio', null],
+    ...(mando ? [['Informes', 'informes', null]] : []),
     ['Personas', 'personas',
       [...(mando ? [['personas','Todas las personas']] : []),
        ...(mando || cuida ? [['invitados','Invitados']] : []),
@@ -1509,7 +1529,7 @@ function pintarNav(){
     ...(mando ? [['Administrar', 'usuarios',
       [['usuarios','Usuarios'], ['permisos','Permisos'],
        ['jerarquias','Jerarquías'], ['desactivados','Desactivados'],
-       ['fusionar','Fusionar']]]] : [])
+       ['duplicados','Posibles duplicados'], ['fusionar','Fusionar']]]] : [])
   ].filter(([,,items]) => items === null || items.length);
 
   // El grupo que contiene la vista abierta arranca desplegado.
@@ -1657,6 +1677,8 @@ const VISTAS = {
   grupos:vGrupos, servicios:vServicios, nuevoGrupo:vNuevoGrupo,
   reportar:vReportar, reportes:vReportes, invitados:vInvitados,
   flujo:vFlujo, seguimiento:vSeguimiento, mired:vMiRed, desactivados:vDesactivados,
+  informes:vInformes,
+  duplicados:vDuplicados,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -6465,6 +6487,607 @@ async function vAreaGente(id){
 }
 
 
+/* ============================================================
+   Gráficos — dibujados a mano en SVG
+   ------------------------------------------------------------
+   Sin librerías externas: la plataforma es un solo archivo y una
+   librería de gráficos pesa más que todo lo demás junto. Son
+   cuatro formas y las cuatro se dibujan con líneas y rectángulos.
+   Usan las variables de color del tema, así que el modo oscuro
+   sale gratis.
+   ============================================================ */
+const COLORES = ['var(--verde)','var(--azul)','var(--ambar)','var(--barro)','#7E6BB5','#2F8A8A'];
+
+const svgEnvoltura = (alto, dentro) =>
+  `<svg viewBox="0 0 600 ${alto}" preserveAspectRatio="none"
+     style="width:100%;height:${alto}px;display:block;overflow:visible"
+     role="img">${dentro}</svg>`;
+
+/* ---------- líneas: una medida a lo largo del tiempo ---------- */
+function grafLineas({ etiquetas, series, alto = 190, formato }){
+  const W = 600, H = alto, m = { arr:14, ab:26, izq:44, der:10 };
+  const todos = series.flatMap(s => s.datos.filter(v => v != null));
+  if (!todos.length || etiquetas.length < 2)
+    return `<div class="sin-grafico">Todavía no hay datos suficientes</div>`;
+
+  const max = Math.max(...todos), min = Math.min(0, ...todos);
+  const rango = (max - min) || 1;
+  const x = i => m.izq + (i / Math.max(1, etiquetas.length - 1)) * (W - m.izq - m.der);
+  const y = v => m.arr + (1 - (v - min) / rango) * (H - m.arr - m.ab);
+  const fmt = formato || (v => nfm(v));
+
+  // Cuatro rayas de referencia: más se vuelve una reja y menos no
+  // deja leer la altura.
+  let g = '';
+  for (let k = 0; k <= 3; k++){
+    const v = min + (rango * k / 3), yy = y(v);
+    g += `<line x1="${m.izq}" x2="${W - m.der}" y1="${yy}" y2="${yy}"
+            stroke="var(--linea-suave)" stroke-width="1"/>
+          <text x="${m.izq - 6}" y="${yy + 3.5}" text-anchor="end"
+            font-size="9.5" fill="var(--tenue)">${fmt(Math.round(v))}</text>`;
+  }
+
+  series.forEach((s, si) => {
+    const color = s.color || COLORES[si % COLORES.length];
+    const puntos = s.datos.map((v, i) => v == null ? null : [x(i), y(v)]).filter(Boolean);
+    if (!puntos.length) return;
+    const d = puntos.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    g += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2"
+            stroke-linejoin="round" stroke-linecap="round"
+            ${s.punteada ? 'stroke-dasharray="5 4"' : ''}/>`;
+    puntos.forEach(p => {
+      g += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.8" fill="${color}"/>`;
+    });
+  });
+
+  // Las etiquetas del eje: solo las que caben sin encimarse.
+  const salto = Math.ceil(etiquetas.length / 8);
+  etiquetas.forEach((e, i) => {
+    if (i % salto && i !== etiquetas.length - 1) return;
+    g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle"
+            font-size="9.5" fill="var(--tenue)">${esc(e)}</text>`;
+  });
+
+  const leyenda = series.length > 1
+    ? `<div class="leyenda">${series.map((s, si) =>
+        `<span><i style="background:${s.color || COLORES[si % COLORES.length]}"></i>${esc(s.nombre)}</span>`).join('')}</div>`
+    : '';
+  return svgEnvoltura(H, g) + leyenda;
+}
+
+/* ---------- barras horizontales: comparar cosas ---------- */
+function grafBarras({ datos, alto, sufijo = '', meta }){
+  if (!datos.length) return `<div class="sin-grafico">Todavía no hay datos</div>`;
+  const W = 600, fila = 26, H = alto || (datos.length * fila + 12);
+  const izq = 128, der = 46;
+  const max = Math.max(...datos.map(d => d.valor), meta || 0) || 1;
+  const ancho = v => Math.max(2, (v / max) * (W - izq - der));
+
+  let g = '';
+  if (meta != null){
+    const xm = izq + ancho(meta);
+    g += `<line x1="${xm}" x2="${xm}" y1="4" y2="${H - 6}"
+            stroke="var(--barro)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  }
+  datos.forEach((d, i) => {
+    const y = i * fila + 6, color = d.color || COLORES[i % COLORES.length];
+    g += `<text x="${izq - 8}" y="${y + 12}" text-anchor="end" font-size="11"
+            fill="var(--suave)">${esc(d.nombre.length > 20 ? d.nombre.slice(0,19) + '…' : d.nombre)}</text>
+          <rect x="${izq}" y="${y + 2}" width="${ancho(d.valor).toFixed(1)}" height="13" rx="3" fill="${color}"/>
+          <text x="${izq + ancho(d.valor) + 6}" y="${y + 12.5}" font-size="10.5"
+            fill="var(--texto)" font-weight="600">${nfm(d.valor)}${sufijo}</text>`;
+  });
+  return svgEnvoltura(H, g);
+}
+
+/* ---------- columnas: una serie corta en el tiempo ---------- */
+function grafColumnas({ etiquetas, datos, alto = 150, sufijo = '' }){
+  const vivos = datos.filter(v => v != null);
+  if (!vivos.length) return `<div class="sin-grafico">Todavía no hay datos</div>`;
+  const W = 600, H = alto, m = { arr:16, ab:24, izq:10, der:10 };
+  const max = Math.max(...vivos) || 1;
+  const paso = (W - m.izq - m.der) / datos.length;
+  const ancho = Math.min(34, paso * 0.62);
+
+  let g = '';
+  datos.forEach((v, i) => {
+    if (v == null) return;
+    const h = Math.max(2, (v / max) * (H - m.arr - m.ab));
+    const x = m.izq + paso * i + (paso - ancho) / 2;
+    const y = H - m.ab - h;
+    g += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${ancho.toFixed(1)}"
+            height="${h.toFixed(1)}" rx="3" fill="var(--verde)" opacity="${0.45 + 0.55 * (v / max)}"/>
+          <text x="${(x + ancho / 2).toFixed(1)}" y="${(y - 4).toFixed(1)}" text-anchor="middle"
+            font-size="10" fill="var(--texto)" font-weight="600">${nfm(v)}${sufijo}</text>`;
+  });
+  const salto = Math.ceil(etiquetas.length / 10);
+  etiquetas.forEach((e, i) => {
+    if (i % salto && i !== etiquetas.length - 1) return;
+    g += `<text x="${(m.izq + paso * i + paso / 2).toFixed(1)}" y="${H - 7}" text-anchor="middle"
+            font-size="9.5" fill="var(--tenue)">${esc(e)}</text>`;
+  });
+  return svgEnvoltura(H, g);
+}
+
+/* ---------- media luna: una parte de un todo ---------- */
+function grafAnillo({ valor, de, etiqueta, color }){
+  const pct = de ? Math.min(100, Math.round(100 * valor / de)) : 0;
+  const r = 52, c = 2 * Math.PI * r, lleno = c * pct / 100;
+  const col = color || (pct >= 70 ? 'var(--verde)' : pct >= 40 ? 'var(--ambar)' : 'var(--barro)');
+  return `<svg viewBox="0 0 140 140" style="width:140px;height:140px;display:block;margin:0 auto">
+      <circle cx="70" cy="70" r="${r}" fill="none" stroke="var(--linea-suave)" stroke-width="13"/>
+      <circle cx="70" cy="70" r="${r}" fill="none" stroke="${col}" stroke-width="13"
+        stroke-linecap="round" stroke-dasharray="${lleno.toFixed(1)} ${c.toFixed(1)}"
+        transform="rotate(-90 70 70)"/>
+      <text x="70" y="67" text-anchor="middle" font-size="27" font-weight="700"
+        fill="var(--texto)">${pct}<tspan font-size="15">%</tspan></text>
+      <text x="70" y="86" text-anchor="middle" font-size="10.5" fill="var(--tenue)">${esc(etiqueta || '')}</text>
+    </svg>`;
+}
+
+const nfm = n => n == null ? '—' : Number(n).toLocaleString('es-CO');
+
+
+/* ============================================================
+   Informes — la pantalla para sentarse a mirar
+   ------------------------------------------------------------
+   Todo sale de lo que los líderes ya reportan cada semana. Los
+   filtros de arriba mandan sobre todo lo de abajo.
+   ============================================================ */
+const PERIODOS = [
+  ['mes',     'Este mes'],
+  ['7',       'Últimos 7 días'],
+  ['30',      'Últimos 30 días'],
+  ['60',      'Últimos 60 días'],
+  ['90',      'Últimos 90 días'],
+  ['trim',    'Este trimestre'],
+  ['sem',     'Este semestre'],
+  ['anio',    'Este año'],
+  ['anio-1',  'El año pasado']
+];
+const MESES_CORTO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+function rangoDe(clave){
+  const h = hoy(), [a, m] = h.split('-').map(Number);
+  const dd = n => { const x = new Date(Date.UTC(a, m - 1, Number(h.slice(8,10))));
+                    x.setUTCDate(x.getUTCDate() - n); return x.toISOString().slice(0,10); };
+  if (/^\d+$/.test(clave))  return { desde:dd(Number(clave)), hasta:h };
+  if (clave === 'mes')      return { desde:`${a}-${String(m).padStart(2,'0')}-01`, hasta:h };
+  if (clave === 'trim')     { const t = Math.floor((m - 1) / 3) * 3 + 1;
+                              return { desde:`${a}-${String(t).padStart(2,'0')}-01`, hasta:h }; }
+  if (clave === 'sem')      { const s = m <= 6 ? 1 : 7;
+                              return { desde:`${a}-${String(s).padStart(2,'0')}-01`, hasta:h }; }
+  if (clave === 'anio')     return { desde:`${a}-01-01`, hasta:h };
+  if (clave === 'anio-1')   return { desde:`${a-1}-01-01`, hasta:`${a-1}-12-31` };
+  return { desde:dd(30), hasta:h };
+}
+const nombrePeriodo = c => (PERIODOS.find(p => p[0] === c) || [,'el período'])[1].toLowerCase();
+
+async function vInformes(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+
+  if (S.infP == null) S.infP = '90';
+  if (S.infRed == null) S.infRed = '';
+  if (S.infGrupo == null) S.infGrupo = '';
+  if (S.infGen == null) S.infGen = '';
+
+  const r = rangoDe(S.infP);
+
+  const [{ data:hechos, error }, { data:plan }, { data:unica }, { data:dom },
+         { data:listos }, { data:areas }] = await Promise.all([
+    SB.from('hechos_grupo').select('*').gte('semana', r.desde).lte('semana', r.hasta),
+    SB.from('plan_vs_real').select('*').order('mes'),
+    SB.from('asistencia_unica').select('*').order('mes'),
+    SB.from('servicios_totales').select('*').order('fecha'),
+    SB.from('listos_para_multiplicar').select('*').order('orden'),
+    SB.from('areas_buscar').select('*').order('nombre')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const redes  = (areas || []).filter(a => a.tipo === 'red');
+  const grupos = (areas || []).filter(a => a.tipo === 'grupo' &&
+                   (!S.infRed || a.red === (redes.find(x => x.id === S.infRed) || {}).nombre));
+
+  /* ---------- el corte que mandan los filtros ---------- */
+  const pasa = h =>
+    (!S.infRed   || h.red_id === S.infRed) &&
+    (!S.infGrupo || h.grupo_id === S.infGrupo) &&
+    (!S.infGen   || (S.infGen === 'sin' ? !h.genero : h.genero === S.infGen));
+  const H = (hechos || []).filter(pasa);
+
+  const semanas = [...new Set(H.map(h => h.semana))].sort();
+  const porSemana = s => H.filter(h => h.semana === s);
+  const unicasEn = filas => new Set(filas.filter(h => h.vino).map(h => h.persona_id)).size;
+
+  const vinieron   = H.filter(h => h.vino).length;
+  const delPadron  = H.filter(h => h.persona_id).length;
+  const invitados  = H.filter(h => h.es_invitado).length;
+  const unicasTot  = unicasEn(H);
+  const miembrosHoy= new Set(H.filter(h => h.persona_id).map(h => h.persona_id)).size;
+  const pctSemanal = delPadron ? Math.round(100 * vinieron / delPadron) : null;
+  const pctUnica   = miembrosHoy ? Math.round(100 * unicasTot / miembrosHoy) : null;
+  const gruposQueReportaron = new Set(H.map(h => h.grupo_id)).size;
+
+  /* ---------- la cabeza ---------- */
+  let html = cabeza('Informes',
+    `${nombrePeriodo(S.infP)} · del ${fechaCorta(r.desde)} al ${fechaCorta(r.hasta)}`);
+
+  html += `<div class="tarjeta"><div class="tarjeta-cuerpo" style="padding-bottom:16px">
+      <div class="par">
+        <div><label for="infP" style="margin-top:0">Período</label>
+          <select id="infP">${PERIODOS.map(([v,t]) =>
+            `<option value="${v}"${v === S.infP ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+        <div><label for="infGen" style="margin-top:0">Género</label>
+          <select id="infGen">${[['','Todos'],['f','Mujeres'],['m','Hombres'],['sin','Sin dato']]
+            .map(([v,t]) => `<option value="${v}"${v === S.infGen ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+      </div>
+      <div class="par" style="margin-top:4px">
+        <div><label for="infRed_q">Red</label>
+          ${selectorBuscable('infRed', redes.map(x => ({ id:x.id, nombre:x.nombre })),
+            S.infRed, 'Todas las redes')}</div>
+        <div><label for="infGrupo_q">Grupo</label>
+          ${selectorBuscable('infGrupo', grupos.map(x => ({ id:x.id, nombre:x.nombre, sub:x.red })),
+            S.infGrupo, 'Todos los grupos')}</div>
+      </div>
+    </div></div>`;
+
+  html += cifras([
+    { icono:'personas',   color:'verde', valor:unicasTot,  texto:'personas distintas fueron a grupo' },
+    { icono:'personas',   color:'azul',  valor:pctSemanal == null ? '—' : pctSemanal + '%', texto:'asistencia semanal' },
+    { icono:'estructura', color:'ambar', valor:gruposQueReportaron, texto:'grupos reportaron' },
+    { icono:'puerta',     color:'ambar', valor:invitados,  texto:'invitados' }
+  ]);
+
+  /* ---------- el plan contra lo real ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>El plan contra lo real</h2>
+      <select id="infInd" class="sel-chico"></select></div>
+    <div class="tarjeta-cuerpo" id="cajaPlan"></div></div>`;
+
+  /* ---------- las dos asistencias ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Asistencia semanal y única</h2>
+      <span class="ruta-conteo">mes a mes</span></div>
+    <div class="tarjeta-cuerpo" id="cajaAsis"></div></div>`;
+
+  /* ---------- por red ---------- */
+  html += `<div class="rejilla-dos">
+      <div class="tarjeta"><div class="tarjeta-alto"><h2>Asistencia por red</h2></div>
+        <div class="tarjeta-cuerpo" id="cajaRedes"></div></div>
+      <div class="tarjeta"><div class="tarjeta-alto"><h2>Semana a semana</h2></div>
+        <div class="tarjeta-cuerpo" id="cajaSemanas"></div></div>
+    </div>`;
+
+  /* ---------- domingo ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Los domingos</h2>
+      <span class="ruta-conteo" id="domProm"></span></div>
+    <div class="tarjeta-cuerpo" id="cajaDom"></div></div>`;
+
+  /* ---------- qué está pasando ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Qué está pasando</h2></div>
+    <ul class="registro" id="cajaLectura"></ul></div>`;
+
+  /* ---------- los grupos ---------- */
+  html += cajaBusqueda('qInf', 'Buscar un grupo…', S.qInf || '');
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Grupo por grupo</h2>
+      <span class="ruta-conteo" id="infConteo"></span></div>
+    <ul class="registro" id="infGrupos"></ul></div>`;
+
+  app.innerHTML = html;
+
+  engancharSelector('infRed', redes.map(x => ({ id:x.id, nombre:x.nombre })),
+    v => { S.infRed = v; S.infGrupo = ''; ir('informes'); });
+  engancharSelector('infGrupo', grupos.map(x => ({ id:x.id, nombre:x.nombre, sub:x.red })),
+    v => { S.infGrupo = v; ir('informes'); });
+  document.getElementById('infP').onchange   = e => { S.infP = e.target.value; ir('informes'); };
+  document.getElementById('infGen').onchange = e => { S.infGen = e.target.value; ir('informes'); };
+
+  /* ---------- plan ---------- */
+  const inds = [...new Map((plan || []).map(p => [p.indicador, p.indicador_nombre])).entries()];
+  if (S.infInd == null || !inds.some(([k]) => k === S.infInd))
+    S.infInd = inds.length ? inds[0][0] : null;
+  const selInd = document.getElementById('infInd');
+  selInd.innerHTML = inds.map(([k,n]) =>
+    `<option value="${k}"${k === S.infInd ? ' selected' : ''}>${esc(n)}</option>`).join('');
+  selInd.onchange = e => { S.infInd = e.target.value; pintarPlan(); };
+
+  function pintarPlan(){
+    const f = (plan || []).filter(p => p.indicador === S.infInd).sort((a,b) => a.mes < b.mes ? -1 : 1);
+    document.getElementById('cajaPlan').innerHTML = grafLineas({
+      etiquetas: f.map(p => MESES_CORTO[Number(p.mes.slice(5,7)) - 1] + ' ' + p.mes.slice(2,4)),
+      series: [
+        { nombre:'Meta', datos:f.map(p => p.meta == null ? null : Number(p.meta)), color:'var(--tenue)', punteada:true },
+        { nombre:'Real', datos:f.map(p => p.ya_paso && p.real != null ? Number(p.real) : null), color:'var(--verde)' }
+      ], alto:210
+    });
+  }
+  pintarPlan();
+
+  /* ---------- las dos asistencias, mes a mes ---------- */
+  const mesesU = [...new Set((unica || [])
+    .filter(u => !S.infRed || (redes.find(x => x.id === S.infRed) || {}).nombre === u.red)
+    .filter(u => !S.infGrupo || u.area_id === S.infGrupo)
+    .map(u => u.mes))].sort().slice(-12);
+  const porMes = m => (unica || []).filter(u => u.mes === m)
+    .filter(u => !S.infRed || (redes.find(x => x.id === S.infRed) || {}).nombre === u.red)
+    .filter(u => !S.infGrupo || u.area_id === S.infGrupo);
+
+  document.getElementById('cajaAsis').innerHTML = grafLineas({
+    etiquetas: mesesU.map(m => MESES_CORTO[Number(m.slice(5,7)) - 1] + ' ' + m.slice(2,4)),
+    series: [
+      { nombre:'Asistencia única del mes', color:'var(--verde)', datos: mesesU.map(m => {
+          const f = porMes(m), mi = f.reduce((s,u) => s + (u.miembros||0), 0);
+          return mi ? Math.round(100 * f.reduce((s,u) => s + (u.unicas||0), 0) / mi) : null; }) },
+      { nombre:'Asistencia semanal promedio', color:'var(--azul)', datos: mesesU.map(m => {
+          const hs = (hechos || []).filter(pasa).filter(h => h.semana.slice(0,7) === m.slice(0,7));
+          const d = hs.filter(h => h.persona_id).length;
+          return d ? Math.round(100 * hs.filter(h => h.vino).length / d) : null; }) }
+    ], alto:200, formato: v => v + '%'
+  });
+
+  /* ---------- por red, o por grupo si ya hay una red elegida ---------- */
+  const pctDe = filas => {
+    const d = filas.filter(h => h.persona_id).length;
+    return d ? Math.round(100 * filas.filter(h => h.vino).length / d) : 0;
+  };
+  const bajar = !!S.infRed;
+  const unidades = bajar
+    ? [...new Map(H.filter(h => h.grupo_id).map(h => [h.grupo_id, h.grupo])).entries()]
+        .map(([id, nombre]) => ({ id, nombre }))
+    : redes;
+  const datosRed = unidades
+    .map(u => ({ nombre:u.nombre,
+                 valor:pctDe(H.filter(h => (bajar ? h.grupo_id : h.red_id) === u.id)) }))
+    .filter(d => d.valor > 0).sort((a,b) => b.valor - a.valor);
+  const tituloRedes = app.querySelector('#cajaRedes').closest('.tarjeta').querySelector('h2');
+  if (tituloRedes) tituloRedes.textContent = bajar ? 'Asistencia por grupo' : 'Asistencia por red';
+  document.getElementById('cajaRedes').innerHTML =
+    grafBarras({ datos:datosRed, sufijo:'%', meta:40 });
+
+  /* ---------- semana a semana ---------- */
+  document.getElementById('cajaSemanas').innerHTML = grafColumnas({
+    etiquetas: semanas.slice(-12).map(s => s.slice(8,10) + ' ' + MESES_CORTO[Number(s.slice(5,7)) - 1]),
+    datos: semanas.slice(-12).map(s => unicasEn(porSemana(s))),
+    alto:200
+  });
+
+  /* ---------- domingos ---------- */
+  const doms = (dom || []).filter(d => d.fecha >= r.desde && d.fecha <= r.hasta)
+    .sort((a,b) => a.fecha < b.fecha ? -1 : 1).slice(-14);
+  const promDom = doms.length
+    ? Math.round(doms.reduce((s,d) => s + Number(d.total_dominical || 0), 0) / doms.length) : null;
+  document.getElementById('domProm').textContent =
+    promDom ? `promedio ${nfm(promDom)}` : 'sin datos';
+  document.getElementById('cajaDom').innerHTML = doms.length
+    ? grafColumnas({
+        etiquetas: doms.map(d => d.fecha.slice(8,10) + ' ' + MESES_CORTO[Number(d.fecha.slice(5,7)) - 1]),
+        datos: doms.map(d => Number(d.total_dominical || 0)), alto:170 })
+    : `<div class="sin-grafico">Todavía no se ha anotado ningún domingo</div>`;
+
+  /* ---------- qué está pasando ----------
+     Observaciones sobre lo que los números muestran, no consejos:
+     la decisión es suya y con la cifra al lado se toma mejor. */
+  const lect = [];
+  const añadir = (t, q, tono) => lect.push({ t, q, tono });
+
+  if (mesesU.length >= 2){
+    const pct = m => { const f = porMes(m), mi = f.reduce((s,u) => s + (u.miembros||0), 0);
+                       return mi ? Math.round(100 * f.reduce((s,u) => s + (u.unicas||0), 0) / mi) : null; };
+    const hoyP = pct(mesesU[mesesU.length - 1]), antes = pct(mesesU[mesesU.length - 2]);
+    if (hoyP != null && antes != null){
+      const d = hoyP - antes;
+      if (Math.abs(d) >= 5)
+        añadir(d > 0 ? 'La asistencia única va subiendo' : 'La asistencia única va bajando',
+          `Pasó de ${antes}% a ${hoyP}% entre ${MESES_CORTO[Number(mesesU[mesesU.length-2].slice(5,7))-1]} y ${MESES_CORTO[Number(mesesU[mesesU.length-1].slice(5,7))-1]}.`,
+          d > 0 ? 'bien' : 'mal');
+      else
+        añadir('La asistencia única está estable', `${hoyP}% este mes, ${antes}% el anterior.`, 'neutro');
+    }
+  }
+
+  const flojas = datosRed.filter(d => d.valor < 40);
+  if (flojas.length)
+    añadir(flojas.length === 1 ? 'Una red por debajo del 40%' : `${flojas.length} redes por debajo del 40%`,
+      flojas.map(d => `${d.nombre} en ${d.valor}%`).join(' · ') +
+      '. Por debajo de ese punto un grupo no sostiene gente nueva.', 'mal');
+
+  const sinReportar = (grupos || []).filter(g => !new Set(H.map(h => h.grupo_id)).has(g.id));
+  if (sinReportar.length)
+    añadir(`${sinReportar.length} ${sinReportar.length === 1 ? 'grupo no reportó' : 'grupos no reportaron'}`,
+      sinReportar.slice(0,6).map(g => g.nombre).join(', ') +
+      (sinReportar.length > 6 ? ` y ${sinReportar.length - 6} más` : '') + '.', 'mal');
+
+  const ls = (listos || []).filter(x => x.estado === 'listo');
+  if (ls.length)
+    añadir(`${ls.length} ${ls.length === 1 ? 'grupo está listo' : 'grupos están listos'} para multiplicar`,
+      ls.map(x => `${x.grupo} (${x.miembros} personas, ${x.unica}% única)`).join(' · ') + '.', 'bien');
+
+  const cand = (listos || []).filter(x => x.estado === 'candidato');
+  if (cand.length)
+    añadir(`${cand.length} ${cand.length === 1 ? 'grupo va camino' : 'grupos van camino'} a multiplicarse`,
+      cand.slice(0,4).map(x => `${x.grupo}: ${x.le_falta || 'ya casi'}`).join(' · ') + '.', 'neutro');
+
+  const mesHoy = (plan || []).filter(p => p.ya_paso && p.meta != null && p.real != null);
+  const ultimo = mesHoy.length ? mesHoy[mesHoy.length - 1] : null;
+  if (ultimo){
+    const dif = Math.round(100 * Number(ultimo.real) / Number(ultimo.meta)) - 100;
+    añadir(dif >= 0 ? `${ultimo.indicador_nombre}: por encima del plan` : `${ultimo.indicador_nombre}: por debajo del plan`,
+      `${nfm(Number(ultimo.real))} contra una meta de ${nfm(Number(ultimo.meta))} (${dif >= 0 ? '+' : ''}${dif}%).`,
+      dif >= 0 ? 'bien' : 'mal');
+  }
+
+  const sinGen = H.filter(h => h.persona_id && !h.genero).length;
+  if (sinGen && !S.infGen)
+    añadir('Falta el género de parte de la base',
+      'Mientras no esté, el filtro por género deja gente por fuera.', 'neutro');
+
+  document.getElementById('cajaLectura').innerHTML = lect.length
+    ? lect.map(l => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre" style="font-size:16px">${esc(l.t)}</span>
+          <span class="marca-est ${l.tono === 'bien' ? 'm-cuidado' : l.tono === 'mal' ? 'm-alerta' : 'm-desconectado'}">${
+            l.tono === 'bien' ? 'a favor' : l.tono === 'mal' ? 'ojo' : 'dato'}</span></span>
+        <span class="sub"><span>${esc(l.q)}</span></span>
+      </div></li>`).join('')
+    : `<li><div class="tarjeta-cuerpo" style="padding-top:0">
+        <span class="sub"><span>Todavía no hay suficientes semanas reportadas para sacar conclusiones</span></span></div></li>`;
+
+  /* ---------- grupo por grupo ---------- */
+  const filaG = g => {
+    const hs = H.filter(h => h.grupo_id === g.area_id);
+    const d = hs.filter(h => h.persona_id).length;
+    const sem = d ? Math.round(100 * hs.filter(h => h.vino).length / d) : null;
+    return `<li><a class="fila" href="${direccion('areaGente', g.area_id)}">
+      <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(g.grupo)}</span>
+        ${g.estado === 'listo' ? '<span class="marca-est m-cuidado">listo para multiplicar</span>'
+        : g.estado === 'candidato' ? '<span class="marca-est m-alerta">candidato</span>'
+        : sem != null && sem < 40 ? '<span class="marca-est m-desconectado">asistencia baja</span>' : ''}</span>
+      <span class="sub"><span>${esc(g.red)}</span>
+        <span>· ${g.miembros} ${g.miembros === 1 ? 'persona' : 'personas'}</span>
+        ${g.parejas ? `<span>· ${g.parejas} parejas</span>` : ''}
+        <span>· ${g.bernabes} bernabés</span></span>
+      <span class="sub">
+        <span>única ${g.unica == null ? '—' : g.unica + '%'}</span>
+        <span>· semanal ${sem == null ? '—' : sem + '%'}</span>
+        ${g.le_falta ? `<span>· ${esc(g.le_falta)}</span>` : ''}</span>
+    </a></li>`;
+  };
+
+  const pintarG = () => {
+    const q = sinT((S.qInf || '').trim());
+    const v = (listos || [])
+      .filter(g => !S.infRed || g.red_id === S.infRed)
+      .filter(g => !S.infGrupo || g.area_id === S.infGrupo)
+      .filter(g => !q || sinT(g.grupo).includes(q) || sinT(g.red).includes(q));
+    document.getElementById('infConteo').textContent = `${v.length}`;
+    document.getElementById('infGrupos').innerHTML = v.length ? v.map(filaG).join('')
+      : `<li><div class="vacio" style="margin:0"><strong>Ningún grupo con estos filtros</strong>
+           Prueba con otro nombre o quita un filtro.</div></li>`;
+  };
+  pintarG();
+  engancharBusqueda('qInf', v => { S.qInf = v; pintarG(); });
+}
+
+
+/* ------------------------------------------------------------
+   Posibles duplicados
+   ------------------------------------------------------------
+   No fusiona nada sola: pone al frente las parejas que se
+   parecen y por qué, para que alguien decida. La regla de la
+   casa manda: el nombre solo nunca basta — si dos fichas no
+   comparten nada más, son dos personas distintas.
+   ------------------------------------------------------------ */
+async function vDuplicados(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+
+  app.innerHTML = cabeza('Posibles duplicados', 'Revisando la base…');
+
+  const [{ data:parejas, error }, { data:invs }] = await Promise.all([
+    SB.rpc('revisar_duplicados', { p_minimo:3 }),
+    SB.rpc('invitados_que_ya_existen')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const dup = parejas || [];
+  const yaEstan = invs || [];
+  if (S.qDup == null) S.qDup = '';
+
+  let html = cabeza('Posibles duplicados',
+    dup.length || yaEstan.length
+      ? `${dup.length} ${dup.length === 1 ? 'pareja' : 'parejas'} para revisar` +
+        (yaEstan.length ? ` · ${yaEstan.length} ${yaEstan.length === 1 ? 'invitado que ya está' : 'invitados que ya están'} en la base` : '')
+      : 'No encontré nada raro');
+
+  if (!dup.length && !yaEstan.length){
+    app.innerHTML = html + `<div class="vacio"><strong>La base está limpia</strong>
+      Ninguna pareja de fichas se parece lo suficiente como para sospechar.</div>`;
+    return;
+  }
+
+  html += cifras([
+    { icono:'alerta',   color:'barro', valor:dup.filter(x => x.exacto).length,  texto:'comparten correo o cédula' },
+    { icono:'alerta',   color:'ambar', valor:dup.filter(x => !x.exacto).length, texto:'se parecen mucho' },
+    { icono:'puerta',   color:'ambar', valor:yaEstan.length, texto:'invitados que ya existen' }
+  ]);
+
+  if (dup.length){
+    html += cajaBusqueda('qDup', 'Buscar un nombre…', S.qDup);
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Parejas que se parecen</h2>
+        <span class="ruta-conteo" id="dupConteo"></span></div>
+      <ul class="registro" id="dupLista"></ul></div>`;
+  }
+
+  if (yaEstan.length)
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Invitados que ya están en la base</h2>
+        <span class="ruta-conteo">${yaEstan.length}</span></div>
+      <ul class="registro">${yaEstan.map(x => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto">
+          <span class="nombre" style="font-size:17px">${esc(x.invitado)}</span>
+          <span class="sello">invitado</span>
+          <span class="marca-est m-alerta">${esc(x.razones || '')}</span></span>
+        <span class="sub">
+          <span>vino ${x.veces} ${x.veces === 1 ? 'vez' : 'veces'} por ${esc(DE_DONDE[x.de_donde] || x.de_donde)}</span>
+          ${x.invitado_cel ? `<span>· ${esc(x.invitado_cel)}</span>` : ''}</span>
+        <span class="sub">
+          <span>ya existe como <b style="color:var(--texto)">${esc(x.persona)}</b></span>
+          ${x.persona_cel ? `<span>· ${esc(x.persona_cel)}</span>` : ''}
+          ${x.persona_correo ? `<span>· ${esc(x.persona_correo)}</span>` : ''}</span>
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          <a class="btn seco chico" href="${direccion('ficha', x.persona_id)}">Ver su ficha</a>
+          <a class="btn seco chico" href="${direccion('invitados')}">Ir a Invitados</a>
+        </span>
+      </div></li>`).join('')}</ul></div>`;
+
+  app.innerHTML = html;
+
+  const fila = x => `<li><div class="fila" style="cursor:default">
+      <span class="fila-alto">
+        <span class="nombre" style="font-size:17px">${esc(x.a_nombre)} · ${esc(x.b_nombre)}</span>
+        <span class="marca-est ${x.exacto ? 'm-desconectado' : 'm-alerta'}">${esc(x.razones || '')}</span></span>
+      <span class="sub">
+        <span><b style="color:var(--texto)">${esc(x.a_nombre)}</b></span>
+        ${x.a_celular ? `<span>· ${esc(x.a_celular)}</span>` : '<span>· sin celular</span>'}
+        ${x.a_correo ? `<span>· ${esc(x.a_correo)}</span>` : '<span>· sin correo</span>'}
+        ${x.a_estado !== 'activo' ? `<span>· ${esc(x.a_estado)}</span>` : ''}</span>
+      <span class="sub">
+        <span><b style="color:var(--texto)">${esc(x.b_nombre)}</b></span>
+        ${x.b_celular ? `<span>· ${esc(x.b_celular)}</span>` : '<span>· sin celular</span>'}
+        ${x.b_correo ? `<span>· ${esc(x.b_correo)}</span>` : '<span>· sin correo</span>'}
+        ${x.b_estado !== 'activo' ? `<span>· ${esc(x.b_estado)}</span>` : ''}</span>
+      <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn chico" data-fus="${x.a_id}" data-fusb="${x.b_id}"
+          data-na="${esc(x.a_nombre)}" data-nb="${esc(x.b_nombre)}">Fusionarlas</button>
+        <a class="btn seco chico" href="${direccion('ficha', x.a_id)}">Ver a ${esc(x.a_nombre.split(' ')[0])}</a>
+        <a class="btn seco chico" href="${direccion('ficha', x.b_id)}">Ver a ${esc(x.b_nombre.split(' ')[0])}</a>
+      </span>
+    </div></li>`;
+
+  const pintar = () => {
+    const q = sinT(S.qDup.trim());
+    const v = q ? dup.filter(x => sinT(x.a_nombre).includes(q) || sinT(x.b_nombre).includes(q)) : dup;
+    const c = document.getElementById('dupConteo');
+    if (c) c.textContent = `${v.length} de ${dup.length}`;
+    const l = document.getElementById('dupLista');
+    if (!l) return;
+    l.innerHTML = v.length ? v.map(fila).join('')
+      : `<li><div class="vacio" style="margin:0"><strong>Nada con «${esc(S.qDup.trim())}»</strong>
+           Prueba con otra parte del nombre.</div></li>`;
+
+    app.querySelectorAll('[data-fus]').forEach(b => b.onclick = async () => {
+      // Se arma la fusión y se manda a la pantalla que ya existe:
+      // ahí se elige cuál ficha se queda y qué dato gana.
+      S.fusion = { a:b.dataset.fus, b:b.dataset.fusb };
+      ir('fusionar');
+    });
+  };
+  pintar();
+  engancharBusqueda('qDup', v => { S.qDup = v; pintar(); });
+}
+
+
 /* ------------------------------------------------------------
    Desactivados — los que se fueron, y pueden volver
    ------------------------------------------------------------ */
@@ -6600,7 +7223,7 @@ async function vFlujo(){
   let html = cabeza('Recorrido',
     `${abiertos.length} ${abiertos.length === 1 ? 'persona' : 'personas'} en camino` +
     (llegaron ? ` · ${llegaron} ${llegaron === 1 ? 'llegó' : 'llegaron'} a un grupo` : ''),
-    `<button class="btn seco" id="fluReasignar">Reasignar a alguien</button>`);
+    `<button class="btn seco" id="fluReasignar">Agregar a alguien</button>`);
 
   html += cifras([
     { icono:'personas', color:'ambar', valor:gen.length,     texto:'por contactar y entregar' },
@@ -6706,31 +7329,45 @@ async function vFlujo(){
   // Se divorció y sale de matrimonios, pasó de jóvenes a
   // profesionales. Termina en el mismo sitio que un nuevo.
   document.getElementById('fluReasignar').onclick = async () => {
-    const { data:gente } = await SB.from('directorio').select('*').order('nombre');
+    const { data:gente } = await SB.from('gente_para_el_recorrido').select('*').order('nombre');
+    const libres = (gente || []).filter(g => !g.ya_esta);
+    const opciones = libres.map(g => ({ id:g.id, nombre:g.nombre,
+      sub:[g.categoria, g.areas].filter(Boolean).join(' · ') || null }));
+
     const r = await dialogo({
-      titulo: 'Reasignar a alguien',
+      titulo: 'Agregar a alguien al recorrido',
       cuerpo: `<label for="reP_q" style="margin-top:0">¿A quién?</label>
-        ${selectorBuscable('reP',
-          (gente || []).map(g => ({ id:g.id, nombre:g.nombre, sub:g.areas || null })),
-          null, 'Escribe el nombre…')}
-        <label for="reN">¿Por qué?</label>
-        <textarea id="reN" rows="3" placeholder="Se divorció y sale de matrimonios. Pasó de jóvenes a profesionales."></textarea>`,
+        ${selectorBuscable('reP', opciones, null, 'Escribe el nombre…')}
+
+        <label style="margin-top:18px">¿Por qué entra?</label>
+        <div class="paso-acc" style="margin-top:4px">
+          <button type="button" class="btn" data-rem="nuevo">Es nuevo</button>
+          <button type="button" class="btn seco" data-rem="reasignacion">Hay que reubicarlo</button>
+        </div>
+
+        <label for="reN">Una nota</label>
+        <textarea id="reN" rows="3" placeholder="Se divorció y sale de matrimonios. Llegó el domingo con una amiga."></textarea>`,
       aceptar: 'Meterlo al recorrido',
       alMontar: v => {
-        engancharSelector('reP',
-          (gente || []).map(g => ({ id:g.id, nombre:g.nombre, sub:g.areas || null })));
+        engancharSelector('reP', opciones);
+        let motivo = 'nuevo';
+        v.querySelectorAll('[data-rem]').forEach(b => b.onclick = () => {
+          motivo = b.dataset.rem;
+          v.querySelectorAll('[data-rem]').forEach(o =>
+            o.className = 'btn' + (o === b ? '' : ' seco'));
+        });
         return () => {
           const quien = v.querySelector('#reP').value;
           if (!quien){ v.querySelector('#reP_q').focus(); return undefined; }
-          return { quien, nota:v.querySelector('#reN').value.trim() };
+          return { quien, motivo, nota:v.querySelector('#reN').value.trim() };
         };
       }
     });
     if (!r) return;
-    const { data, error } = await SB.rpc('reasignar_persona',
-      { p_persona:r.quien, p_nota:r.nota || null, p_desde_area:null });
+    const { data, error } = await SB.rpc('abrir_seguimiento',
+      { p_persona:r.quien, p_nota:r.nota || null, p_motivo:r.motivo, p_desde_area:null });
     if (error) return avisar(error.message, true);
-    avisar('Entró al recorrido para reubicarlo.');
+    avisar(r.motivo === 'nuevo' ? 'Entró al recorrido.' : 'Entró al recorrido para reubicarlo.');
     ir('seguimiento', data);
   };
 }
