@@ -786,20 +786,12 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
   background:var(--velo);
 }
 .serv-caja h3{margin:0 0 4px;font-size:14.5px;font-weight:600;color:var(--texto)}
-.serv-linea{display:flex;align-items:center;gap:10px;margin-top:9px}
-.serv-linea label{flex:1;margin:0;font-size:13px;line-height:1.25}
-.serv-linea input[type=text]{width:84px;flex:none;padding:8px 10px;font-size:15px;
-  text-align:right;font-variant-numeric:tabular-nums}
-@media (min-width:640px){
-  .serv-linea{display:block}
-  .serv-linea label{margin:11px 0 4px;font-size:12.5px}
-  .serv-linea input[type=text]{width:100%;text-align:left}
-}
+.serv-caja label{margin:11px 0 4px;font-size:12.5px}
+.serv-caja input{padding:8px 10px;font-size:15px}
 .serv-gestion{
   padding:12px 0;border-bottom:1px solid var(--linea-suave);
 }
 .serv-gestion:last-child{border-bottom:0}
-.chip.apagado{opacity:.62;border-style:dashed}
 
 /* Una tabla con una columna por domingo no cabe en un celular:
    se desliza de lado en vez de encogerse hasta no leerse. */
@@ -818,25 +810,8 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
 }
 .tabla-serv tr.grupo-serv td{border-top:1px solid var(--linea)}
 .tabla-serv tr.fila-total td{border-top:1px solid var(--linea);color:var(--texto)}
-.linaje{margin-top:14px;padding:12px 14px;border-radius:10px;
-  background:var(--velo);border:1px solid var(--linea-suave)}
-.linaje p{margin:0 0 4px;font-size:14px;color:var(--suave)}
-.linaje p b{color:var(--texto)}
-.linaje .btn{margin-top:8px}
-/* Doce meses no caben a lo ancho de un celular. La tabla se
-   desliza de lado y la columna de los nombres se queda quieta,
-   para no perder de vista de qué indicador es el número. */
-.tabla-metas{min-width:1010px}
-.tabla-metas td:first-child, .tabla-metas th:first-child{min-width:196px}
-.tabla-serv input.celda-meta{
-  width:64px;padding:6px 8px;font-size:14px;text-align:right;border-radius:8px;
-  font-variant-numeric:tabular-nums;
-}
-@media (max-width:560px){
-  .tabla-metas{min-width:880px}
-  .tabla-metas td:first-child, .tabla-metas th:first-child{
-    min-width:132px;white-space:normal;line-height:1.25;
-  }
+.celda-meta{
+  width:62px;padding:6px 8px;font-size:14px;text-align:right;border-radius:8px;
 }
 
 .rejilla-dos{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -6332,14 +6307,12 @@ async function vAreaGente(id){
     return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
   if (!id) return ir('jerarquias');
 
-  const [{ data:area }, { data:gente }, { data:areas }, { data:lideres }, { data:dir },
-         { data:mult }] = await Promise.all([
+  const [{ data:area }, { data:gente }, { data:areas }, { data:lideres }, { data:dir }] = await Promise.all([
     SB.from('areas_vista').select('*').eq('id', id).maybeSingle(),
     SB.from('servidores_por_area').select('*').eq('area_id', id).order('nombre'),
     SB.from('areas_vista').select('id, nombre, tipo').eq('activa', true).order('nombre'),
     SB.from('lideres_vista').select('id, nombre').order('nombre'),
-    SB.from('directorio').select('*').order('nombre'),
-    SB.from('multiplicacion').select('*').eq('id', id).maybeSingle()
+    SB.from('directorio').select('*').order('nombre')
   ]);
   if (!area) return app.innerHTML = `<div class="error">No se encontró esa área.</div>`;
 
@@ -6424,13 +6397,6 @@ async function vAreaGente(id){
         <button class="btn" id="multiplicar">Multiplicar este grupo</button>
         <button class="btn rojo" id="sacarDelGrupo">Sacarlos del grupo</button>
       </div>` : ''}
-      ${mult && (mult.nacio_de || mult.multiplicado_en) ? `<div class="linaje">
-        ${mult.nacio_de ? `<p>Nació de <b>${esc(mult.nacio_de_nombre || '')}</b>${
-          mult.nacio_en ? ' el ' + fechaCorta(mult.nacio_en) : ''}.</p>` : ''}
-        ${mult.multiplicado_en ? `<p>Se multiplicó el ${fechaCorta(mult.multiplicado_en)}${
-          mult.hijos ? ` · ${mult.hijos === 1 ? 'un grupo nació' : mult.hijos + ' grupos nacieron'} de aquí` : ''}.</p>` : ''}
-        ${mult.nacio_de ? `<button class="btn seco chico" id="desmult">Deshacer la multiplicación</button>` : ''}
-      </div>` : ''}
     </div></div>`;
 
   app.innerHTML = html;
@@ -6504,23 +6470,6 @@ async function vAreaGente(id){
     if (error) return avisar(error.message, true);
     avisar(`${r.n} nació de ${area.nombre}.`);
     ir('areaGente', data);
-  };
-
-  // Deshacer: el grupo nuevo se apaga y la gente vuelve a la madre
-  // tal como estaba. Sirve para el día en que se multiplicó por
-  // error o se deshizo el acuerdo.
-  const bd = document.getElementById('desmult');
-  if (bd) bd.onclick = async () => {
-    const ok = await dialogo({
-      titulo: `¿Deshacer la multiplicación de ${area.nombre}?`,
-      texto: `El grupo se apaga y su gente vuelve a ${
-        mult.nacio_de_nombre || 'el grupo de donde salió'}, como estaba.`,
-      aceptar: 'Deshacer', peligro: true });
-    if (ok === null) return;
-    const { error } = await SB.rpc('deshacer_multiplicacion', { p_nuevo:id });
-    if (error) return avisar(error.message, true);
-    avisar('Multiplicación deshecha.');
-    ir('areaGente', mult.nacio_de);
   };
 
   const marcadas = () => [...app.querySelectorAll('[data-sel]:checked')].map(c => c.dataset.sel);
@@ -7126,16 +7075,13 @@ async function vServiciosDom(){
     return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
 
   const [{ data:servs, error }, { data:cats }, { data:filas }] = await Promise.all([
-    SB.from('servicios').select('*').order('orden'),
-    SB.from('servicio_categorias').select('*').order('orden'),
+    SB.from('servicios').select('*').eq('activo', true).order('orden'),
+    SB.from('servicio_categorias').select('*').eq('activa', true).order('orden'),
     SB.from('servicios_semana').select('*').order('fecha', { ascending:false })
   ]);
   if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
 
-  const TODOS = servs || [], TODAS = cats || [], F_ = filas || [];
-  const S_ = TODOS.filter(x => x.activo);
-  const C_ = TODAS.filter(x => x.activa && S_.some(sv => sv.id === x.servicio_id));
-  const APAGADOS = TODOS.filter(x => !x.activo);
+  const S_ = servs || [], C_ = cats || [], F_ = filas || [];
   const semanas = [...new Set(F_.map(f => f.fecha))].sort().reverse();
   if (S.svFecha == null) S.svFecha = domingoDe(hoy());
 
@@ -7168,12 +7114,10 @@ async function vServiciosDom(){
         ${S_.map(sv => `<div class="serv-caja">
           <h3>${esc(sv.nombre)}</h3>
           ${C_.filter(c => c.servicio_id === sv.id).map(c => `
-            <div class="serv-linea">
-              <label for="sv-${sv.id}-${c.clave}">${esc(c.nombre)}</label>
-              <input type="text" inputmode="numeric" id="sv-${sv.id}-${c.clave}"
-                data-sid="${sv.id}" data-clave="${c.clave}" placeholder="—"
-                value="${valorDe(S.svFecha, sv.id, c.clave) ?? ''}">
-            </div>`).join('')
+            <label for="sv-${sv.id}-${c.clave}">${esc(c.nombre)}</label>
+            <input type="text" inputmode="numeric" id="sv-${sv.id}-${c.clave}"
+              data-sid="${sv.id}" data-clave="${c.clave}" placeholder="—"
+              value="${valorDe(S.svFecha, sv.id, c.clave) ?? ''}">`).join('')
             || '<p class="sub"><span>Sin categorías</span></p>'}
         </div>`).join('')}
       </div>
@@ -7261,7 +7205,6 @@ async function vServiciosDom(){
       aceptar: '', cancelar: 'Cerrar',
       alMontar: v => {
         const pintar = () => {
-          const apagadasDe = sid => TODAS.filter(c => c.servicio_id === sid && !c.activa);
           v.querySelector('#gsLista').innerHTML = S_.map(sv => `
             <div class="serv-gestion">
               <div class="fila-alto"><b>${esc(sv.nombre)}</b>
@@ -7270,17 +7213,9 @@ async function vServiciosDom(){
                 ${C_.filter(c => c.servicio_id === sv.id).map(c =>
                   `<button type="button" class="chip" aria-pressed="true"
                      data-gscat="${sv.id}|${c.clave}">${esc(c.nombre)} ✕</button>`).join('')}
-                ${apagadasDe(sv.id).map(c =>
-                  `<button type="button" class="chip apagado"
-                     data-gsvolvercat="${sv.id}|${c.clave}">${esc(c.nombre)} ↩</button>`).join('')}
                 <button type="button" class="chip" data-gsnew="${sv.id}">+ categoría</button>
               </div>
-            </div>`).join('')
-          + (APAGADOS.length ? `<div class="serv-gestion">
-              <div class="chips" style="margin:0">
-                ${APAGADOS.map(sv => `<button type="button" class="chip apagado"
-                   data-gsvolver="${sv.id}">${esc(sv.nombre)} ↩</button>`).join('')}
-              </div></div>` : '');
+            </div>`).join('');
           enlazar();
         };
         const enlazar = () => {
@@ -7296,19 +7231,6 @@ async function vServiciosDom(){
               .eq('servicio_id', sid).eq('clave', clave);
             if (error) return avisar(error.message, true);
             avisar('Categoría quitada.'); ir('serviciosdom');
-          });
-          v.querySelectorAll('[data-gsvolver]').forEach(b => b.onclick = async () => {
-            const { error } = await SB.from('servicios').update({ activo:true })
-              .eq('id', b.dataset.gsvolver);
-            if (error) return avisar(error.message, true);
-            avisar('Servicio devuelto.'); ir('serviciosdom');
-          });
-          v.querySelectorAll('[data-gsvolvercat]').forEach(b => b.onclick = async () => {
-            const [sid, clave] = b.dataset.gsvolvercat.split('|');
-            const { error } = await SB.from('servicio_categorias').update({ activa:true })
-              .eq('servicio_id', sid).eq('clave', clave);
-            if (error) return avisar(error.message, true);
-            avisar('Categoría devuelta.'); ir('serviciosdom');
           });
           v.querySelectorAll('[data-gsnew]').forEach(b => b.onclick = async () => {
             const nom = await pedirTexto('Nueva categoría',
@@ -7329,7 +7251,7 @@ async function vServiciosDom(){
           if (!nom) return avisar('Ponle el nombre.', true);
           const id = sinT(nom).replace(/[^a-z0-9]+/g,'_').slice(0,20);
           const { error } = await SB.from('servicios').upsert({
-            id, nombre:nom, orden:(TODOS.length + 1), activo:true });
+            id, nombre:nom, orden:(S_.length + 1), activo:true });
           if (error) return avisar(error.message, true);
           await SB.from('servicio_categorias').upsert({
             servicio_id:id, clave:'general', nombre:'General', orden:1, activa:true });
@@ -7388,7 +7310,7 @@ async function vMetas(){
         ${anios.includes(Number(hoy().slice(0,4)) + 1) ? ''
           : `<option value="${Number(hoy().slice(0,4)) + 1}">${Number(hoy().slice(0,4)) + 1}</option>`}
       </select></div>
-    <div class="tabla-ancha"><table class="tabla-serv tabla-metas">
+    <div class="tabla-ancha"><table class="tabla-serv">
       <thead><tr><th>Indicador</th>
         ${MESES_CORTO.map(m => `<th>${m}</th>`).join('')}</tr></thead>
       <tbody>${I_.map(i => `<tr>
