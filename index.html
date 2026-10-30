@@ -775,6 +775,70 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
 }
 /* Dos tarjetas lado a lado en el computador, una sobre otra en el
    celular: dos gráficos apretados en 390px no se leen. */
+/* Las casillas de los servicios: una caja por servicio, en
+   columnas que se apilan solas en el celular. */
+.rejilla-serv{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+  gap:12px;margin-top:18px;
+}
+.serv-caja{
+  border:1px solid var(--linea-suave);border-radius:var(--r-chico);padding:12px 13px 14px;
+  background:var(--velo);
+}
+.serv-caja h3{margin:0 0 4px;font-size:14.5px;font-weight:600;color:var(--texto)}
+.serv-linea{display:flex;align-items:center;gap:10px;margin-top:9px}
+.serv-linea label{flex:1;margin:0;font-size:13px;line-height:1.25}
+.serv-linea input[type=text]{width:84px;flex:none;padding:8px 10px;font-size:15px;
+  text-align:right;font-variant-numeric:tabular-nums}
+@media (min-width:640px){
+  .serv-linea{display:block}
+  .serv-linea label{margin:11px 0 4px;font-size:12.5px}
+  .serv-linea input[type=text]{width:100%;text-align:left}
+}
+.serv-gestion{
+  padding:12px 0;border-bottom:1px solid var(--linea-suave);
+}
+.serv-gestion:last-child{border-bottom:0}
+.chip.apagado{opacity:.62;border-style:dashed}
+
+/* Una tabla con una columna por domingo no cabe en un celular:
+   se desliza de lado en vez de encogerse hasta no leerse. */
+.tabla-ancha{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tabla-serv{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+.tabla-serv th, .tabla-serv td{
+  padding:8px 11px;text-align:right;white-space:nowrap;
+  border-bottom:1px solid var(--linea-suave);
+}
+.tabla-serv th:first-child, .tabla-serv td:first-child{
+  text-align:left;position:sticky;left:0;background:var(--panel-solido);
+}
+.tabla-serv thead th{
+  font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--tenue);font-weight:600;
+}
+.tabla-serv tr.grupo-serv td{border-top:1px solid var(--linea)}
+.tabla-serv tr.fila-total td{border-top:1px solid var(--linea);color:var(--texto)}
+.linaje{margin-top:14px;padding:12px 14px;border-radius:10px;
+  background:var(--velo);border:1px solid var(--linea-suave)}
+.linaje p{margin:0 0 4px;font-size:14px;color:var(--suave)}
+.linaje p b{color:var(--texto)}
+.linaje .btn{margin-top:8px}
+/* Doce meses no caben a lo ancho de un celular. La tabla se
+   desliza de lado y la columna de los nombres se queda quieta,
+   para no perder de vista de qué indicador es el número. */
+.tabla-metas{min-width:1010px}
+.tabla-metas td:first-child, .tabla-metas th:first-child{min-width:196px}
+.tabla-serv input.celda-meta{
+  width:64px;padding:6px 8px;font-size:14px;text-align:right;border-radius:8px;
+  font-variant-numeric:tabular-nums;
+}
+@media (max-width:560px){
+  .tabla-metas{min-width:880px}
+  .tabla-metas td:first-child, .tabla-metas th:first-child{
+    min-width:132px;white-space:normal;line-height:1.25;
+  }
+}
+
 .rejilla-dos{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media (max-width:860px){ .rejilla-dos{grid-template-columns:1fr} }
 
@@ -1304,6 +1368,8 @@ const I_SERVICIOS = '<svg viewBox="0 0 24 24"><path d="M12 3l2.4 5 5.6.8-4 3.9 1
 const I_MAS = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>';
 
 const I = {
+  serviciosdom:'<svg viewBox="0 0 24 24"><path d="M4 21V9l8-5 8 5v12" stroke-linejoin="round"/><path d="M9 21v-6h6v6M12 4V2" stroke-linecap="round"/></svg>',
+  metas:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>',
   informes:'<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16" stroke-linecap="round"/><path d="M8 16V11M12.5 16V7M17 16v-3" stroke-linecap="round"/></svg>',
   duplicados:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg>',
   desactivados:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8.5" r="3.2"/><path d="M4 20v-1.6a6 6 0 0 1 10.5-4" stroke-linecap="round"/><path d="M15 17h6" stroke-linecap="round"/></svg>',
@@ -1505,7 +1571,9 @@ function pintarNav(){
   // opciones en null es un renglón suelto: no se despliega.
   const grupos = [
     ['Inicio', 'inicio', null],
-    ...(mando ? [['Informes', 'informes', null]] : []),
+    ...(mando ? [['Informes', 'informes',
+      [['informes','Resumen'], ['serviciosdom','Servicios del domingo'],
+       ['metas','Metas y criterios']]]] : []),
     ['Personas', 'personas',
       [...(mando ? [['personas','Todas las personas']] : []),
        ...(mando || cuida ? [['invitados','Invitados']] : []),
@@ -1677,7 +1745,7 @@ const VISTAS = {
   grupos:vGrupos, servicios:vServicios, nuevoGrupo:vNuevoGrupo,
   reportar:vReportar, reportes:vReportes, invitados:vInvitados,
   flujo:vFlujo, seguimiento:vSeguimiento, mired:vMiRed, desactivados:vDesactivados,
-  informes:vInformes,
+  informes:vInformes, serviciosdom:vServiciosDom, metas:vMetas,
   duplicados:vDuplicados,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
@@ -6264,12 +6332,14 @@ async function vAreaGente(id){
     return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
   if (!id) return ir('jerarquias');
 
-  const [{ data:area }, { data:gente }, { data:areas }, { data:lideres }, { data:dir }] = await Promise.all([
+  const [{ data:area }, { data:gente }, { data:areas }, { data:lideres }, { data:dir },
+         { data:mult }] = await Promise.all([
     SB.from('areas_vista').select('*').eq('id', id).maybeSingle(),
     SB.from('servidores_por_area').select('*').eq('area_id', id).order('nombre'),
     SB.from('areas_vista').select('id, nombre, tipo').eq('activa', true).order('nombre'),
     SB.from('lideres_vista').select('id, nombre').order('nombre'),
-    SB.from('directorio').select('*').order('nombre')
+    SB.from('directorio').select('*').order('nombre'),
+    SB.from('multiplicacion').select('*').eq('id', id).maybeSingle()
   ]);
   if (!area) return app.innerHTML = `<div class="error">No se encontró esa área.</div>`;
 
@@ -6349,9 +6419,17 @@ async function vAreaGente(id){
         (lideres || []).map(l => ({ id:l.id, nombre:l.nombre })), null, 'Escribe el nombre…')}
       <div style="margin-top:12px"><button class="btn seco" id="moverCuidadoA">Mover el cuidado</button></div>
 
-      ${area.tipo === 'grupo' ? `<div style="margin-top:16px;padding-top:14px;
-           border-top:1px solid var(--linea-suave)">
+      ${area.tipo === 'grupo' ? `<div style="display:flex;gap:9px;flex-wrap:wrap;
+           margin-top:16px;padding-top:14px;border-top:1px solid var(--linea-suave)">
+        <button class="btn" id="multiplicar">Multiplicar este grupo</button>
         <button class="btn rojo" id="sacarDelGrupo">Sacarlos del grupo</button>
+      </div>` : ''}
+      ${mult && (mult.nacio_de || mult.multiplicado_en) ? `<div class="linaje">
+        ${mult.nacio_de ? `<p>Nació de <b>${esc(mult.nacio_de_nombre || '')}</b>${
+          mult.nacio_en ? ' el ' + fechaCorta(mult.nacio_en) : ''}.</p>` : ''}
+        ${mult.multiplicado_en ? `<p>Se multiplicó el ${fechaCorta(mult.multiplicado_en)}${
+          mult.hijos ? ` · ${mult.hijos === 1 ? 'un grupo nació' : mult.hijos + ' grupos nacieron'} de aquí` : ''}.</p>` : ''}
+        ${mult.nacio_de ? `<button class="btn seco chico" id="desmult">Deshacer la multiplicación</button>` : ''}
       </div>` : ''}
     </div></div>`;
 
@@ -6385,6 +6463,64 @@ async function vAreaGente(id){
       ? `${sel.length === 1 ? 'Salió del grupo' : 'Salieron del grupo'}. ${abiertos === 1 ? '1 quedó' : abiertos + ' quedaron'} en el recorrido por reubicar.`
       : `${sel.length === 1 ? 'Salió del grupo' : 'Salieron del grupo'}.`);
     ir('areaGente', id);
+  };
+
+  // Multiplicar: nace un grupo nuevo que cuelga de la misma red,
+  // con su líder y la gente que se va. Los que se van salen de
+  // este el mismo día, para que no cuenten dos veces.
+  const bm = document.getElementById('multiplicar');
+  if (bm) bm.onclick = async () => {
+    const sel = marcadas();
+    const r = await dialogo({
+      titulo: `Multiplicar ${area.nombre}`,
+      cuerpo: `<label for="muN" style="margin-top:0">¿Cómo se llama el grupo nuevo?</label>
+        <input type="text" id="muN" placeholder="Jairo y Paola 2">
+        <label for="muL_q">¿Quién lo lidera?</label>
+        ${selectorBuscable('muL',
+          suyos.map(g => ({ id:g.persona_id, nombre:g.nombre,
+                            sub:ROLES_AREA[g.rol_en_area] || g.rol_en_area })),
+          null, 'Alguien de este grupo…')}
+        <label for="muF">¿Desde cuándo?</label>
+        <input type="date" id="muF" value="${hoy()}" max="${hoy()}">
+        <p class="dato-fijo" style="font-size:14px;font-weight:400;color:var(--suave)">${
+          sel.length ? `Se llevan ${sel.length === 1 ? 'a 1 persona' : `a ${sel.length} personas`} de las que marcaste.`
+                     : 'No marcaste a nadie: el grupo nuevo arranca solo con su líder.'}</p>`,
+      aceptar: 'Multiplicar',
+      alMontar: v => {
+        engancharSelector('muL', suyos.map(g => ({ id:g.persona_id, nombre:g.nombre,
+          sub:ROLES_AREA[g.rol_en_area] || g.rol_en_area })));
+        return () => {
+          const n = v.querySelector('#muN').value.trim();
+          if (!n){ v.querySelector('#muN').focus(); return undefined; }
+          return { n, lider:v.querySelector('#muL').value || null,
+                   f:v.querySelector('#muF').value || null };
+        };
+      }
+    });
+    if (!r) return;
+    const { data, error } = await SB.rpc('multiplicar_grupo', {
+      p_madre:id, p_nombre:r.n, p_lider:r.lider, p_fecha:r.f,
+      p_se_van:sel.length ? sel.filter(x => x !== r.lider) : null });
+    if (error) return avisar(error.message, true);
+    avisar(`${r.n} nació de ${area.nombre}.`);
+    ir('areaGente', data);
+  };
+
+  // Deshacer: el grupo nuevo se apaga y la gente vuelve a la madre
+  // tal como estaba. Sirve para el día en que se multiplicó por
+  // error o se deshizo el acuerdo.
+  const bd = document.getElementById('desmult');
+  if (bd) bd.onclick = async () => {
+    const ok = await dialogo({
+      titulo: `¿Deshacer la multiplicación de ${area.nombre}?`,
+      texto: `El grupo se apaga y su gente vuelve a ${
+        mult.nacio_de_nombre || 'el grupo de donde salió'}, como estaba.`,
+      aceptar: 'Deshacer', peligro: true });
+    if (ok === null) return;
+    const { error } = await SB.rpc('deshacer_multiplicacion', { p_nuevo:id });
+    if (error) return avisar(error.message, true);
+    avisar('Multiplicación deshecha.');
+    ir('areaGente', mult.nacio_de);
   };
 
   const marcadas = () => [...app.querySelectorAll('[data-sel]:checked')].map(c => c.dataset.sel);
@@ -6966,6 +7102,389 @@ async function vInformes(){
   };
   pintarG();
   engancharBusqueda('qInf', v => { S.qInf = v; pintarG(); });
+}
+
+
+/* ============================================================
+   Servicios del domingo
+   ------------------------------------------------------------
+   Lo único de los informes que se escribe a mano: nadie pasa
+   lista en un servicio de doscientas personas. Se anota como se
+   contó —por servicio y por categoría— y la plataforma suma.
+   ============================================================ */
+function domingoDe(f){
+  const [a,m,d] = f.split('-').map(Number);
+  const x = new Date(Date.UTC(a, m-1, d));
+  x.setUTCDate(x.getUTCDate() - x.getUTCDay());
+  return x.toISOString().slice(0,10);
+}
+
+async function vServiciosDom(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+
+  const [{ data:servs, error }, { data:cats }, { data:filas }] = await Promise.all([
+    SB.from('servicios').select('*').order('orden'),
+    SB.from('servicio_categorias').select('*').order('orden'),
+    SB.from('servicios_semana').select('*').order('fecha', { ascending:false })
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const TODOS = servs || [], TODAS = cats || [], F_ = filas || [];
+  const S_ = TODOS.filter(x => x.activo);
+  const C_ = TODAS.filter(x => x.activa && S_.some(sv => sv.id === x.servicio_id));
+  const APAGADOS = TODOS.filter(x => !x.activo);
+  const semanas = [...new Set(F_.map(f => f.fecha))].sort().reverse();
+  if (S.svFecha == null) S.svFecha = domingoDe(hoy());
+
+  const valorDe = (fecha, sid, clave) =>
+    (F_.find(f => f.fecha === fecha && f.servicio_id === sid && f.clave === clave) || {}).cuantos;
+
+  const yaEsta = semanas.includes(S.svFecha);
+
+  let html = cabeza('Servicios del domingo',
+    semanas.length
+      ? `${semanas.length} ${semanas.length === 1 ? 'domingo anotado' : 'domingos anotados'} · el último, el ${fechaCorta(semanas[0])}`
+      : 'Todavía no se ha anotado ningún domingo',
+    `<button class="btn seco" id="svGestion">Gestionar servicios</button>`);
+
+  /* ---------- anotar una semana ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Anotar una semana</h2>
+      ${yaEsta ? '<span class="marca-est m-cuidado">ya estaba anotada</span>' : ''}</div>
+    <div class="tarjeta-cuerpo">
+      <div class="par">
+        <div><label for="svFecha" style="margin-top:0">Domingo</label>
+          <input type="date" id="svFecha" value="${S.svFecha}" max="${hoy()}"></div>
+        <div><label for="svIr" style="margin-top:0">O abrir uno ya anotado</label>
+          <select id="svIr"><option value="">—</option>
+            ${semanas.slice(0,20).map(s =>
+              `<option value="${s}"${s === S.svFecha ? ' selected' : ''}>${fechaCorta(s)}</option>`).join('')}
+          </select></div>
+      </div>
+
+      <div class="rejilla-serv">
+        ${S_.map(sv => `<div class="serv-caja">
+          <h3>${esc(sv.nombre)}</h3>
+          ${C_.filter(c => c.servicio_id === sv.id).map(c => `
+            <div class="serv-linea">
+              <label for="sv-${sv.id}-${c.clave}">${esc(c.nombre)}</label>
+              <input type="text" inputmode="numeric" id="sv-${sv.id}-${c.clave}"
+                data-sid="${sv.id}" data-clave="${c.clave}" placeholder="—"
+                value="${valorDe(S.svFecha, sv.id, c.clave) ?? ''}">
+            </div>`).join('')
+            || '<p class="sub"><span>Sin categorías</span></p>'}
+        </div>`).join('')}
+      </div>
+
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:18px">
+        <button class="btn" id="svGuardar">Guardar la semana</button>
+        <span class="ruta-conteo" id="svTotal"></span>
+        ${yaEsta ? '<button class="btn rojo chico" id="svBorrar">Borrar esta semana</button>' : ''}
+      </div>
+    </div></div>`;
+
+  /* ---------- el histórico ---------- */
+  const ultimas = semanas.slice(0, 10).reverse();
+  if (ultimas.length){
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Histórico</h2>
+        <span class="ruta-conteo">${ultimas.length} ${ultimas.length === 1 ? 'domingo' : 'domingos'}</span></div>
+      <div class="tabla-ancha"><table class="tabla-serv">
+        <thead><tr><th>Categoría</th>
+          ${ultimas.map(s => `<th>${fechaCorta(s).replace(/ \d{4}$/,'')}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${S_.flatMap(sv => C_.filter(c => c.servicio_id === sv.id).map((c, i) => `
+            <tr${i === 0 ? ' class="grupo-serv"' : ''}>
+              <td>${i === 0 ? `<b>${esc(sv.nombre)}</b> · ` : ''}${esc(c.nombre)}</td>
+              ${ultimas.map(s => `<td>${valorDe(s, sv.id, c.clave) ?? '—'}</td>`).join('')}
+            </tr>`)).join('')}
+          <tr class="fila-total"><td><b>Total dominical</b></td>
+            ${ultimas.map(s => `<td><b>${
+              F_.filter(f => f.fecha === s && f.servicio_id !== 'mie')
+                .reduce((a,f) => a + Number(f.cuantos || 0), 0) || '—'}</b></td>`).join('')}</tr>
+        </tbody></table></div></div>`;
+  }
+
+  app.innerHTML = html;
+
+  const sumar = () => {
+    const t = [...app.querySelectorAll('[data-sid]')]
+      .filter(i => i.dataset.sid !== 'mie')
+      .reduce((a,i) => a + (Number(i.value) || 0), 0);
+    document.getElementById('svTotal').textContent = t ? `total dominical ${nfm(t)}` : '';
+  };
+  app.querySelectorAll('[data-sid]').forEach(i => i.oninput = sumar);
+  sumar();
+
+  document.getElementById('svFecha').onchange = e => {
+    S.svFecha = domingoDe(e.target.value); ir('serviciosdom');
+  };
+  document.getElementById('svIr').onchange = e => {
+    if (e.target.value){ S.svFecha = e.target.value; ir('serviciosdom'); }
+  };
+
+  document.getElementById('svGuardar').onclick = async () => {
+    const datos = [...app.querySelectorAll('[data-sid]')]
+      .map(i => ({ servicio_id:i.dataset.sid, clave:i.dataset.clave, cuantos:i.value.trim() }))
+      .filter(d => d.cuantos !== '');
+    if (!datos.length) return avisar('No llenaste ninguna casilla.', true);
+    const { data, error } = await SB.rpc('guardar_servicios',
+      { p_fecha:S.svFecha, p_datos:datos });
+    if (error) return avisar(error.message, true);
+    avisar(`${data} ${data === 1 ? 'casilla guardada' : 'casillas guardadas'} del ${fechaCorta(S.svFecha)}.`);
+    ir('serviciosdom');
+  };
+
+  const bb = document.getElementById('svBorrar');
+  if (bb) bb.onclick = async () => {
+    if (!await confirmar(`¿Borrar el domingo ${fechaCorta(S.svFecha)}?`,
+      'Se van todas sus casillas. Se puede volver a anotar.', true)) return;
+    const { error } = await SB.rpc('borrar_semana_servicios', { p_fecha:S.svFecha });
+    if (error) return avisar(error.message, true);
+    avisar('Semana borrada.');
+    ir('serviciosdom');
+  };
+
+  /* ---------- gestionar servicios y categorías ---------- */
+  document.getElementById('svGestion').onclick = async () => {
+    const r = await dialogo({
+      titulo: 'Servicios y categorías',
+      cuerpo: `<div id="gsLista"></div>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--linea-suave)">
+          <label for="gsNom" style="margin-top:0">Agregar un servicio</label>
+          <div class="par">
+            <div><input type="text" id="gsNom" placeholder="4º Servicio"></div>
+            <div><button type="button" class="btn seco" id="gsAdd" style="width:100%">Agregar</button></div>
+          </div>
+        </div>`,
+      aceptar: '', cancelar: 'Cerrar',
+      alMontar: v => {
+        const pintar = () => {
+          const apagadasDe = sid => TODAS.filter(c => c.servicio_id === sid && !c.activa);
+          v.querySelector('#gsLista').innerHTML = S_.map(sv => `
+            <div class="serv-gestion">
+              <div class="fila-alto"><b>${esc(sv.nombre)}</b>
+                <button type="button" class="btn rojo chico" data-gsdel="${sv.id}">Quitar</button></div>
+              <div class="chips" style="margin:8px 0 0">
+                ${C_.filter(c => c.servicio_id === sv.id).map(c =>
+                  `<button type="button" class="chip" aria-pressed="true"
+                     data-gscat="${sv.id}|${c.clave}">${esc(c.nombre)} ✕</button>`).join('')}
+                ${apagadasDe(sv.id).map(c =>
+                  `<button type="button" class="chip apagado"
+                     data-gsvolvercat="${sv.id}|${c.clave}">${esc(c.nombre)} ↩</button>`).join('')}
+                <button type="button" class="chip" data-gsnew="${sv.id}">+ categoría</button>
+              </div>
+            </div>`).join('')
+          + (APAGADOS.length ? `<div class="serv-gestion">
+              <div class="chips" style="margin:0">
+                ${APAGADOS.map(sv => `<button type="button" class="chip apagado"
+                   data-gsvolver="${sv.id}">${esc(sv.nombre)} ↩</button>`).join('')}
+              </div></div>` : '');
+          enlazar();
+        };
+        const enlazar = () => {
+          v.querySelectorAll('[data-gsdel]').forEach(b => b.onclick = async () => {
+            const { error } = await SB.from('servicios').update({ activo:false })
+              .eq('id', b.dataset.gsdel);
+            if (error) return avisar(error.message, true);
+            avisar('Servicio quitado.'); ir('serviciosdom');
+          });
+          v.querySelectorAll('[data-gscat]').forEach(b => b.onclick = async () => {
+            const [sid, clave] = b.dataset.gscat.split('|');
+            const { error } = await SB.from('servicio_categorias').update({ activa:false })
+              .eq('servicio_id', sid).eq('clave', clave);
+            if (error) return avisar(error.message, true);
+            avisar('Categoría quitada.'); ir('serviciosdom');
+          });
+          v.querySelectorAll('[data-gsvolver]').forEach(b => b.onclick = async () => {
+            const { error } = await SB.from('servicios').update({ activo:true })
+              .eq('id', b.dataset.gsvolver);
+            if (error) return avisar(error.message, true);
+            avisar('Servicio devuelto.'); ir('serviciosdom');
+          });
+          v.querySelectorAll('[data-gsvolvercat]').forEach(b => b.onclick = async () => {
+            const [sid, clave] = b.dataset.gsvolvercat.split('|');
+            const { error } = await SB.from('servicio_categorias').update({ activa:true })
+              .eq('servicio_id', sid).eq('clave', clave);
+            if (error) return avisar(error.message, true);
+            avisar('Categoría devuelta.'); ir('serviciosdom');
+          });
+          v.querySelectorAll('[data-gsnew]').forEach(b => b.onclick = async () => {
+            const nom = await pedirTexto('Nueva categoría',
+              { texto:'Cómo se llama lo que se cuenta aparte en este servicio.',
+                marcador:'Jóvenes' });
+            if (!nom) return;
+            const clave = sinT(nom).replace(/[^a-z0-9]+/g,'_').slice(0,20);
+            const { error } = await SB.from('servicio_categorias').upsert({
+              servicio_id:b.dataset.gsnew, clave, nombre:nom.trim(),
+              orden:99, activa:true });
+            if (error) return avisar(error.message, true);
+            avisar('Categoría agregada.'); ir('serviciosdom');
+          });
+        };
+        pintar();
+        v.querySelector('#gsAdd').onclick = async () => {
+          const nom = v.querySelector('#gsNom').value.trim();
+          if (!nom) return avisar('Ponle el nombre.', true);
+          const id = sinT(nom).replace(/[^a-z0-9]+/g,'_').slice(0,20);
+          const { error } = await SB.from('servicios').upsert({
+            id, nombre:nom, orden:(TODOS.length + 1), activo:true });
+          if (error) return avisar(error.message, true);
+          await SB.from('servicio_categorias').upsert({
+            servicio_id:id, clave:'general', nombre:'General', orden:1, activa:true });
+          avisar(`${nom} agregado.`); ir('serviciosdom');
+        };
+        return () => null;
+      }
+    });
+    if (r === undefined) return;
+  };
+}
+
+
+/* ============================================================
+   Metas y criterios
+   ------------------------------------------------------------
+   Las metas del plan, mes a mes, y los criterios que deciden
+   cuándo un grupo entra en conversación de multiplicación. Las
+   dos cosas se fijan una vez y se miran poco: por eso viven
+   juntas y aparte de los informes.
+   ============================================================ */
+async function vMetas(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin && !yo.ve_todo)
+    return app.innerHTML = `<div class="error">Esto lo manejan la dirección y el pastorado.</div>`;
+
+  const [{ data:inds, error }, { data:metas }, { data:crits }, { data:areas }] = await Promise.all([
+    SB.from('indicadores').select('*').eq('activo', true).order('orden'),
+    SB.from('metas').select('*').is('area_id', null).not('mes', 'is', null),
+    SB.from('criterios_multiplicacion').select('*'),
+    SB.from('areas_buscar').select('*').eq('tipo', 'red').order('nombre')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const I_ = inds || [], M_ = metas || [], C_ = crits || [], R_ = areas || [];
+  const esteAnio = Number(hoy().slice(0,4));
+  const anios = [...new Set(M_.map(m => m.anio))].sort();
+  if (!anios.length) anios.push(esteAnio);
+  // Abre en el año que estamos corriendo; si no hay metas de este
+  // año, en el más cercano que sí tenga.
+  if (S.mtAnio == null || !anios.includes(S.mtAnio))
+    S.mtAnio = anios.includes(esteAnio) ? esteAnio
+      : anios.reduce((a,b) => Math.abs(b - esteAnio) < Math.abs(a - esteAnio) ? b : a);
+
+  const valor = (ind, mes) =>
+    (M_.find(m => m.anio === S.mtAnio && m.mes === mes && m.indicador === ind) || {}).meta;
+
+  let html = cabeza('Metas y criterios',
+    `${M_.filter(m => m.anio === S.mtAnio).length} metas puestas para ${S.mtAnio}`);
+
+  /* ---------- las metas, mes a mes ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>El plan de ${S.mtAnio}</h2>
+      <select id="mtAnio" class="sel-chico">
+        ${anios.map(a => `<option value="${a}"${a === S.mtAnio ? ' selected' : ''}>${a}</option>`).join('')}
+        ${anios.includes(Number(hoy().slice(0,4)) + 1) ? ''
+          : `<option value="${Number(hoy().slice(0,4)) + 1}">${Number(hoy().slice(0,4)) + 1}</option>`}
+      </select></div>
+    <div class="tabla-ancha"><table class="tabla-serv tabla-metas">
+      <thead><tr><th>Indicador</th>
+        ${MESES_CORTO.map(m => `<th>${m}</th>`).join('')}</tr></thead>
+      <tbody>${I_.map(i => `<tr>
+        <td><b>${esc(i.nombre)}</b></td>
+        ${MESES_CORTO.map((_, k) => `<td><input type="text" inputmode="numeric"
+          class="celda-meta" data-ind="${i.clave}" data-mes="${k+1}"
+          value="${valor(i.clave, k+1) ?? ''}" placeholder="—"></td>`).join('')}
+      </tr>`).join('')}</tbody></table></div>
+    <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+      <button class="btn" id="mtGuardar">Guardar el plan</button>
+    </div></div>`;
+
+  /* ---------- los criterios ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Cuándo multiplicar</h2>
+      <span class="ruta-conteo">${R_.length} redes</span></div>
+    <ul class="registro">${R_.map(rd => {
+      const c = C_.find(x => x.area_id === rd.id) || {
+        tamano_observacion:13, tamano_listo:16, unica_min:60, semanal_min:40, cuenta_parejas:false };
+      return `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre" style="font-size:17px">${esc(rd.nombre)}</span>
+          ${c.cuenta_parejas ? '<span class="sello">en parejas</span>' : ''}</span>
+        <span class="sub">
+          <span>observa desde ${c.tamano_observacion}${c.cuenta_parejas ? ` (${Math.round(c.tamano_observacion/2)} parejas)` : ''}</span>
+          <span>· listo desde ${c.tamano_listo}${c.cuenta_parejas ? ` (${Math.round(c.tamano_listo/2)} parejas)` : ''}</span>
+          <span>· única ${c.unica_min}%</span>
+          <span>· semanal ${c.semanal_min}%</span></span>
+        ${c.nota ? `<span class="sub"><span>${esc(c.nota)}</span></span>` : ''}
+        <span style="display:flex;gap:7px;margin-top:10px">
+          <button class="btn seco chico" data-crit="${rd.id}" data-nom="${esc(rd.nombre)}">Cambiar</button>
+        </span>
+      </div></li>`;
+    }).join('')}</ul></div>`;
+
+  app.innerHTML = html;
+
+  document.getElementById('mtAnio').onchange = e => { S.mtAnio = Number(e.target.value); ir('metas'); };
+
+  document.getElementById('mtGuardar').onclick = async () => {
+    const b = document.getElementById('mtGuardar');
+    const celdas = [...app.querySelectorAll('.celda-meta')];
+    const cambios = celdas.filter(c => {
+      const antes = valor(c.dataset.ind, Number(c.dataset.mes));
+      const ahora = c.value.trim();
+      return ahora !== '' && String(antes ?? '') !== ahora;
+    });
+    if (!cambios.length) return avisar('No cambiaste ninguna meta.');
+
+    b.disabled = true; b.textContent = 'Guardando…';
+    for (const c of cambios){
+      const { error } = await SB.rpc('poner_meta', {
+        p_anio:S.mtAnio, p_area:null, p_indicador:c.dataset.ind,
+        p_meta:Number(c.value), p_nota:null, p_mes:Number(c.dataset.mes) });
+      if (error){ b.disabled = false; b.textContent = 'Guardar el plan';
+                  return avisar(error.message, true); }
+    }
+    avisar(`${cambios.length} ${cambios.length === 1 ? 'meta guardada' : 'metas guardadas'}.`);
+    ir('metas');
+  };
+
+  app.querySelectorAll('[data-crit]').forEach(b => b.onclick = async () => {
+    const c = C_.find(x => x.area_id === b.dataset.crit) || {
+      tamano_observacion:13, tamano_listo:16, unica_min:60, semanal_min:40, cuenta_parejas:false, nota:'' };
+    const r = await dialogo({
+      titulo: `Cuándo multiplicar en ${b.dataset.nom}`,
+      cuerpo: `<div class="par">
+          <div><label for="crO" style="margin-top:0">Observar desde</label>
+            <input type="text" inputmode="numeric" id="crO" value="${c.tamano_observacion}"></div>
+          <div><label for="crL" style="margin-top:0">Listo desde</label>
+            <input type="text" inputmode="numeric" id="crL" value="${c.tamano_listo}"></div>
+        </div>
+        <div class="par">
+          <div><label for="crU">Asistencia única mínima</label>
+            <input type="text" inputmode="numeric" id="crU" value="${c.unica_min}"></div>
+          <div><label for="crS">Asistencia semanal mínima</label>
+            <input type="text" inputmode="numeric" id="crS" value="${c.semanal_min}"></div>
+        </div>
+        <label class="campo-op" style="margin-top:14px">
+          <input type="checkbox" id="crP" ${c.cuenta_parejas ? 'checked' : ''}>
+          <span>Esta red cuenta en parejas</span></label>
+        <label for="crN">Una nota</label>
+        <input type="text" id="crN" value="${esc(c.nota || '')}">`,
+      aceptar: 'Guardar',
+      alMontar: v => () => ({
+        o:Number(v.querySelector('#crO').value), l:Number(v.querySelector('#crL').value),
+        u:Number(v.querySelector('#crU').value), s:Number(v.querySelector('#crS').value),
+        p:v.querySelector('#crP').checked, n:v.querySelector('#crN').value.trim()
+      })
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('poner_criterio', {
+      p_area:b.dataset.crit, p_observacion:r.o, p_listo:r.l,
+      p_unica:r.u, p_semanal:r.s, p_parejas:r.p, p_nota:r.n || null });
+    if (error) return avisar(error.message, true);
+    avisar(`Criterios de ${b.dataset.nom} actualizados.`);
+    ir('metas');
+  });
 }
 
 
