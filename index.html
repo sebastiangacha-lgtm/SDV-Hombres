@@ -1372,6 +1372,7 @@ const I = {
   metas:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>',
   informes:'<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16" stroke-linecap="round"/><path d="M8 16V11M12.5 16V7M17 16v-3" stroke-linecap="round"/></svg>',
   duplicados:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg>',
+  cargar:'<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>',
   desactivados:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8.5" r="3.2"/><path d="M4 20v-1.6a6 6 0 0 1 10.5-4" stroke-linecap="round"/><path d="M15 17h6" stroke-linecap="round"/></svg>',
   flujo:'<svg viewBox="0 0 24 24"><circle cx="5.5" cy="6" r="2.2"/><circle cx="5.5" cy="18" r="2.2"/><circle cx="18.5" cy="12" r="2.2"/><path d="M7.7 6h5.3a3 3 0 0 1 3 3v.8M7.7 18H13a3 3 0 0 0 3-3v-.8" stroke-linecap="round"/></svg>',
   mired:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" stroke-linecap="round"/></svg>',
@@ -1597,7 +1598,8 @@ function pintarNav(){
     ...(mando ? [['Administrar', 'usuarios',
       [['usuarios','Usuarios'], ['permisos','Permisos'],
        ['jerarquias','Jerarquías'], ['desactivados','Desactivados'],
-       ['duplicados','Posibles duplicados'], ['fusionar','Fusionar']]]] : [])
+       ['duplicados','Posibles duplicados'], ['fusionar','Fusionar'],
+       ['cargar','Cargar la base']]]] : [])
   ].filter(([,,items]) => items === null || items.length);
 
   // El grupo que contiene la vista abierta arranca desplegado.
@@ -1746,7 +1748,7 @@ const VISTAS = {
   reportar:vReportar, reportes:vReportes, invitados:vInvitados,
   flujo:vFlujo, seguimiento:vSeguimiento, mired:vMiRed, desactivados:vDesactivados,
   informes:vInformes, serviciosdom:vServiciosDom, metas:vMetas,
-  duplicados:vDuplicados,
+  duplicados:vDuplicados, cargar:vCargar,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -4216,7 +4218,10 @@ async function vPersonas(){
     </div></div>
 
     <p class="conteo-res" id="conteo"></p>
-    <div class="personas" id="lista"></div>`;
+    <div class="personas" id="lista"></div>
+    <div style="display:flex;justify-content:center;margin-top:18px">
+      <button class="btn seco" id="verMas" hidden>Ver más</button>
+    </div>`;
 
   /* ---------- filtrar y pintar, sin recargar la pantalla ---------- */
   function normal(t){
@@ -4269,20 +4274,39 @@ async function vPersonas(){
     document.querySelectorAll('[data-kpi]').forEach(b => b.onclick = () => {
       const v = b.dataset.kpi;
       S.filtros.situacion = (v === '' || S.filtros.situacion === v) ? '' : v;
-      pintarKpis(); pintarLista();
+      refiltrar();
     });
   }
 
+  //  Con mil personas, pintarlas todas son dieciocho mil nodos y
+  //  medio segundo de congelada cada vez que se toca un filtro.
+  //  Se pintan de a sesenta: el buscador es el que encuentra, no
+  //  el scroll.
+  const TANDA = 60;
+  let tope = TANDA;
+  //  Cualquier cambio de filtro vuelve a empezar por el principio:
+  //  quedarse en la página siete de una búsqueda que ya cambió es
+  //  como no haber filtrado.
+  function refiltrar(){ tope = TANDA; pintarKpis(); pintarLista(); }
+
   function pintarLista(){
     const res = (gente || []).filter(pasa);
+    const vis = res.slice(0, tope);
     document.getElementById('lista').innerHTML = res.length
-      ? res.map(tarjeta).join('')
+      ? vis.map(tarjeta).join('')
       : `<div class="vacio" style="grid-column:1/-1"><strong>Nadie coincide</strong>
          Prueba con menos filtros o con otra palabra.</div>`;
+    const mas = document.getElementById('verMas');
+    if (mas){
+      mas.hidden = res.length <= tope;
+      mas.textContent = `Ver ${Math.min(TANDA, res.length - tope)} más`;
+      mas.onclick = () => { tope += TANDA; pintarLista(); };
+    }
     document.getElementById('conteo').textContent =
-      res.length === (gente || []).length
+      (res.length === (gente || []).length
         ? `${res.length} ${res.length === 1 ? 'persona' : 'personas'}`
-        : `${res.length} de ${(gente || []).length}`;
+        : `${res.length} de ${(gente || []).length}`)
+      + (res.length > vis.length ? ` · se ven ${vis.length}` : '');
     document.querySelectorAll('.pcard').forEach(b => b.onclick = () => ir('ficha', b.dataset.id));
     const lt = document.getElementById('limpiarTodo');
     if (lt) lt.hidden = !hayFiltros();
@@ -4298,11 +4322,11 @@ async function vPersonas(){
   q.oninput = () => {
     S.filtros.texto = q.value;
     lq.hidden = !q.value;
-    pintarLista();
+    refiltrar();
   };
   lq.onclick = () => {
     S.filtros.texto = ''; q.value = ''; lq.hidden = true;
-    pintarLista(); q.focus();
+    refiltrar(); q.focus();
   };
 
   document.getElementById('avanzada').onclick = () => {
@@ -4314,7 +4338,7 @@ async function vPersonas(){
     S.filtros = { ...FILTROS_VACIOS };
     q.value = ''; lq.hidden = true;
     app.querySelectorAll('[data-f]').forEach(el => el.value = '');
-    pintarKpis(); pintarLista();
+    refiltrar();
   };
 
   /* ---------- descargar, eligiendo campos ---------- */
@@ -4339,7 +4363,7 @@ async function vPersonas(){
   app.querySelectorAll('[data-f]').forEach(el => {
     const k = el.dataset.f;
     if (el.tagName === 'SELECT') el.value = S.filtros[k] || '';
-    const manejar = () => { S.filtros[k] = el.value; pintarLista(); };
+    const manejar = () => { S.filtros[k] = el.value; refiltrar(); };
     el.onchange = manejar;
     if (el.tagName === 'INPUT') el.oninput = manejar;
   });
@@ -7515,6 +7539,404 @@ async function vMetas(){
   });
 }
 
+
+/* ============================================================
+   Cargar la base
+   ------------------------------------------------------------
+   El archivo de Redil entra crudo: acá solo se traducen los
+   nombres de las columnas y se parte el CSV. Todo lo que decide
+   —a quién se cruza, qué se escribe, qué queda pendiente— vive
+   en la base, donde se puede probar.
+   ============================================================ */
+
+const VACIO = new Set(['Sin Información','Sin Informacion','No Aplica','Sin Detalle',
+  'Sin Fecha','Sin dado alta','Sin dado baja','Sin fecha alta','Sin fecha baja','',
+  'Sin Grupo','Sin Teléfono','Sin Correo']);
+
+const lim = x => { const t = String(x ?? '').trim(); return VACIO.has(t) ? '' : t; };
+const limpiaGrupo = x => lim(x).replace(/[\s/-]+$/, '').trim();
+const RELOJ = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+
+//  El export viene con los encabezados corridos a partir de la
+//  columna 22: «Sede» trae el grupo, «Grupo» trae el tipo de
+//  asistente. Y el corrimiento no es el mismo en todas las filas,
+//  porque a algunas les falta un campo. Por eso no se lee por
+//  posición sino desde dos anclas: la sede y la fecha de creación,
+//  que son las dos únicas columnas reconocibles por su contenido.
+const ancla = (f, sedes) => {
+  for (let i = 18; i < Math.min(30, f.length); i++)
+    if (sedes.has(String(f[i] ?? '').trim())) return i;
+  return null;
+};
+const anclaReloj = f => {
+  for (let i = 30; i < Math.min(48, f.length); i++)
+    if (RELOJ.test(String(f[i] ?? '').trim())) return i;
+  return null;
+};
+
+const IZQ = [['tipo_documento',0],['documento',1],['edad',2],['primer_nombre',3],
+  ['segundo_nombre',4],['primer_apellido',5],['segundo_apellido',6],['estado_civil',7],
+  ['pais',8],['telefono_fijo',9],['otro_telefono',10],['celular',11],['correo',12],
+  ['direccion',13],['profesion',17]];
+const DER = [['sede',0],['motivo_alta',1],['motivo_baja',2],['fecha_alta',3],['fecha_baja',4],
+  ['adulto_responsable',5],['contacto_responsable',6],['acudiente_nombre',7],
+  ['acudiente_contacto',8]];
+const REL = [['fecha_nacimiento',-7],['sexo',-6],['ultima_asist_grupo',-5],
+  ['ultima_asist_reunion',-4],['tipo_vinculacion',-3],['tipo_asistente',-2],
+  ['grupo',-1],['creado_en',0],['modificado_en',1]];
+
+function enderezarRedil(filas, sedes = ['Principal']){
+  const S = new Set(sedes);
+  //  Un salto de línea dentro de una nota parte a la persona en
+  //  dos. El pedazo de abajo no tiene ancla: se pega al de arriba.
+  const crudas = [];
+  for (const f0 of filas.slice(2)){
+    const f = [...f0];
+    if (ancla(f, S) === null && crudas.length){
+      const p = crudas[crudas.length - 1];
+      crudas[crudas.length - 1] = [...p.slice(0, -1), p[p.length-1] + ' ' + f[0], ...f.slice(1)];
+    } else crudas.push(f);
+  }
+
+  const buenas = [], perdidas = [];
+  for (const f of crudas){
+    const a = ancla(f, S), rl = anclaReloj(f);
+    if (a === null || rl === null){ perdidas.push(f); continue; }
+    const g = i => (i >= 0 && i < f.length) ? lim(f[i]) : '';
+    const d = {};
+    for (const [k,i]   of IZQ) d[k] = g(i);
+    for (const [k,off] of DER) d[k] = g(a + off);
+    for (const [k,off] of REL) d[k] = g(rl + off);
+    d.grupo = limpiaGrupo((rl-1 >= 0 && rl-1 < f.length) ? f[rl-1] : '');
+    for (const k of Object.keys(d)) if (!d[k]) delete d[k];
+    buenas.push(d);
+  }
+  return { filas: buenas, perdidas };
+}
+
+const QUE_ES = {
+  pendiente:'Sin decidir', grupo:'Un grupo de vida', red:'Una red',
+  ministerio:'Un ministerio', servicio:'Un área de servicio',
+  nuevos:'Gente esperando grupo', salida:'Gente que salió de un grupo', nada:'Nada, se ignora'
+};
+
+//  Un CSV se parte respetando las comillas: un nombre con coma
+//  adentro no puede volverse dos columnas.
+function partirCSV(texto){
+  const sep = (texto.split('\n')[0].match(/;/g) || []).length >
+              (texto.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
+  const filas = []; let f = [], c = '', comillas = false;
+  for (let i = 0; i < texto.length; i++){
+    const ch = texto[i];
+    if (comillas){
+      if (ch === '"' && texto[i+1] === '"'){ c += '"'; i++; }
+      else if (ch === '"') comillas = false;
+      else c += ch;
+    } else if (ch === '"') comillas = true;
+    else if (ch === sep){ f.push(c); c = ''; }
+    else if (ch === '\n'){ f.push(c); filas.push(f); f = []; c = ''; }
+    else if (ch !== '\r') c += ch;
+  }
+  if (c !== '' || f.length){ f.push(c); filas.push(f); }
+  return filas.filter(x => x.some(v => String(v).trim() !== ''));
+}
+
+async function vCargar(){
+  cargando();
+  const yo = V();
+  if (!yo.es_admin)
+    return app.innerHTML = `<div class="error">Cargar la base entera solo lo hace quien administra.</div>`;
+
+  const [{ data:lotes, error }, { data:redes }] = await Promise.all([
+    SB.from('cargas').select('*').order('cuando', { ascending:false }).limit(20),
+    SB.from('areas_buscar').select('*').eq('tipo', 'red').order('nombre')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const L_ = lotes || [], R_ = redes || [];
+  const abierto = L_.find(x => x.id === S.cgLote) || L_.find(x => !x.aplicada_en);
+
+  let html = cabeza('Cargar la base',
+    abierto ? `${nfm(abierto.filas)} filas de ${esc(abierto.archivo)}`
+            : 'El archivo de personas de Redil, revisado antes de escribir nada');
+
+  /* ---------- 1. el archivo ---------- */
+  if (!abierto){
+    html += `<div class="tarjeta"><div class="tarjeta-cuerpo">
+      <label for="cgArchivo" style="margin-top:0">El archivo de Redil</label>
+      <input type="file" id="cgArchivo" accept=".csv,text/csv">
+      <div id="cgLeido"></div>
+      <div style="margin-top:16px"><button class="btn" id="cgSubir" disabled>Subir el archivo</button></div>
+    </div></div>`;
+  }
+
+  /* ---------- 2. los grupos ---------- */
+  if (abierto && !abierto.aplicada_en){
+    html += `<div class="tarjeta" id="cgPasoGrupos"><div class="tarjeta-alto"><h2>Qué es cada grupo</h2>
+        <span class="ruta-conteo" id="cgCuentaG"></span></div>
+      <div class="tarjeta-cuerpo">
+        <div class="buscador"><input type="text" id="cgBuscaG" placeholder="Buscar un nombre…"></div>
+      </div>
+      <ul class="registro" id="cgGrupos"></ul></div>`;
+
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Qué va a pasar</h2>
+        <button class="btn seco chico" id="cgRevisar">Revisar</button></div>
+      <div class="tarjeta-cuerpo" id="cgResumen">
+        <p class="sub"><span>Todavía no se ha revisado.</span></p></div>
+      <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn" id="cgAplicar" disabled>Cargar</button>
+          <button class="btn rojo seco" id="cgBotar">Botar este archivo</button>
+        </div>
+      </div></div>`;
+
+    html += `<div class="tarjeta" id="cgDetalleCaja" hidden>
+      <div class="tarjeta-alto"><h2>Fila por fila</h2>
+        <span class="ruta-conteo" id="cgCuentaF"></span></div>
+      <div class="tarjeta-cuerpo">
+        <div class="buscador"><input type="text" id="cgBuscaF" placeholder="Buscar por nombre…"></div>
+      </div>
+      <ul class="registro" id="cgFilas"></ul></div>`;
+  }
+
+  /* ---------- 3. las cargas anteriores ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Cargas anteriores</h2>
+      <span class="ruta-conteo">${L_.length} ${L_.length === 1 ? 'archivo' : 'archivos'}</span></div>
+    ${L_.length ? `<ul class="registro">${L_.map(c => `<li><div class="fila" style="cursor:default">
+      <span class="fila-alto"><span class="nombre">${esc(c.archivo)}</span>
+        ${c.aplicada_en ? '<span class="marca-est m-cuidado">cargada</span>'
+          : c.deshecha_en ? '<span class="marca-est m-desconectado">deshecha</span>'
+          : '<span class="marca-est m-alerta">sin aplicar</span>'}</span>
+      <span class="sub"><span>${nfm(c.filas)} filas</span>
+        <span>· ${fechaCorta(String(c.cuando).slice(0,10))}</span>
+        ${c.resumen ? `<span>· ${nfm(c.resumen.nuevas || 0)} nuevas, ${nfm(c.resumen.tocadas || 0)} ya estaban</span>` : ''}</span>
+      <span style="display:flex;gap:7px;margin-top:10px">
+        ${c.aplicada_en ? `<button class="btn rojo chico" data-cgdes="${c.id}">Deshacer</button>` : ''}
+        ${!c.aplicada_en && !c.deshecha_en && c.id !== (abierto || {}).id
+          ? `<button class="btn seco chico" data-cgabrir="${c.id}">Seguir con este</button>` : ''}
+      </span></div></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Todavía no se ha cargado ningún archivo.</span></p></div>`}
+    </div>`;
+
+  app.innerHTML = html;
+
+  /* ---------- leer y subir ---------- */
+  const ent = document.getElementById('cgArchivo');
+  if (ent){
+    let listo = null;
+    ent.onchange = async () => {
+      const f = ent.files[0];
+      if (!f) return;
+      const texto = (await f.text()).replace(/^\uFEFF/, '');
+      const crudas = partirCSV(texto);
+      const caja = document.getElementById('cgLeido');
+      if (crudas.length < 3){
+        caja.innerHTML = `<p class="error" style="margin-top:12px">Ese archivo no tiene filas.</p>`;
+        document.getElementById('cgSubir').disabled = true;
+        return;
+      }
+      const { filas:datos, perdidas } = enderezarRedil(crudas);
+      listo = { archivo:f.name, datos };
+
+      const conNombre = datos.filter(d => d.primer_nombre || d.primer_apellido).length;
+      caja.innerHTML = `
+        <div class="par" style="margin-top:14px">
+          <div><label style="margin-top:0">Personas leídas</label>
+            <p class="dato-fijo">${nfm(datos.length)}</p></div>
+          <div><label style="margin-top:0">Con nombre</label>
+            <p class="dato-fijo">${nfm(conNombre)}</p></div>
+        </div>
+        ${perdidas.length ? `<p class="error" style="margin-top:12px">
+          ${perdidas.length} ${perdidas.length === 1 ? 'fila no se pudo leer' : 'filas no se pudieron leer'}:
+          no traen la sede ni la fecha de creación, que son las dos columnas con las que se endereza el archivo.</p>` : ''}
+        ${!datos.length ? `<p class="error" style="margin-top:12px">
+          No pude leer ninguna persona. ¿Es el informe de personas de Redil?</p>` : ''}`;
+      document.getElementById('cgSubir').disabled = !datos.length;
+    };
+
+    document.getElementById('cgSubir').onclick = async () => {
+      if (!listo) return;
+      const b = document.getElementById('cgSubir');
+      b.disabled = true; b.textContent = 'Subiendo…';
+
+      const { data:lote, error } = await SB.from('cargas')
+        .insert({ archivo:listo.archivo, filas:listo.datos.length })
+        .select().single();
+      if (error){ b.disabled = false; b.textContent = 'Subir el archivo'; return avisar(error.message, true); }
+
+      //  De a doscientas: mil filas en una sola petición se cae.
+      const trozo = 200;
+      for (let i = 0; i < listo.datos.length; i += trozo){
+        const pedazo = listo.datos.slice(i, i + trozo)
+          .map((d, k) => ({ lote:lote.id, fila:i + k + 1, datos:d }));
+        const { error:e2 } = await SB.from('carga_filas').insert(pedazo);
+        if (e2){ b.disabled = false; b.textContent = 'Subir el archivo'; return avisar(e2.message, true); }
+        b.textContent = `Subiendo… ${Math.min(i + trozo, listo.datos.length)} de ${listo.datos.length}`;
+      }
+      const { error:e3 } = await SB.rpc('juntar_grupos_de_carga', { p_lote:lote.id });
+      if (e3) return avisar(e3.message, true);
+      S.cgLote = lote.id;
+      avisar(`${nfm(listo.datos.length)} filas subidas. Todavía no se ha escrito nada.`);
+      ir('cargar');
+    };
+  }
+
+  if (!abierto || abierto.aplicada_en){
+    app.querySelectorAll('[data-cgdes]').forEach(b => b.onclick = () => deshacerLote(b.dataset.cgdes));
+    app.querySelectorAll('[data-cgabrir]').forEach(b => b.onclick = () => {
+      S.cgLote = b.dataset.cgabrir; ir('cargar');
+    });
+    return;
+  }
+
+  /* ---------- los grupos ---------- */
+  const { data:grupos } = await SB.from('carga_grupos').select('*')
+    .eq('lote', abierto.id).order('cuantas', { ascending:false });
+  const G_ = grupos || [];
+
+  const pintarGrupos = (filtro = '') => {
+    const f = sinT(filtro);
+    const vis = G_.filter(g => !f || sinT(g.nombre).includes(f));
+    document.getElementById('cgCuentaG').textContent =
+      `${G_.filter(g => g.que_es === 'pendiente').length} sin decidir de ${G_.length}`;
+    document.getElementById('cgCuentaF');
+    document.getElementById('cgGrupos').innerHTML = vis.map(g => `<li>
+      <div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(g.nombre)}</span>
+          ${g.que_es === 'pendiente' ? '<span class="marca-est m-alerta">sin decidir</span>' : ''}</span>
+        <span class="sub"><span>${g.cuantas} ${g.cuantas === 1 ? 'persona' : 'personas'}</span>
+          ${g.area_id ? '<span>· ya existe en la plataforma</span>' : ''}</span>
+        <span class="par" style="margin-top:10px">
+          <span><select data-cgqe="${esc(g.nombre)}">
+            ${Object.entries(QUE_ES).map(([v,t]) =>
+              `<option value="${v}"${v === g.que_es ? ' selected' : ''}>${t}</option>`).join('')}
+          </select></span>
+          <span><select data-cgred="${esc(g.nombre)}"
+            ${['grupo','nuevos','salida'].includes(g.que_es) ? '' : 'disabled'}>
+            <option value="">¿Dentro de qué red?</option>
+            ${R_.map(r => `<option value="${r.id}"${r.id === g.red_id ? ' selected' : ''}>${esc(r.nombre)}</option>`).join('')}
+          </select></span>
+        </span>
+      </div></li>`).join('') || `<li><div class="fila" style="cursor:default">
+        <span class="sub"><span>Ningún nombre con eso.</span></span></div></li>`;
+    enlazarGrupos();
+  };
+
+  const guardarGrupo = async nombre => {
+    const g = G_.find(x => x.nombre === nombre);
+    const qe = app.querySelector(`[data-cgqe="${CSS.escape(nombre)}"]`).value;
+    const red = app.querySelector(`[data-cgred="${CSS.escape(nombre)}"]`).value || null;
+    const { error } = await SB.rpc('decidir_grupo',
+      { p_lote:abierto.id, p_nombre:nombre, p_que_es:qe, p_red:red });
+    if (error) return avisar(error.message, true);
+    g.que_es = qe; g.red_id = red;
+    pintarGrupos(document.getElementById('cgBuscaG').value);
+  };
+
+  const enlazarGrupos = () => {
+    app.querySelectorAll('[data-cgqe]').forEach(s => s.onchange = () => {
+      const otro = app.querySelector(`[data-cgred="${CSS.escape(s.dataset.cgqe)}"]`);
+      otro.disabled = !['grupo','nuevos','salida'].includes(s.value);
+      if (otro.disabled) otro.value = '';
+      guardarGrupo(s.dataset.cgqe);
+    });
+    app.querySelectorAll('[data-cgred]').forEach(s => s.onchange = () => guardarGrupo(s.dataset.cgred));
+  };
+  pintarGrupos();
+  document.getElementById('cgBuscaG').oninput = e => pintarGrupos(e.target.value);
+
+  /* ---------- revisar ---------- */
+  let F_ = [];
+  const pintarFilas = (filtro = '') => {
+    const f = sinT(filtro);
+    const vis = F_.filter(x => !f || sinT(x.nombre || '').includes(f)).slice(0, 300);
+    document.getElementById('cgCuentaF').textContent =
+      `${nfm(F_.length)} filas${vis.length < F_.length ? ` · se ven ${vis.length}` : ''}`;
+    document.getElementById('cgFilas').innerHTML = vis.map(x => `<li>
+      <div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(x.nombre || '(sin nombre)')}</span>
+          <span class="marca-est ${x.veredicto === 'ya está' ? 'm-alerta'
+            : x.veredicto === 'problema' ? 'm-desconectado' : 'm-cuidado'}">${esc(x.veredicto)}</span></span>
+        <span class="sub"><span>${esc(x.detalle)}</span></span>
+      </div></li>`).join('');
+  };
+
+  document.getElementById('cgRevisar').onclick = async () => {
+    const b = document.getElementById('cgRevisar');
+    b.disabled = true; b.textContent = 'Revisando…';
+    const [{ data:res, error }, { data:filas }] = await Promise.all([
+      SB.rpc('resumen_carga', { p_lote:abierto.id }),
+      SB.rpc('revisar_carga', { p_lote:abierto.id })
+    ]);
+    b.disabled = false; b.textContent = 'Revisar';
+    if (error) return avisar(error.message, true);
+
+    F_ = filas || [];
+    const r = res || {};
+    const sinDecidir = r.grupos_sin_decidir || 0;
+    document.getElementById('cgResumen').innerHTML = `
+      <div class="rejilla-serv">
+        ${[['nueva','Entran como nuevas'], ['nueva sin huella','Entran, pero sin con qué cruzarlas'],
+           ['ya está','Ya están en la plataforma'], ['problema','No se pueden leer']]
+          .filter(([k]) => r[k]).map(([k,t]) => `<div class="serv-caja">
+            <h3>${t}</h3><p class="dato-fijo" style="font-size:26px">${nfm(r[k])}</p></div>`).join('')}
+      </div>
+      ${sinDecidir ? `<p class="error" style="margin-top:14px">Faltan ${sinDecidir} grupos por decidir.</p>` : ''}`;
+    document.getElementById('cgAplicar').disabled = sinDecidir > 0;
+    document.getElementById('cgDetalleCaja').hidden = false;
+    pintarFilas(document.getElementById('cgBuscaF').value);
+  };
+  document.getElementById('cgBuscaF').oninput = e => pintarFilas(e.target.value);
+
+  /* ---------- aplicar y botar ---------- */
+  document.getElementById('cgAplicar').onclick = async () => {
+    const nuevas = F_.filter(x => x.veredicto.startsWith('nueva')).length;
+    const r = await dialogo({
+      titulo: '¿Cargar el archivo?',
+      texto: `Entran ${nfm(nuevas)} personas nuevas y se completan las que ya estaban. `
+           + 'Se puede deshacer entero después.',
+      aceptar: 'Cargar' });
+    if (r === null) return;
+    const b = document.getElementById('cgAplicar');
+    b.disabled = true; b.textContent = 'Cargando…';
+    const { data, error } = await SB.rpc('aplicar_carga', { p_lote:abierto.id });
+    if (error){ b.disabled = false; b.textContent = 'Cargar'; return avisar(error.message, true); }
+    S.cgLote = null;
+    avisar(`${nfm(data.nuevas)} personas nuevas, ${nfm(data.tocadas)} completadas, ${nfm(data.a_flujos)} a seguimiento.`);
+    ir('cargar');
+  };
+
+  document.getElementById('cgBotar').onclick = async () => {
+    const r = await dialogo({
+      titulo: '¿Botar este archivo?',
+      texto: 'No ha escrito nada en la base, así que no se pierde nada. Habría que volver a subirlo.',
+      aceptar: 'Botar', peligro: true });
+    if (r === null) return;
+    const { error } = await SB.from('cargas').delete().eq('id', abierto.id);
+    if (error) return avisar(error.message, true);
+    S.cgLote = null;
+    avisar('Archivo botado.');
+    ir('cargar');
+  };
+
+  app.querySelectorAll('[data-cgdes]').forEach(b => b.onclick = () => deshacerLote(b.dataset.cgdes));
+  app.querySelectorAll('[data-cgabrir]').forEach(b => b.onclick = () => {
+    S.cgLote = b.dataset.cgabrir; ir('cargar');
+  });
+}
+
+async function deshacerLote(id){
+  const r = await dialogo({
+    titulo: '¿Deshacer esta carga?',
+    texto: 'Se van las personas y las áreas que creó, y lo que completó vuelve a como estaba. '
+         + 'Lo que alguien escribió después, a mano, no se toca.',
+    aceptar: 'Deshacer', peligro: true });
+  if (r === null) return;
+  const { data, error } = await SB.rpc('deshacer_carga', { p_lote:id });
+  if (error) return avisar(error.message, true);
+  avisar(`${nfm(data.borradas)} personas borradas, ${nfm(data.devueltas)} devueltas a como estaban.`);
+  ir('cargar');
+}
 
 /* ------------------------------------------------------------
    Posibles duplicados
