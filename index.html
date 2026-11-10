@@ -1372,6 +1372,9 @@ const I = {
   metas:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>',
   informes:'<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16" stroke-linecap="round"/><path d="M8 16V11M12.5 16V7M17 16v-3" stroke-linecap="round"/></svg>',
   duplicados:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg>',
+  familias:'<svg viewBox="0 0 24 24"><path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9.5 19v-5h5v5"/></svg>',
+  familia:'<svg viewBox="0 0 24 24"><path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9.5 19v-5h5v5"/></svg>',
+  muro:'<svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-7-9.5A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 3.5c0 4.9-7 9.5-7 9.5z"/></svg>',
   cargar:'<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>',
   desactivados:'<svg viewBox="0 0 24 24"><circle cx="10" cy="8.5" r="3.2"/><path d="M4 20v-1.6a6 6 0 0 1 10.5-4" stroke-linecap="round"/><path d="M15 17h6" stroke-linecap="round"/></svg>',
   flujo:'<svg viewBox="0 0 24 24"><circle cx="5.5" cy="6" r="2.2"/><circle cx="5.5" cy="18" r="2.2"/><circle cx="18.5" cy="12" r="2.2"/><path d="M7.7 6h5.3a3 3 0 0 1 3 3v.8M7.7 18H13a3 3 0 0 0 3-3v-.8" stroke-linecap="round"/></svg>',
@@ -1578,6 +1581,7 @@ function pintarNav(){
     ['Personas', 'personas',
       [...(mando ? [['personas','Todas las personas']] : []),
        ...(mando || cuida ? [['invitados','Invitados']] : []),
+       ...(mando || cuida ? [['familias','Familias']] : []),
        ...(mando ? [['listas','Listas'], ['nuevaPersona','Registrar persona']] : [])]],
     ['Seguimiento', 'flujo',
       [...(cuida ? [['registrar','Registrar cuidado']] : []),
@@ -1585,7 +1589,8 @@ function pintarNav(){
     ['Escuela', 'procesos',
       [['procesos','Cursos y procesos'],
        ...(mando ? [['solicitudes','Solicitudes'], ['revisar','Por revisar']] : [])]],
-    ['Encuentros', 'eventos',  [['eventos','Eventos'], ['oracion','Oración']]],
+    ['Encuentros', 'eventos',  [['eventos','Eventos'], ['oracion','Oración'],
+      ['muro','Muro de oración']]],
     ['Grupos', 'estructura',
       [...(S.misGrupos ? [['reportar','Reportar mi grupo']] : []),
        ...(mando ? [['grupos','Listado de grupos']] : []),
@@ -1709,7 +1714,7 @@ let padreDeArea = null;
 
 const PADRE = {
   ficha:'personas', lista:'listas', registrar:'registrar',
-  evento:'eventos', area:'servicio', lista_oracion:'oracion',
+  evento:'eventos', area:'servicio', lista_oracion:'oracion', familia:'familias',
   bajoSuCargo:'jerarquias', nuevoGrupo:'grupos',
   areaGente: () => padreDeArea || 'grupos',
   reportar:'grupos', reportes:'grupos', seguimiento:'flujo',
@@ -1749,6 +1754,7 @@ const VISTAS = {
   flujo:vFlujo, seguimiento:vSeguimiento, mired:vMiRed, desactivados:vDesactivados,
   informes:vInformes, serviciosdom:vServiciosDom, metas:vMetas,
   duplicados:vDuplicados, cargar:vCargar,
+  familias:vFamilias, familia:vFamilia, muro:vMuro,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -2040,7 +2046,8 @@ async function vFicha(id){
 
   const [{ data:p, error }, { data:areasP }, { data:notas },
          { data:rutas }, { data:pasos }, { data:avances },
-         { data:rangos }, { data:hist }, { data:dir }, { data:todasAreas }] = await Promise.all([
+         { data:rangos }, { data:hist }, { data:dir }, { data:todasAreas },
+         { data:relFam }, { data:suFam }] = await Promise.all([
     SB.from('ficha_persona').select('*').eq('id', id).maybeSingle(),
     SB.from('persona_area').select('id, rol_en_area, area_id, areas(nombre)').eq('persona_id', id).is('hasta', null),
     SB.from('contactos_visibles').select('*').eq('persona_id', id).order('fecha', { ascending:false }),
@@ -2050,7 +2057,9 @@ async function vFicha(id){
     SB.from('rangos').select('*').eq('persona_id', id).order('desde'),
     SB.from('historial').select('*').eq('persona_id', id).order('cuando', { ascending:false }).limit(40),
     SB.from('directorio').select('*').order('nombre'),
-    SB.from('areas').select('*').eq('activa', true).order('nombre')
+    SB.from('areas').select('*').eq('activa', true).order('nombre'),
+    SB.from('relaciones_vista').select('*').eq('persona_id', id).order('vigente', { ascending:false }),
+    SB.from('mi_familia').select('*').eq('persona_id', id)
   ]);
   if (error || !p) return app.innerHTML = `<div class="error">No se encontró a esa persona, o está fuera de lo que puedes ver.</div>`;
 
@@ -2129,6 +2138,8 @@ async function vFicha(id){
     </div></div>`;
 
   /* ---------- camino y rutas ---------- */
+  html += bloqueFamilia(id, suFam, relFam, puedoMarcar || mando);
+
   html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Su proceso</h2>
       <span class="ruta-conteo">${esc(p.rango || 'sin rango')}</span></div>
     <div class="tarjeta-cuerpo">
@@ -2292,6 +2303,8 @@ async function vFicha(id){
   document.getElementById('atras').onclick = () => ir(V().a_cargo > 0 ? 'inicio' : 'personas');
   const r = document.getElementById('reg');
   if (r) r.onclick = () => ir('registrar', { id:p.id, nombre:p.nombre });
+
+  if (puedoMarcar || mando) engancharFamilia(id, p.nombre, suFam, dir);
 
   app.querySelectorAll('[data-abrir]').forEach(b => b.onclick = () => abrirReservada(b.dataset.abrir, id));
 
@@ -7539,6 +7552,658 @@ async function vMetas(){
   });
 }
 
+
+/* ============================================================
+   Familias
+   ------------------------------------------------------------
+   La iglesia cuida personas, pero los líderes de matrimonios
+   cuidan casas. Acá viven las dos cosas: las relaciones, que son
+   hechos entre dos personas, y los núcleos, que son las casas
+   que se cuidan y se anotan.
+   ============================================================ */
+
+const PARENTESCOS = {
+  conyuge:'Cónyuge', padre:'Padre o madre de', hijo:'Hijo o hija de',
+  hermano:'Hermano o hermana', abuelo:'Abuelo o abuela de', nieto:'Nieto o nieta de',
+  tio:'Tío o tía de', sobrino:'Sobrino o sobrina de', primo:'Primo o prima', otro:'Otro'
+};
+const PAPELES = { cabeza:'Cabeza', conyuge:'Cónyuge', hijo:'Hijo o hija', otro:'Otro' };
+
+/* ---------- el bloque que va dentro de la ficha ---------- */
+function bloqueFamilia(id, fam, rel, puede){
+  const dentro = (fam || [])[0];
+  return `<div class="tarjeta"><div class="tarjeta-alto"><h2>Su familia</h2>
+      ${dentro ? `<a class="btn seco chico" href="${direccion('familia', dentro.nucleo_id)}">Ver la familia</a>` : ''}</div>
+    <div class="tarjeta-cuerpo">
+      ${dentro
+        ? `<p class="dato-fijo">${esc(dentro.familia)}</p>
+           <p class="sub"><span>${PAPELES[dentro.papel] || dentro.papel}</span>
+             <span>· ${dentro.cuantos} ${dentro.cuantos === 1 ? 'persona' : 'personas'}</span></p>`
+        : `<p class="sub"><span>Todavía no está en ninguna familia.</span></p>`}
+
+      ${(rel || []).length ? `<ul class="registro" style="margin-top:14px">
+        ${rel.map(r => `<li><div class="fila" style="cursor:default">
+          <span class="fila-alto">
+            <span class="nombre">${esc(r.pariente)}</span>
+            <span class="sello">${esc(r.como_se_llama)}</span>
+            ${r.vigente ? '' : '<span class="marca-est m-desconectado">terminó</span>'}</span>
+          <span class="sub">
+            ${r.desde ? `<span>desde ${fechaCorta(r.desde)}</span>` : ''}
+            ${r.hasta ? `<span>· hasta ${fechaCorta(r.hasta)}</span>` : ''}
+            ${r.nota ? `<span>· ${esc(r.nota)}</span>` : ''}</span>
+          ${puede ? `<span style="display:flex;gap:7px;margin-top:10px">
+            <a class="btn seco chico" href="${direccion('ficha', r.pariente_id)}">Ver</a>
+            ${r.vigente && ['conyuge','otro'].includes(r.tipo)
+              ? `<button class="btn seco chico" data-relcerrar="${r.id}"
+                   data-nom="${esc(r.pariente)}">Terminó</button>` : ''}
+            <button class="btn rojo chico" data-relborrar="${r.id}"
+               data-nom="${esc(r.pariente)}">Quitar</button>
+          </span>` : ''}
+        </div></li>`).join('')}</ul>` : ''}
+
+      ${puede ? `<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:16px">
+        <button class="btn seco" id="famRel">Agregar un familiar</button>
+        ${dentro ? `<button class="btn seco" id="famSalir">Sacarlo de la familia</button>`
+                 : `<button class="btn seco" id="famCasa">Ponerlo en una familia</button>`}
+      </div>` : ''}
+    </div></div>`;
+}
+
+//  Los botones del bloque de arriba. Se llama desde la ficha.
+function engancharFamilia(id, nombre, fam, dir){
+  const dentro = (fam || [])[0];
+  const gente = (dir || []).filter(x => x.id !== id)
+    .map(x => ({ id:x.id, nombre:x.nombre, sub:x.areas || '' }));
+
+  app.querySelectorAll('[data-relcerrar]').forEach(b => b.onclick = async () => {
+    const r = await dialogo({
+      titulo: `¿Terminó con ${b.dataset.nom}?`,
+      cuerpo: `<label for="rcF" style="margin-top:0">¿Desde cuándo?</label>
+        <input type="date" id="rcF" value="${hoy()}" max="${hoy()}">
+        <label for="rcM">¿Por qué? (opcional)</label>
+        <input type="text" id="rcM" placeholder="Separación, fallecimiento…">`,
+      aceptar: 'Guardar',
+      alMontar: v => () => ({ f:v.querySelector('#rcF').value || null,
+                              m:v.querySelector('#rcM').value.trim() || null })
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('cerrar_relacion',
+      { p_rel:b.dataset.relcerrar, p_fecha:r.f, p_motivo:r.m });
+    if (error) return avisar(error.message, true);
+    avisar('Queda en el historial.');
+    ir('ficha', id);
+  });
+
+  app.querySelectorAll('[data-relborrar]').forEach(b => b.onclick = async () => {
+    const ok = await dialogo({
+      titulo: `¿Quitar a ${b.dataset.nom}?`,
+      texto: 'Esto es para cuando quedó mal escrito. Si la relación existió y terminó, mejor usa «Terminó» para que quede el historial.',
+      aceptar: 'Quitar', peligro: true });
+    if (ok === null) return;
+    const { error } = await SB.rpc('borrar_relacion', { p_rel:b.dataset.relborrar });
+    if (error) return avisar(error.message, true);
+    avisar('Quitada.');
+    ir('ficha', id);
+  });
+
+  const br = document.getElementById('famRel');
+  if (br) br.onclick = async () => {
+    const r = await dialogo({
+      titulo: `Un familiar de ${nombre}`,
+      cuerpo: `<label for="frQ_q" style="margin-top:0">¿Quién?</label>
+        ${selectorBuscable('frQ', gente, null, 'Escribe el nombre…')}
+        <label for="frT">¿Qué es de ${esc(nombre)}?</label>
+        <select id="frT">${Object.entries(PARENTESCOS)
+          .map(([v,t]) => `<option value="${v}">${t}</option>`).join('')}</select>
+        <label for="frD">¿Desde cuándo? (opcional)</label>
+        <input type="date" id="frD" max="${hoy()}">
+        <label for="frN">Una aclaración (opcional)</label>
+        <input type="text" id="frN" placeholder="De crianza, padrastro, adoptivo…">`,
+      aceptar: 'Guardar',
+      alMontar: v => {
+        engancharSelector('frQ', gente);
+        return () => {
+          const q = v.querySelector('#frQ').value;
+          if (!q){ v.querySelector('#frQ_q').focus(); return undefined; }
+          return { q, t:v.querySelector('#frT').value,
+                   d:v.querySelector('#frD').value || null,
+                   n:v.querySelector('#frN').value.trim() || null };
+        };
+      }
+    });
+    if (!r) return;
+
+    if (r.t === 'conyuge'){
+      const { error } = await SB.rpc('casar',
+        { p_uno:id, p_otro:r.q, p_desde:r.d, p_crear_nucleo:true });
+      if (error) return avisar(error.message, true);
+      avisar('Matrimonio registrado.');
+    } else {
+      //  «Es hijo de X» se guarda como «X es padre de esta persona»:
+      //  una sola fila, leída en los dos sentidos.
+      const invertir = ['hijo','nieto','sobrino'].includes(r.t);
+      const tipo = { hijo:'padre', nieto:'abuelo', sobrino:'tio' }[r.t] || r.t;
+      const { error } = await SB.from('relaciones').insert({
+        persona_a: invertir ? r.q : id,
+        persona_b: invertir ? id : r.q,
+        tipo, desde:r.d, nota:r.n });
+      if (error) return avisar(error.message, true);
+      avisar('Familiar agregado.');
+    }
+    ir('ficha', id);
+  };
+
+  const bs = document.getElementById('famSalir');
+  if (bs) bs.onclick = async () => {
+    const ok = await dialogo({
+      titulo: `¿Sacar a ${nombre} de ${dentro.familia}?`,
+      texto: 'La familia y sus notas se quedan. Sus relaciones familiares tampoco se tocan.',
+      aceptar: 'Sacarlo', peligro: true });
+    if (ok === null) return;
+    const { error } = await SB.rpc('sacar_de_familia',
+      { p_nucleo:dentro.nucleo_id, p_persona:id });
+    if (error) return avisar(error.message, true);
+    avisar('Listo.');
+    ir('ficha', id);
+  };
+
+  const bc = document.getElementById('famCasa');
+  if (bc) bc.onclick = async () => {
+    const { data:fams } = await SB.from('familias').select('id, nombre, quienes').order('nombre');
+    const ops = (fams || []).map(f => ({ id:f.id, nombre:f.nombre, sub:f.quienes }));
+    const r = await dialogo({
+      titulo: `¿En qué familia va ${nombre}?`,
+      cuerpo: `<label for="fcQ_q" style="margin-top:0">Una que ya existe</label>
+        ${selectorBuscable('fcQ', ops, null, 'Escribe el apellido…')}
+        <label for="fcP">¿Qué es en esa casa?</label>
+        <select id="fcP">${Object.entries(PAPELES)
+          .map(([v,t]) => `<option value="${v}"${v === 'otro' ? ' selected' : ''}>${t}</option>`).join('')}</select>
+        <label for="fcN" style="margin-top:18px;padding-top:14px;
+          border-top:1px solid var(--linea-suave)">O abre una nueva</label>
+        <input type="text" id="fcN" placeholder="Familia Gómez Rueda">`,
+      aceptar: 'Guardar',
+      alMontar: v => {
+        engancharSelector('fcQ', ops);
+        return () => {
+          const q = v.querySelector('#fcQ').value, n = v.querySelector('#fcN').value.trim();
+          if (!q && !n){ v.querySelector('#fcQ_q').focus(); return undefined; }
+          return { q, n, p:v.querySelector('#fcP').value };
+        };
+      }
+    });
+    if (!r) return;
+    let nuc = r.q;
+    if (!nuc){
+      const { data, error } = await SB.rpc('crear_nucleo',
+        { p_nombre:r.n, p_tipo:'nuclear', p_miembros:[] });
+      if (error) return avisar(error.message, true);
+      nuc = data;
+    }
+    const { error } = await SB.rpc('poner_en_familia',
+      { p_nucleo:nuc, p_persona:id, p_papel:r.p });
+    if (error) return avisar(error.message, true);
+    avisar('Listo.');
+    ir('ficha', id);
+  };
+}
+
+
+/* ============================================================
+   El listado de familias
+   ============================================================ */
+async function vFamilias(){
+  cargando();
+  const yo = V();
+
+  const [{ data:fams, error }, { data:mat }] = await Promise.all([
+    SB.from('familias').select('*').order('nombre'),
+    SB.from('matrimonios').select('*').eq('vigente', true)
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const F_ = fams || [], M_ = mat || [];
+  const mando = yo.es_admin || yo.ve_todo;
+
+  let html = cabeza('Familias',
+    `${F_.length} ${F_.length === 1 ? 'casa' : 'casas'} · ${M_.length} ${M_.length === 1 ? 'matrimonio' : 'matrimonios'}`,
+    mando ? `<button class="btn" id="fmNueva">Abrir una familia</button>` : '');
+
+  html += `<div class="tarjeta"><div class="tarjeta-cuerpo">
+      <div class="buscador"><input type="text" id="fmQ" placeholder="Buscar por apellido o por quién vive ahí…"></div>
+      <div class="par" style="margin-top:12px">
+        <div><label for="fmTipo" style="margin-top:0">Tipo</label>
+          <select id="fmTipo"><option value="">Todas</option>
+            <option value="nuclear">Nucleares</option>
+            <option value="extenso">Extensas</option></select></div>
+        <div><label for="fmCon" style="margin-top:0">Con</label>
+          <select id="fmCon"><option value="">Lo que sea</option>
+            <option value="menores">Niños en casa</option>
+            <option value="sinnota">Sin una sola nota</option>
+            <option value="sincuidador">Sin cuidador</option></select></div>
+      </div>
+    </div>
+    <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+      <span class="ruta-conteo" id="fmConteo"></span></div>
+    <ul class="registro" id="fmLista"></ul></div>`;
+
+  app.innerHTML = html;
+
+  const pinta = () => {
+    const q = sinT(document.getElementById('fmQ').value);
+    const t = document.getElementById('fmTipo').value;
+    const c = document.getElementById('fmCon').value;
+    const v = F_.filter(f =>
+      (!q || sinT(f.nombre).includes(q) || sinT(f.quienes || '').includes(q)) &&
+      (!t || f.tipo === t) &&
+      (c !== 'menores'     || f.menores > 0) &&
+      (c !== 'sinnota'     || !f.ultima_nota) &&
+      (c !== 'sincuidador' || !f.cuidador_id));
+    document.getElementById('fmConteo').textContent =
+      v.length === F_.length ? `${v.length} ${v.length === 1 ? 'familia' : 'familias'}`
+                             : `${v.length} de ${F_.length}`;
+    document.getElementById('fmLista').innerHTML = v.length ? v.map(f => `<li>
+      <div class="fila" data-fam="${f.id}">
+        <span class="fila-alto"><span class="nombre">${esc(f.nombre)}</span>
+          ${f.tipo === 'extenso' ? '<span class="sello">extensa</span>' : ''}
+          ${f.menores ? `<span class="marca-est m-alerta">${f.menores} ${f.menores === 1 ? 'niño' : 'niños'}</span>` : ''}
+          ${f.ultima_nota ? '' : '<span class="marca-est m-desconectado">sin notas</span>'}</span>
+        <span class="sub"><span>${esc(f.quienes || 'sin nadie')}</span></span>
+        <span class="sub">
+          <span>${f.cuidador ? 'la cuida ' + esc(f.cuidador) : 'sin cuidador'}</span>
+          ${f.ultima_nota ? `<span>· última nota ${fechaCorta(f.ultima_nota)}</span>` : ''}</span>
+      </div></li>`).join('')
+      : `<li><div class="fila" style="cursor:default"><span class="sub">
+         <span>Ninguna familia con eso.</span></span></div></li>`;
+    app.querySelectorAll('[data-fam]').forEach(b => b.onclick = () => ir('familia', b.dataset.fam));
+  };
+  pinta();
+  document.getElementById('fmQ').oninput = pinta;
+  document.getElementById('fmTipo').onchange = pinta;
+  document.getElementById('fmCon').onchange = pinta;
+
+  const bn = document.getElementById('fmNueva');
+  if (bn) bn.onclick = async () => {
+    const r = await dialogo({
+      titulo: 'Abrir una familia',
+      cuerpo: `<label for="fnN" style="margin-top:0">¿Cómo se llama?</label>
+        <input type="text" id="fnN" placeholder="Familia Gómez Rueda">
+        <label for="fnT">¿Qué tan grande?</label>
+        <select id="fnT"><option value="nuclear">Nuclear — los que viven juntos</option>
+          <option value="extenso">Extensa — con abuelos y tíos</option></select>`,
+      aceptar: 'Abrirla',
+      alMontar: v => () => {
+        const n = v.querySelector('#fnN').value.trim();
+        if (!n){ v.querySelector('#fnN').focus(); return undefined; }
+        return { n, t:v.querySelector('#fnT').value };
+      }
+    });
+    if (!r) return;
+    const { data, error } = await SB.rpc('crear_nucleo',
+      { p_nombre:r.n, p_tipo:r.t, p_miembros:[] });
+    if (error) return avisar(error.message, true);
+    avisar(`${r.n} abierta.`);
+    ir('familia', data);
+  };
+}
+
+
+/* ============================================================
+   Una familia
+   ============================================================ */
+async function vFamilia(id){
+  cargando();
+  const yo = V();
+  if (!id) return ir('familias');
+
+  const [{ data:f }, { data:gente }, { data:notas }, { data:dir }, { data:lideres }] =
+    await Promise.all([
+      SB.from('familias').select('*').eq('id', id).maybeSingle(),
+      SB.from('persona_nucleo').select('id, papel, desde, persona_id, personas(nombre, fecha_nacimiento, genero)')
+        .eq('nucleo_id', id).is('hasta', null),
+      SB.from('notas_familia').select('*').eq('nucleo_id', id).order('fecha', { ascending:false }),
+      SB.from('directorio').select('id, nombre, areas').order('nombre'),
+      SB.from('lideres_vista').select('id, nombre').order('nombre')
+    ]);
+  if (!f) return app.innerHTML = `<div class="error">No se encontró esa familia.</div>`;
+
+  const G_ = gente || [], N_ = notas || [], mando = yo.es_admin || yo.ve_todo;
+  const orden = { cabeza:1, conyuge:2, hijo:3, otro:4 };
+  G_.sort((a,b) => (orden[a.papel] || 9) - (orden[b.papel] || 9) ||
+                   (a.personas?.nombre || '').localeCompare(b.personas?.nombre || ''));
+
+  let html = `<button class="volver" id="atras">← Volver a Familias</button>` +
+    cabeza(esc(f.nombre),
+      `${f.tipo === 'extenso' ? 'familia extensa' : 'familia'} · ${f.cuantos} ${f.cuantos === 1 ? 'persona' : 'personas'}` +
+      `${f.cuidador ? ' · la cuida ' + esc(f.cuidador) : ''}`,
+      `<button class="btn" id="faNota">Anotar</button>` +
+      (mando ? `<button class="btn rojo seco" id="faBorrar">Eliminar la familia</button>` : ''));
+
+  /* ---------- quiénes ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Quiénes</h2>
+      ${mando ? `<button class="btn seco chico" id="faAgregar">Agregar</button>` : ''}</div>
+    <ul class="registro">${G_.map(x => {
+      const e = x.personas?.fecha_nacimiento ? edadDe(x.personas.fecha_nacimiento) : null;
+      return `<li><div class="fila" data-ver="${x.persona_id}">
+        <span class="fila-alto"><span class="nombre">${esc(x.personas?.nombre || '—')}</span>
+          <span class="sello">${PAPELES[x.papel] || x.papel}</span>
+          ${e !== null && e < 18 ? `<span class="marca-est m-alerta">${e} años</span>` : ''}</span>
+        ${mando ? `<span style="display:flex;gap:7px;margin-top:10px">
+          <button class="btn seco chico" data-papel="${x.persona_id}"
+            data-nom="${esc(x.personas?.nombre || '')}" data-act="${x.papel}">Cambiar papel</button>
+          <button class="btn rojo chico" data-sacar="${x.persona_id}"
+            data-nom="${esc(x.personas?.nombre || '')}">Sacar</button></span>` : ''}
+      </div></li>`;
+    }).join('') || `<li><div class="fila" style="cursor:default"><span class="sub">
+      <span>Todavía no hay nadie en esta casa.</span></span></div></li>`}</ul>
+    ${mando ? `<div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+      <div class="par">
+        <div><label for="faCuid_q" style="margin-top:0">Quién cuida a esta familia</label>
+          ${selectorBuscable('faCuid', (lideres || []).map(l => ({ id:l.id, nombre:l.nombre })),
+            f.cuidador_id, 'Escribe el nombre…')}</div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn seco" id="faGuardarCuid" style="width:100%">Guardar</button></div>
+      </div></div>` : ''}
+    </div>`;
+
+  /* ---------- las notas ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Registro de cuidado</h2>
+      <span class="ruta-conteo">${N_.length} ${N_.length === 1 ? 'nota' : 'notas'}</span></div>
+    ${N_.length ? `<ul class="registro">${N_.map(n => `<li>
+      <div class="fila" style="cursor:default">
+        <span class="fila-alto">
+          <span class="nombre">${n.cerrada ? 'Nota reservada' : esc(n.tema || 'Sin título')}</span>
+          ${n.reservada ? '<span class="marca-est m-alerta">reservada</span>' : ''}
+          ${n.tipo === 'intento' ? '<span class="sello">no se pudo</span>' : ''}</span>
+        <span class="sub"><span>${fechaCorta(n.fecha)}</span>
+          <span>· ${esc(n.lider)}</span>
+          ${n.medio ? `<span>· ${esc(n.medio)}</span>` : ''}</span>
+        ${n.cerrada
+          ? `<span style="display:flex;margin-top:10px">
+              <button class="btn seco chico" data-abrir="${n.id}">Abrirla con motivo</button></span>`
+          : (n.resumen ? `<p class="sub" style="margin-top:8px"><span>${esc(n.resumen)}</span></p>` : '')}
+      </div></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nadie ha anotado nada todavía.</span></p></div>`}
+    </div>`;
+
+  app.innerHTML = html;
+  document.getElementById('atras').onclick = () => ir('familias');
+  app.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => ir('ficha', b.dataset.ver));
+  if (mando) engancharSelector('faCuid', (lideres || []).map(l => ({ id:l.id, nombre:l.nombre })));
+
+  /* ---------- anotar, con la casilla de oración ---------- */
+  document.getElementById('faNota').onclick = async () => {
+    const r = await dialogo({
+      titulo: `Anotar a ${f.nombre}`,
+      ancho: true,
+      cuerpo: `<div class="par">
+          <div><label for="anF" style="margin-top:0">Cuándo</label>
+            <input type="date" id="anF" value="${hoy()}" max="${hoy()}"></div>
+          <div><label for="anM" style="margin-top:0">Cómo</label>
+            <select id="anM"><option value="presencial">Presencial</option>
+              <option value="llamada">Llamada</option>
+              <option value="videollamada">Videollamada</option>
+              <option value="mensaje">Mensaje</option>
+              <option value="otro">Otro</option></select></div>
+        </div>
+        <label for="anT">De qué se habló</label>
+        <input type="text" id="anT" placeholder="Visita a la casa">
+        <label for="anR">Qué pasó</label>
+        <textarea id="anR" rows="4" placeholder="Lo que se conversó"></textarea>
+        <label class="campo-op" style="margin-top:14px">
+          <input type="checkbox" id="anRes">
+          <span>Reservada</span></label>
+
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--linea)">
+          <label class="campo-op" style="margin-top:0">
+            <input type="checkbox" id="anOra">
+            <span>Mandar algo al grupo de oración</span></label>
+          <div id="anCaja" hidden>
+            <label for="anP">Qué se va a orar</label>
+            <textarea id="anP" rows="3"
+              placeholder="Escríbelo como quieres que lo lean en el grupo"></textarea>
+            <label class="campo-op">
+              <input type="checkbox" id="anAno">
+              <span>Sin decir de qué familia es</span></label>
+          </div>
+        </div>`,
+      aceptar: 'Guardar',
+      alMontar: v => {
+        const ch = v.querySelector('#anOra'), caja = v.querySelector('#anCaja');
+        ch.onchange = () => { caja.hidden = !ch.checked; if (ch.checked) v.querySelector('#anP').focus(); };
+        return () => {
+          const res = v.querySelector('#anR').value.trim();
+          if (!res){ v.querySelector('#anR').focus(); return undefined; }
+          const pet = ch.checked ? v.querySelector('#anP').value.trim() : '';
+          if (ch.checked && !pet){ v.querySelector('#anP').focus(); return undefined; }
+          return { f:v.querySelector('#anF').value, m:v.querySelector('#anM').value,
+                   t:v.querySelector('#anT').value.trim() || null, r:res,
+                   res:v.querySelector('#anRes').checked,
+                   p:pet || null, a:v.querySelector('#anAno').checked };
+        };
+      }
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('anotar_familia', {
+      p_nucleo:id, p_tipo:'reunion', p_medio:r.m, p_tema:r.t, p_resumen:r.r,
+      p_reservada:r.res, p_peticion:r.p, p_anonima:r.a, p_fecha:r.f });
+    if (error) return avisar(error.message, true);
+    avisar(r.p ? 'Anotado, y la petición quedó en el muro de oración.' : 'Anotado.');
+    ir('familia', id);
+  };
+
+  app.querySelectorAll('[data-abrir]').forEach(b => b.onclick = async () => {
+    const m = await pedirTexto('Abrir una nota reservada', {
+      texto: 'Queda registrado quién la abrió y por qué.', marcador: 'Por qué necesitas leerla' });
+    if (!m) return;
+    const { data, error } = await SB.rpc('abrir_nota_familia', { p_nota:b.dataset.abrir, p_motivo:m });
+    if (error) return avisar(error.message, true);
+    const n = (data || [])[0] || {};
+    await dialogo({ titulo: n.tema || 'Nota reservada',
+      cuerpo: `<p class="sub" style="font-size:15px"><span>${esc(n.resumen || '—')}</span></p>`,
+      aceptar: 'Cerrar', cancelar: '' });
+  });
+
+  const bg = document.getElementById('faGuardarCuid');
+  if (bg) bg.onclick = async () => {
+    const q = document.getElementById('faCuid').value || null;
+    const { error } = await SB.from('nucleos').update({ cuidador_id:q }).eq('id', id);
+    if (error) return avisar(error.message, true);
+    avisar(q ? 'Cuidador asignado.' : 'Quedó sin cuidador.');
+    ir('familia', id);
+  };
+
+  const ba = document.getElementById('faAgregar');
+  if (ba) ba.onclick = async () => {
+    const dentro = new Set(G_.map(x => x.persona_id));
+    const ops = (dir || []).filter(x => !dentro.has(x.id))
+      .map(x => ({ id:x.id, nombre:x.nombre, sub:x.areas || '' }));
+    const r = await dialogo({
+      titulo: `Agregar a ${f.nombre}`,
+      cuerpo: `<label for="agQ_q" style="margin-top:0">¿Quién?</label>
+        ${selectorBuscable('agQ', ops, null, 'Escribe el nombre…')}
+        <label for="agP">¿Qué es en esta casa?</label>
+        <select id="agP">${Object.entries(PAPELES)
+          .map(([v,t]) => `<option value="${v}"${v === 'otro' ? ' selected' : ''}>${t}</option>`).join('')}</select>`,
+      aceptar: 'Agregar',
+      alMontar: v => {
+        engancharSelector('agQ', ops);
+        return () => {
+          const q = v.querySelector('#agQ').value;
+          if (!q){ v.querySelector('#agQ_q').focus(); return undefined; }
+          return { q, p:v.querySelector('#agP').value };
+        };
+      }
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('poner_en_familia',
+      { p_nucleo:id, p_persona:r.q, p_papel:r.p });
+    if (error) return avisar(error.message, true);
+    avisar('Agregado.');
+    ir('familia', id);
+  };
+
+  app.querySelectorAll('[data-papel]').forEach(b => b.onclick = async () => {
+    const r = await dialogo({
+      titulo: `${b.dataset.nom} en esta casa`,
+      cuerpo: `<label for="cpP" style="margin-top:0">Es</label>
+        <select id="cpP">${Object.entries(PAPELES).map(([v,t]) =>
+          `<option value="${v}"${v === b.dataset.act ? ' selected' : ''}>${t}</option>`).join('')}</select>`,
+      aceptar: 'Guardar',
+      alMontar: v => () => v.querySelector('#cpP').value
+    });
+    if (!r) return;
+    const { error } = await SB.from('persona_nucleo').update({ papel:r })
+      .eq('nucleo_id', id).eq('persona_id', b.dataset.papel).is('hasta', null);
+    if (error) return avisar(error.message, true);
+    avisar('Listo.');
+    ir('familia', id);
+  });
+
+  app.querySelectorAll('[data-sacar]').forEach(b => b.onclick = async () => {
+    const ok = await dialogo({ titulo: `¿Sacar a ${b.dataset.nom}?`,
+      texto: 'Sale de esta casa. Sus relaciones familiares no se tocan.',
+      aceptar: 'Sacar', peligro: true });
+    if (ok === null) return;
+    const { error } = await SB.rpc('sacar_de_familia', { p_nucleo:id, p_persona:b.dataset.sacar });
+    if (error) return avisar(error.message, true);
+    avisar('Listo.');
+    ir('familia', id);
+  });
+
+  const bb = document.getElementById('faBorrar');
+  if (bb) bb.onclick = async () => {
+    const ok = await dialogo({ titulo: `¿Eliminar ${f.nombre}?`,
+      texto: 'Se va la casa con todas sus notas. Las personas y sus relaciones familiares se quedan.',
+      aceptar: 'Eliminar', peligro: true });
+    if (ok === null) return;
+    const { error } = await SB.rpc('borrar_nucleo', { p_nucleo:id });
+    if (error) return avisar(error.message, true);
+    avisar('Eliminada.');
+    ir('familias');
+  };
+}
+
+
+/* ============================================================
+   El muro de oración
+   ============================================================ */
+async function vMuro(){
+  cargando();
+
+  const { data:ps, error } = await SB.from('muro_oracion')
+    .select('*').order('pedida_en', { ascending:false });
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const P_ = ps || [];
+  const abiertas = P_.filter(p => p.estado === 'abierta');
+
+  let html = cabeza('Muro de oración',
+    `${abiertas.length} ${abiertas.length === 1 ? 'petición abierta' : 'peticiones abiertas'}`,
+    `<button class="btn" id="muNueva">Pedir oración</button>`);
+
+  html += `<div class="tarjeta"><div class="tarjeta-cuerpo">
+      <div class="buscador"><input type="text" id="muQ" placeholder="Buscar en las peticiones…"></div>
+      <div style="margin-top:12px"><label for="muE" style="margin-top:0">Mostrar</label>
+        <select id="muE" style="max-width:320px">
+          <option value="abierta">Las abiertas</option>
+          <option value="">Todas</option>
+          <option value="respondida">Las respondidas</option>
+          <option value="cerrada">Las cerradas</option></select></div>
+    </div>
+    <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+      <span class="ruta-conteo" id="muConteo"></span></div>
+    <ul class="registro" id="muLista"></ul></div>`;
+
+  app.innerHTML = html;
+
+  const pinta = () => {
+    const q = sinT(document.getElementById('muQ').value);
+    const e = document.getElementById('muE').value;
+    const v = P_.filter(p => (!q || sinT(p.texto).includes(q) || sinT(p.de_quien || '').includes(q))
+                          && (!e || p.estado === e));
+    document.getElementById('muConteo').textContent =
+      `${v.length} ${v.length === 1 ? 'petición' : 'peticiones'}`;
+    document.getElementById('muLista').innerHTML = v.length ? v.map(p => `<li>
+      <div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(p.de_quien)}</span>
+          ${p.anonima ? '<span class="sello">sin nombre</span>' : ''}
+          ${p.estado === 'respondida' ? '<span class="marca-est m-cuidado">respondida</span>'
+            : p.estado === 'cerrada' ? '<span class="marca-est m-desconectado">cerrada</span>' : ''}</span>
+        <p class="sub" style="margin:8px 0 0;font-size:15px"><span>${esc(p.texto)}</span></p>
+        <span class="sub"><span>hace ${p.dias === 0 ? 'nada' : p.dias === 1 ? 'un día' : p.dias + ' días'}</span>
+          ${p.pidio ? `<span>· la pidió ${esc(p.pidio)}</span>` : ''}</span>
+        ${p.nota_cierre ? `<p class="sub" style="margin:6px 0 0"><span>→ ${esc(p.nota_cierre)}</span></p>` : ''}
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          ${p.estado === 'abierta'
+            ? `<button class="btn seco chico" data-resp="${p.id}">Dios respondió</button>
+               <button class="btn seco chico" data-cerr="${p.id}">Cerrarla</button>` : ''}
+          ${p.nucleo_id ? `<a class="btn seco chico" href="${direccion('familia', p.nucleo_id)}">Ver la familia</a>` : ''}
+          <button class="btn rojo chico" data-quit="${p.id}">Quitar</button>
+        </span>
+      </div></li>`).join('')
+      : `<li><div class="fila" style="cursor:default"><span class="sub">
+         <span>Nada por acá.</span></span></div></li>`;
+    enlazar();
+  };
+
+  const cerrar = async (id, estado) => {
+    const n = await pedirTexto(estado === 'respondida' ? '¿Cómo respondió?' : 'Cerrar la petición',
+      { texto: 'Opcional.', marcador: estado === 'respondida' ? 'Qué pasó' : 'Por qué se cierra' });
+    if (n === null) return;
+    const { error } = await SB.rpc('cerrar_peticion',
+      { p_peticion:id, p_estado:estado, p_nota:n || null });
+    if (error) return avisar(error.message, true);
+    avisar('Listo.');
+    ir('muro');
+  };
+
+  const enlazar = () => {
+    app.querySelectorAll('[data-resp]').forEach(b => b.onclick = () => cerrar(b.dataset.resp, 'respondida'));
+    app.querySelectorAll('[data-cerr]').forEach(b => b.onclick = () => cerrar(b.dataset.cerr, 'cerrada'));
+    app.querySelectorAll('[data-quit]').forEach(b => b.onclick = async () => {
+      const ok = await dialogo({ titulo: '¿Quitar esta petición?',
+        texto: 'Se va del muro para todos.', aceptar: 'Quitar', peligro: true });
+      if (ok === null) return;
+      const { error } = await SB.rpc('borrar_peticion', { p_peticion:b.dataset.quit });
+      if (error) return avisar(error.message, true);
+      avisar('Quitada.');
+      ir('muro');
+    });
+  };
+  pinta();
+  document.getElementById('muQ').oninput = pinta;
+  document.getElementById('muE').onchange = pinta;
+
+  document.getElementById('muNueva').onclick = async () => {
+    const { data:fams } = await SB.from('familias').select('id, nombre').order('nombre');
+    const ops = (fams || []).map(f => ({ id:f.id, nombre:f.nombre }));
+    const r = await dialogo({
+      titulo: 'Pedir oración',
+      cuerpo: `<label for="pnT" style="margin-top:0">Qué se va a orar</label>
+        <textarea id="pnT" rows="4" placeholder="Escríbelo como quieres que lo lean en el grupo"></textarea>
+        <label for="pnF_q">¿Por qué familia? (opcional)</label>
+        ${selectorBuscable('pnF', ops, null, 'Escribe el apellido…')}
+        <label class="campo-op" style="margin-top:14px">
+          <input type="checkbox" id="pnA">
+          <span>Sin decir de quién es</span></label>`,
+      aceptar: 'Mandarla',
+      alMontar: v => {
+        engancharSelector('pnF', ops);
+        return () => {
+          const t = v.querySelector('#pnT').value.trim();
+          if (!t){ v.querySelector('#pnT').focus(); return undefined; }
+          return { t, f:v.querySelector('#pnF').value || null, a:v.querySelector('#pnA').checked };
+        };
+      }
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('pedir_oracion',
+      { p_texto:r.t, p_anonima:r.a, p_nucleo:r.f, p_persona:null });
+    if (error) return avisar(error.message, true);
+    avisar('Quedó en el muro.');
+    ir('muro');
+  };
+}
 
 /* ============================================================
    Cargar la base
