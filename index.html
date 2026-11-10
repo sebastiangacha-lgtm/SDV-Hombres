@@ -1372,6 +1372,8 @@ const I = {
   metas:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>',
   informes:'<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16" stroke-linecap="round"/><path d="M8 16V11M12.5 16V7M17 16v-3" stroke-linecap="round"/></svg>',
   duplicados:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg>',
+  hoy:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  jornadas:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg>',
   familias:'<svg viewBox="0 0 24 24"><path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9.5 19v-5h5v5"/></svg>',
   familia:'<svg viewBox="0 0 24 24"><path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9.5 19v-5h5v5"/></svg>',
   muro:'<svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-7-9.5A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 3.5c0 4.9-7 9.5-7 9.5z"/></svg>',
@@ -1589,8 +1591,8 @@ function pintarNav(){
     ['Escuela', 'procesos',
       [['procesos','Cursos y procesos'],
        ...(mando ? [['solicitudes','Solicitudes'], ['revisar','Por revisar']] : [])]],
-    ['Encuentros', 'eventos',  [['eventos','Eventos'], ['oracion','Oración'],
-      ['muro','Muro de oración']]],
+    ['Encuentros', 'eventos',  [['hoy','Hoy'], ['jornadas','Servicios'],
+      ['eventos','Eventos'], ['oracion','Oración'], ['muro','Muro de oración']]],
     ['Grupos', 'estructura',
       [...(S.misGrupos ? [['reportar','Reportar mi grupo']] : []),
        ...(mando ? [['grupos','Listado de grupos']] : []),
@@ -1755,6 +1757,7 @@ const VISTAS = {
   informes:vInformes, serviciosdom:vServiciosDom, metas:vMetas,
   duplicados:vDuplicados, cargar:vCargar,
   familias:vFamilias, familia:vFamilia, muro:vMuro,
+  hoy:vHoy, jornadas:vJornadas,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -8202,6 +8205,291 @@ async function vMuro(){
     if (error) return avisar(error.message, true);
     avisar('Quedó en el muro.');
     ir('muro');
+  };
+}
+
+/* ============================================================
+   Los servicios de cada semana
+   ------------------------------------------------------------
+   Dos pantallas de la misma cosa. «Hoy» es la del que está en la
+   puerta: abre el celular, pone su número, guarda. «El calendario»
+   es la de quien revisa, corrige y organiza las semanas.
+   ============================================================ */
+
+const ESTADOS_J = { prevista:'Prevista', abierta:'En curso', cerrada:'Cerrada', cancelada:'No hubo' };
+const MARCA_J   = { prevista:'', abierta:'m-cuidado', cerrada:'', cancelada:'m-desconectado' };
+const DIAS_SEM  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+const horaCorta = h => h ? String(h).slice(0,5) : '';
+
+/* ============================================================
+   Hoy — la del que está en la puerta
+   ============================================================ */
+async function vHoy(){
+  cargando();
+
+  const [{ data:cas, error }, { data:jor }] = await Promise.all([
+    SB.from('casillas_de_hoy').select('*').order('orden_servicio'),
+    SB.from('jornadas_vista').select('*').eq('fecha', hoy()).order('orden')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const C_ = cas || [], J_ = (jor || []).filter(j => j.estado !== 'cancelada');
+
+  if (!J_.length)
+    return app.innerHTML = cabeza('Hoy', fechaCorta(hoy())) +
+      `<div class="vacio"><strong>Hoy no hay servicio</strong>
+       El calendario no tiene nada para esta fecha.</div>`;
+
+  let html = cabeza('Hoy',
+    `${fechaCorta(hoy())} · ${J_.length} ${J_.length === 1 ? 'servicio' : 'servicios'}`);
+
+  html += J_.map(j => {
+    const cs = C_.filter(c => c.jornada_id === j.id)
+                 .sort((a,b) => a.orden_categoria - b.orden_categoria);
+    const suma = cs.reduce((a,c) => a + (Number(c.cuantos) || 0), 0);
+    return `<div class="tarjeta"><div class="tarjeta-alto">
+        <h2>${esc(j.servicio)}${j.hora ? ' · ' + horaCorta(j.hora) : ''}</h2>
+        <span class="marca-est ${MARCA_J[j.estado] || ''}">${ESTADOS_J[j.estado]}</span></div>
+      <div class="tarjeta-cuerpo">
+        ${cs.map(c => `<div class="serv-linea">
+          <label for="hc-${c.jornada_id}-${c.clave}">${esc(c.categoria)}</label>
+          <input type="text" inputmode="numeric" id="hc-${c.jornada_id}-${c.clave}"
+            data-j="${c.jornada_id}" data-c="${c.clave}" placeholder="—"
+            value="${c.cuantos ?? ''}">
+        </div>`).join('')}
+        <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:18px">
+          <button class="btn" data-guardar="${j.id}">Guardar</button>
+          <span class="ruta-conteo" id="sum-${j.id}">${suma ? nfm(suma) + ' en total' : ''}</span>
+        </div>
+        ${cs.some(c => c.anoto) ? `<p class="sub" style="margin-top:10px">
+          ${cs.filter(c => c.anoto).map(c =>
+            `<span>${esc(c.categoria)}: ${esc(c.anoto)}</span>`).join('')}</p>` : ''}
+      </div></div>`;
+  }).join('');
+
+  app.innerHTML = html;
+
+  const sumar = j => {
+    const t = [...app.querySelectorAll(`[data-j="${j}"]`)]
+      .reduce((a,i) => a + (Number(i.value) || 0), 0);
+    const e = document.getElementById('sum-' + j);
+    if (e) e.textContent = t ? nfm(t) + ' en total' : '';
+  };
+  app.querySelectorAll('[data-j]').forEach(i => i.oninput = () => sumar(i.dataset.j));
+
+  app.querySelectorAll('[data-guardar]').forEach(b => b.onclick = async () => {
+    const j = b.dataset.guardar;
+    const campos = [...app.querySelectorAll(`[data-j="${j}"]`)].filter(i => i.value.trim() !== '');
+    if (!campos.length) return avisar('No pusiste ningún número.', true);
+    b.disabled = true; b.textContent = 'Guardando…';
+    for (const i of campos){
+      const { error } = await SB.rpc('anotar_conteo',
+        { p_jornada:j, p_clave:i.dataset.c, p_cuantos:Number(i.value) });
+      if (error){ b.disabled = false; b.textContent = 'Guardar'; return avisar(error.message, true); }
+    }
+    avisar('Guardado.');
+    ir('hoy');
+  });
+}
+
+
+/* ============================================================
+   El calendario de servicios
+   ============================================================ */
+async function vJornadas(){
+  cargando();
+  const yo = V();
+  const mando = yo.es_admin || yo.ve_todo;
+
+  const [{ data:js, error }, { data:hor }] = await Promise.all([
+    SB.from('jornadas_vista').select('*').gte('fecha', hoy()).order('fecha').limit(200),
+    SB.from('horario_servicios').select('*').order('dia_semana').order('hora')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const J_ = js || [], H_ = hor || [];
+  const porFecha = {};
+  J_.forEach(j => (porFecha[j.fecha] = porFecha[j.fecha] || []).push(j));
+  const fechas = Object.keys(porFecha).sort();
+
+  let html = cabeza('Servicios',
+    `${J_.length} ${J_.length === 1 ? 'jornada por delante' : 'jornadas por delante'}`,
+    mando ? `<button class="btn" id="joAbrir">Abrir más semanas</button>` +
+            `<button class="btn seco" id="joSuelta">Agregar una suelta</button>` : '');
+
+  /* ---------- el horario fijo ---------- */
+  if (mando){
+    html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>El horario de cada semana</h2>
+        <span class="ruta-conteo">${H_.filter(h => h.activo).length} servicios</span></div>
+      <ul class="registro">${H_.map(h => `<li>
+        <div class="fila" style="cursor:default">
+          <span class="fila-alto"><span class="nombre">${esc(h.nombre)}</span>
+            ${h.tiene_escuela ? '<span class="sello">con escuela</span>' : ''}
+            ${h.activo ? '' : '<span class="marca-est m-desconectado">apagado</span>'}</span>
+          <span class="sub"><span>${esc(h.dia)}${h.hora ? ' · ' + horaCorta(h.hora) : ''}</span>
+            <span>· ${h.casillas} ${h.casillas === 1 ? 'casilla' : 'casillas'}</span>
+            <span>· ${h.proximas} por delante</span></span>
+          <span style="display:flex;gap:7px;margin-top:10px">
+            <button class="btn seco chico" data-hedit="${h.id}">Cambiar</button>
+          </span>
+        </div></li>`).join('')}</ul></div>`;
+  }
+
+  /* ---------- las jornadas ---------- */
+  html += `<div class="tarjeta"><div class="tarjeta-cuerpo">
+      <div class="buscador"><input type="text" id="joQ" placeholder="Buscar una fecha o un servicio…"></div>
+    </div>
+    <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+      <span class="ruta-conteo" id="joConteo"></span></div>
+    <div id="joLista"></div></div>`;
+
+  app.innerHTML = html;
+
+  const pinta = () => {
+    const q = sinT(document.getElementById('joQ').value);
+    const vis = fechas.map(f => [f, porFecha[f].filter(j =>
+      !q || sinT(j.servicio).includes(q) || sinT(fechaCorta(f)).includes(q)
+         || sinT(j.dia || '').includes(q))]).filter(([,v]) => v.length);
+    const n = vis.reduce((a,[,v]) => a + v.length, 0);
+    document.getElementById('joConteo').textContent =
+      `${n} ${n === 1 ? 'jornada' : 'jornadas'}`;
+    document.getElementById('joLista').innerHTML = vis.length ? vis.map(([f, v]) => `
+      <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+        <h3 style="margin:0;font-size:15px">${fechaCorta(f)}
+          <span style="color:var(--tenue);font-weight:400">· ${esc(v[0].dia || '')}</span></h3>
+        <span class="ruta-conteo">${v.filter(x => x.estado !== 'cancelada')
+          .reduce((a,x) => a + Number(x.total || 0), 0) || ''}</span>
+      </div>
+      <ul class="registro">${v.map(j => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(j.servicio)}</span>
+          ${j.hora ? `<span class="sello">${horaCorta(j.hora)}</span>` : ''}
+          ${j.tiene_escuela ? '<span class="sello">escuela</span>' : ''}
+          ${MARCA_J[j.estado] ? `<span class="marca-est ${MARCA_J[j.estado]}">${ESTADOS_J[j.estado]}</span>` : ''}</span>
+        <span class="sub">
+          <span>${j.anotadas} de ${j.casillas} casillas</span>
+          ${j.total ? `<span>· ${nfm(j.total)} personas</span>` : ''}
+          ${j.nota ? `<span>· ${esc(j.nota)}</span>` : ''}</span>
+        ${mando ? `<span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          ${j.estado === 'cancelada'
+            ? `<button class="btn seco chico" data-jrev="${j.id}">Sí hubo</button>`
+            : `<button class="btn seco chico" data-jcan="${j.id}"
+                 data-nom="${esc(j.servicio)} del ${fechaCorta(j.fecha)}">No hubo</button>`}
+          ${j.anotadas === 0 ? `<button class="btn rojo chico" data-jdel="${j.id}"
+             data-nom="${esc(j.servicio)} del ${fechaCorta(j.fecha)}">Quitar</button>` : ''}
+        </span>` : ''}
+      </div></li>`).join('')}</ul>`).join('')
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nada con eso.</span></p></div>`;
+    enlazar();
+  };
+
+  const enlazar = () => {
+    app.querySelectorAll('[data-jcan]').forEach(b => b.onclick = async () => {
+      const r = await dialogo({
+        titulo: `¿No hubo ${b.dataset.nom}?`,
+        cuerpo: `<label for="jcN" style="margin-top:0">¿Por qué? (opcional)</label>
+          <input type="text" id="jcN" placeholder="Se canceló por…">`,
+        aceptar: 'No hubo', peligro: true,
+        alMontar: v => () => v.querySelector('#jcN').value.trim() || null });
+      if (r === null) return;
+      const { error } = await SB.rpc('cambiar_jornada',
+        { p_jornada:b.dataset.jcan, p_estado:'cancelada', p_nota:r });
+      if (error) return avisar(error.message, true);
+      avisar('Marcada.'); ir('jornadas');
+    });
+    app.querySelectorAll('[data-jrev]').forEach(b => b.onclick = async () => {
+      const { error } = await SB.rpc('cambiar_jornada',
+        { p_jornada:b.dataset.jrev, p_estado:'prevista', p_nota:null });
+      if (error) return avisar(error.message, true);
+      avisar('Vuelve al calendario.'); ir('jornadas');
+    });
+    app.querySelectorAll('[data-jdel]').forEach(b => b.onclick = async () => {
+      const ok = await dialogo({ titulo: `¿Quitar ${b.dataset.nom}?`,
+        texto: 'Se va del calendario. Se puede volver a abrir la semana.',
+        aceptar: 'Quitar', peligro: true });
+      if (ok === null) return;
+      const { error } = await SB.rpc('borrar_jornada', { p_jornada:b.dataset.jdel });
+      if (error) return avisar(error.message, true);
+      avisar('Quitada.'); ir('jornadas');
+    });
+    app.querySelectorAll('[data-hedit]').forEach(b => b.onclick = async () => {
+      const h = H_.find(x => x.id === b.dataset.hedit);
+      const r = await dialogo({
+        titulo: h.nombre,
+        cuerpo: `<label for="heN" style="margin-top:0">Cómo se llama</label>
+          <input type="text" id="heN" value="${esc(h.nombre)}">
+          <div class="par">
+            <div><label for="heD">Qué día</label>
+              <select id="heD">${DIAS_SEM.map((d,i) =>
+                `<option value="${i}"${i === h.dia_semana ? ' selected' : ''}>${d}</option>`).join('')}
+                <option value=""${h.dia_semana === null ? ' selected' : ''}>Suelto</option></select></div>
+            <div><label for="heH">A qué hora</label>
+              <input type="time" id="heH" value="${horaCorta(h.hora)}"></div>
+          </div>
+          <label class="campo-op" style="margin-top:14px">
+            <input type="checkbox" id="heE" ${h.tiene_escuela ? 'checked' : ''}>
+            <span>Tiene escuela infantil</span></label>
+          <label class="campo-op">
+            <input type="checkbox" id="heA" ${h.activo ? 'checked' : ''}>
+            <span>Se crea cada semana</span></label>`,
+        aceptar: 'Guardar',
+        alMontar: v => () => ({
+          n:v.querySelector('#heN').value.trim(),
+          d:v.querySelector('#heD').value === '' ? null : Number(v.querySelector('#heD').value),
+          h:v.querySelector('#heH').value || null,
+          e:v.querySelector('#heE').checked, a:v.querySelector('#heA').checked })
+      });
+      if (!r || !r.n) return;
+      const { error } = await SB.from('servicios').update({
+        nombre:r.n, dia_semana:r.d, hora:r.h, tiene_escuela:r.e, activo:r.a }).eq('id', h.id);
+      if (error) return avisar(error.message, true);
+      avisar('Guardado.'); ir('jornadas');
+    });
+  };
+  pinta();
+  document.getElementById('joQ').oninput = pinta;
+
+  const ba = document.getElementById('joAbrir');
+  if (ba) ba.onclick = async () => {
+    const r = await dialogo({
+      titulo: 'Abrir más semanas',
+      cuerpo: `<label for="jaN" style="margin-top:0">¿Cuántas?</label>
+        <select id="jaN"><option value="4">4 semanas</option>
+          <option value="8" selected>8 semanas</option>
+          <option value="13">Un trimestre</option>
+          <option value="26">Medio año</option></select>`,
+      aceptar: 'Abrirlas',
+      alMontar: v => () => Number(v.querySelector('#jaN').value) });
+    if (!r) return;
+    const { data, error } = await SB.rpc('abrir_semanas', { p_desde:hoy(), p_semanas:r });
+    if (error) return avisar(error.message, true);
+    avisar(data ? `${data} ${data === 1 ? 'jornada nueva' : 'jornadas nuevas'}.`
+                : 'Ya estaban todas abiertas.');
+    ir('jornadas');
+  };
+
+  const bs = document.getElementById('joSuelta');
+  if (bs) bs.onclick = async () => {
+    const r = await dialogo({
+      titulo: 'Una jornada suelta',
+      cuerpo: `<div class="par">
+          <div><label for="jsF" style="margin-top:0">Qué día</label>
+            <input type="date" id="jsF" value="${hoy()}"></div>
+          <div><label for="jsS" style="margin-top:0">Cuál servicio</label>
+            <select id="jsS">${H_.map(h =>
+              `<option value="${h.id}">${esc(h.nombre)}</option>`).join('')}</select></div>
+        </div>
+        <label for="jsN">Una nota (opcional)</label>
+        <input type="text" id="jsN" placeholder="Servicio especial, vigilia…">`,
+      aceptar: 'Agregarla',
+      alMontar: v => () => ({ f:v.querySelector('#jsF').value,
+        s:v.querySelector('#jsS').value, n:v.querySelector('#jsN').value.trim() || null })
+    });
+    if (!r || !r.f) return;
+    const { error } = await SB.rpc('agregar_jornada',
+      { p_fecha:r.f, p_servicio:r.s, p_nota:r.n });
+    if (error) return avisar(error.message, true);
+    avisar('Agregada.'); ir('jornadas');
   };
 }
 
