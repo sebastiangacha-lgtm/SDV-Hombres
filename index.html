@@ -276,11 +276,49 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
 .diploma-fecha{margin:0;font-size:13.5px;color:var(--suave)}
 .diploma-codigo{margin:7px 0 0;font-size:11px;letter-spacing:.14em;color:var(--tenue);font-variant-numeric:tabular-nums}
 
+/* El botón de «vine a servir»: se toca con el pulgar, de pie, en
+   la entrada, con el celular en una mano. Por eso es así de grande. */
+.btn-gigante{display:flex;align-items:center;justify-content:center;gap:12px;
+  width:100%;min-height:96px;padding:18px 20px;font-family:var(--sans);
+  font-size:21px;font-weight:700;line-height:1.2;border:0;border-radius:var(--r);
+  background:var(--verde);color:#fff;cursor:pointer;
+  box-shadow:0 12px 28px -14px color-mix(in srgb, var(--verde) 75%, transparent);
+  transition:transform .18s var(--brinco), filter .18s var(--brinco)}
+.btn-gigante:hover{filter:brightness(1.07)}
+.btn-gigante:active{transform:scale(.985)}
+.btn-gigante:disabled{opacity:.5;cursor:default;transform:none}
+.btn-gigante svg{width:27px;height:27px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9}
+.btn-gigante.seco{background:var(--panel-solido);color:var(--texto);
+  box-shadow:inset 0 0 0 1px var(--linea);min-height:74px;font-size:18px}
+.btn-gigante.seco:hover{filter:none;background:var(--fondo2)}
+
+/* El cartel de la pared. Fondo blanco siempre, en claro y en
+   oscuro: se imprime, y un QR en negativo no lo lee ninguna cámara. */
+.cartel{background:#fff;color:#14110F;border:1px solid var(--linea);
+  border-radius:var(--r);padding:36px 26px;text-align:center;
+  max-width:640px;margin:0 auto;box-shadow:var(--sombra)}
+.cartel-ojo{margin:0 0 4px;font-size:11.5px;font-weight:700;letter-spacing:.18em;
+  text-transform:uppercase;color:#7A8277}
+.cartel h2{margin:0;font-family:var(--serif);font-size:38px;font-weight:600;
+  line-height:1.08;letter-spacing:-.02em;color:#14110F}
+.cartel-bajada{margin:10px 0 0;font-size:16px;color:#4A5147}
+.cartel-qr{margin:26px auto 0;display:flex;justify-content:center}
+.cartel-url{margin:18px 0 0;font-size:13px;color:#6A7167;word-break:break-all;
+  font-variant-numeric:tabular-nums}
+.cartel-pasos{margin:22px auto 0;max-width:420px;padding:0;list-style:none;
+  text-align:left;font-size:14.5px;color:#4A5147}
+.cartel-pasos li{display:flex;gap:10px;padding:5px 0}
+.cartel-pasos b{flex:none;width:22px;height:22px;border-radius:50%;background:#14110F;
+  color:#fff;font-size:12px;display:grid;place-items:center}
+
 @media print{
   .lado,.barra,.no-imprimir,.aviso{display:none !important}
   .principal{margin:0 !important;padding:0 !important}
   body{background:#fff}
   .diploma{border:2px solid #0FBF81;box-shadow:none;background-image:none;page-break-inside:avoid}
+  .cartel{border:0;box-shadow:none;max-width:none;padding:0;page-break-inside:avoid}
+  .cartel h2{font-size:46px}
+  .cartel-bajada{font-size:18px}
 }
 /* Si la barra se queda corta, que ruede ella y no la página */
 .nav-rollo{overflow-y:auto;overflow-x:hidden;flex:1;margin:0 -4px;padding:0 4px}
@@ -1444,7 +1482,11 @@ const I = {
   eventos:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3" stroke-linecap="round"/></svg>',
   servicio:'<svg viewBox="0 0 24 24"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8z" stroke-linejoin="round"/></svg>',
   area:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
-  puerta:'<svg viewBox="0 0 24 24"><path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" stroke-linecap="round"/><path d="M11 8l4 4-4 4M15 12H5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  puerta:'<svg viewBox="0 0 24 24"><path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" stroke-linecap="round"/><path d="M11 8l4 4-4 4M15 12H5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  servir:'<svg viewBox="0 0 24 24"><circle cx="11" cy="7.5" r="3.3"/><path d="M4.5 20v-1.3A6.5 6.5 0 0 1 13 12.6" stroke-linecap="round"/><path d="M14 17.3l2.2 2.2 4.3-4.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  citados:'<svg viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9.5 3.5h5v2.6h-5z" stroke-linejoin="round"/><path d="M9 11.5h6M9 15.5h3.5" stroke-linecap="round"/></svg>',
+  servidores:'<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M8 16V10M12 16v-3.6M16 16V8.4" stroke-linecap="round"/></svg>',
+  aviso:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14.5h2.5M19.5 14v2.5M14 19.5h1M17.5 18v2M20 19.5h-1" stroke-linecap="round"/></svg>'
 };
 
 /* ============================================================
@@ -1483,6 +1525,18 @@ async function entrar(){
   const { count:nGrupos } = await SB.from('mis_grupos_reportables')
     .select('area_id', { count:'exact', head:true });
   S.misGrupos = (nGrupos || 0) > 0;
+
+  // Lo mismo con las areas de servicio, en una sola consulta: quien
+  // no sirve en ningun lado no ve «Vine a servir», y quien no lidera
+  // no ve la lista de citados. El permiso de verdad lo pone la base
+  // (mando_en_area); esto es para no mostrar un renglon que al
+  // abrirlo diga «esto no es para ti». El enlace del cartel sigue
+  // funcionando aunque el renglon no este en el menu.
+  const { data:misAr } = await SB.from('servidores_por_area')
+    .select('area_id, rol_en_area').eq('persona_id', S.yo.persona_id);
+  S.sirvo = (misAr || []).length > 0;
+  S.mando = (misAr || []).some(a =>
+    ['cabeza','lider','colider','encargado'].includes(a.rol_en_area));
 
   // Primer ingreso: la clave de arranque no sirve para quedarse.
   if (S.yo.debe_cambiar_clave) return pantallaCambioClave();
@@ -1630,7 +1684,11 @@ function pintarNav(){
        ...(S.misGrupos || mando ? [['reportes','Reportes de grupos']] : []),
        ...(mando ? [['nuevoGrupo','Nuevo grupo']] : [])]],
     ['Servicio',   'servicio',
-      [['servicio','Mi servicio'],
+      [...(S.sirvo || mando ? [['servir','Vine a servir']] : []),
+       ['servicio','Mi servicio'],
+       ...(mando || S.mando ? [['citados','Citados del domingo'],
+                               ['servidores','Quién llegó'],
+                               ['aviso','El cartel de la pared']] : []),
        ...(mando ? [['servicios','Áreas de servicio']] : [])]],
     ['Recursos',   'material', [['material','Material']]],
     ...(mando ? [['Administrar', 'usuarios',
@@ -1790,6 +1848,7 @@ const VISTAS = {
   duplicados:vDuplicados, cargar:vCargar,
   familias:vFamilias, familia:vFamilia, muro:vMuro,
   hoy:vHoy, jornadas:vJornadas, ninos:vNinos, tablero:vTablero,
+  servir:vServir, citados:vCitados, servidores:vServidores, aviso:vAviso,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -8939,6 +8998,521 @@ async function vTablero(){
     if (!location.hash.startsWith('#/tablero')){ clearInterval(S.tabloop); S.tabloop = null; return; }
     pintar();
   }, 8000);
+}
+
+/* ============================================================
+   Los servidores del domingo
+   ------------------------------------------------------------
+   Cuatro pantallas. El cartel que se pega en la pared, lo que ve
+   el servidor cuando lo escanea, la lista que arma el líder y el
+   tablero del día.
+
+   El cartel no lleva nada adentro y no cambia nunca: de qué
+   servicio se trata lo dice el reloj, y quién llegó lo dice la
+   sesión del celular que escaneó. Por eso el mismo cartel sirve
+   todos los domingos del año.
+   ============================================================ */
+
+const MARCA_S = { 'llegó':'m-cuidado', 'no llegó':'m-alerta', 'sin citar':'' };
+
+const horaDe = t => t ? new Date(t).toLocaleTimeString('es-CO',
+  { timeZone:'America/Bogota', hour:'numeric', minute:'2-digit' }) : '';
+
+//  La dirección del cartel, armada desde donde está corriendo la
+//  plataforma: así el mismo código sirve en el dominio de verdad
+//  y en una prueba local, sin tener nada escrito a mano.
+const direccionServir = () =>
+  location.origin + location.pathname + '#/servir';
+
+//  Las áreas donde esta persona manda. El permiso de verdad está
+//  en la base (mando_en_area); esto es solo para no ofrecerle al
+//  líder una lista de áreas que no son suyas.
+async function misAreasDeMando(){
+  const yo = V();
+  if (yo.es_admin || yo.ve_todo){
+    const { data } = await SB.from('areas_buscar').select('*').order('nombre');
+    return (data || []).filter(a => ['servicio','ministerio'].includes(a.tipo))
+      .map(a => ({ id:a.id, nombre:a.nombre, sub:a.dentro_de || TIPOS_AREA[a.tipo] || a.tipo }));
+  }
+  const { data } = await SB.from('servidores_por_area')
+    .select('area_id, area, rol_en_area')
+    .eq('persona_id', S.yo.persona_id)
+    .in('rol_en_area', ['cabeza','lider','colider','encargado']);
+  return (data || []).map(a => ({ id:a.area_id, nombre:a.area,
+    sub:ROLES_AREA[a.rol_en_area] || a.rol_en_area }));
+}
+
+/* ------------------------------------------------------------
+   Vine a servir — lo que abre el celular al escanear el cartel
+   ------------------------------------------------------------ */
+async function vServir(){
+  cargando();
+
+  const [{ data:mio, error }, { data:areas }, { data:hor }] = await Promise.all([
+    SB.from('lo_mio_de_hoy').select('*').order('area'),
+    SB.rpc('mis_areas_de_servicio'),
+    SB.from('horario_servicios').select('*').order('dia_semana').order('hora')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const M = mio || [], A_ = areas || [], H_ = (hor || []).filter(h => h.activo);
+
+  /* ---------- no sirve en ningún área ---------- */
+  if (!A_.length){
+    return app.innerHTML = cabeza('Vine a servir') +
+      `<div class="vacio"><strong>Todavía no estás en un área de servicio</strong>
+        Pídele a tu líder que te agregue y vuelve a escanear el cartel.</div>`;
+  }
+
+  /* ---------- no hay servicio abierto a esta hora ---------- */
+  if (!M.length){
+    return app.innerHTML = cabeza('Vine a servir', fechaCorta(hoy())) +
+      `<div class="vacio"><strong>No hay servicio abierto ahora</strong>
+        El cartel sirve desde un par de horas antes de cada servicio.</div>` +
+      (H_.length ? `<div class="tarjeta"><div class="tarjeta-alto"><h2>El horario</h2></div>
+        <ul class="registro">${H_.map(h => `<li><div class="fila" style="cursor:default">
+          <span class="fila-alto"><span class="nombre">${esc(h.nombre)}</span></span>
+          <span class="sub"><span>${esc(h.dia)}${h.hora ? ' · ' + horaCorta(h.hora) : ''}</span></span>
+        </div></li>`).join('')}</ul></div>` : '');
+  }
+
+  const j = M[0];
+  let reemplaza = null, reemplazaNom = '';
+
+  /* ---------- ya quedó marcado ---------- */
+  if (j.ya_marque){
+    const { data:mia } = await SB.from('servidores_jornada').select('*')
+      .eq('jornada_id', j.jornada_id).eq('persona_id', S.yo.persona_id);
+    const l = (mia || [])[0];
+    app.innerHTML = cabeza('Ya quedaste', `${esc(j.servicio)} · ${fechaCorta(j.fecha)}`) +
+      `<div class="tarjeta"><div class="tarjeta-cuerpo" style="text-align:center;padding:30px 22px">
+        <p style="margin:0;font-size:46px;line-height:1">${I.palomita || '✓'}</p>
+        <p style="margin:14px 0 0;font-size:22px;font-weight:700">
+          ${esc(l?.area || j.area)}</p>
+        <p class="sub" style="justify-content:center;margin-top:8px">
+          <span>llegaste a las ${horaDe(l?.llegada_en)}</span>
+          ${l?.tarde ? '<span class="marca-est m-alerta">tarde</span>' : ''}
+          ${l && !l.citado ? '<span class="marca-est m-alerta">no estabas en la lista</span>' : ''}</span>
+        ${l?.reemplaza ? `<p class="sub" style="justify-content:center;margin-top:4px">
+          <span>cubriendo a ${esc(l.reemplaza)}</span></p>` : ''}
+      </div>
+      <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+        <button class="btn seco" id="svDes" style="width:100%">No era yo, deshacer</button>
+      </div></div>`;
+
+    document.getElementById('svDes').onclick = async () => {
+      const ok = await dialogo({ titulo: '¿Deshacer tu llegada?',
+        texto: 'Vas a quedar como que no has llegado todavía.',
+        aceptar: 'Deshacer', peligro: true });
+      if (ok === null) return;
+      const { error:e2 } = await SB.rpc('borrar_llegada',
+        { p_jornada:j.jornada_id, p_persona:S.yo.persona_id });
+      if (e2) return avisar(e2.message, true);
+      avisar('Deshecho.'); ir('servir');
+    };
+    return;
+  }
+
+  /* ---------- marcar ---------- */
+  const unaSola = M.length === 1;
+  app.innerHTML = cabeza(`${esc(j.servicio)}`,
+    `${fechaCorta(j.fecha)}${j.hora ? ' · ' + horaCorta(j.hora) : ''}`) +
+    `<div class="tarjeta"><div class="tarjeta-cuerpo">
+      ${unaSola
+        ? `<button class="btn-gigante" data-sv="${M[0].area_id}">
+             ${I.servir}<span>Vine a servir en ${esc(M[0].area)}</span></button>`
+        : `<p class="sub" style="margin:0 0 12px"><span>¿En cuál área estás hoy?</span></p>
+           <div style="display:flex;flex-direction:column;gap:10px">
+             ${M.map(a => `<button class="btn-gigante${a.citado ? '' : ' seco'}" data-sv="${a.area_id}">
+               ${I.servir}<span>${esc(a.area)}${a.citado ? '' : ' · sin citar'}</span></button>`).join('')}
+           </div>`}
+    </div>
+    <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+      <button class="btn seco chico" id="svReem">Vengo cubriendo a alguien</button>
+      <span class="sub" id="svReemNom" hidden style="margin-top:8px"></span>
+    </div></div>`;
+
+  const pintarReem = () => {
+    const n = document.getElementById('svReemNom');
+    n.hidden = !reemplaza;
+    n.innerHTML = reemplaza
+      ? `<span>cubriendo a ${esc(reemplazaNom)}</span>
+         <button class="btn seco chico" id="svReemX" style="margin-left:8px">Quitar</button>` : '';
+    const x = document.getElementById('svReemX');
+    if (x) x.onclick = () => { reemplaza = null; reemplazaNom = ''; pintarReem(); };
+  };
+
+  document.getElementById('svReem').onclick = async () => {
+    const { data:dir } = await SB.from('directorio').select('id, nombre').order('nombre');
+    const gente = (dir || []).filter(p => p.id !== S.yo.persona_id)
+      .map(p => ({ id:p.id, nombre:p.nombre }));
+    const r = await dialogo({
+      titulo: '¿A quién estás cubriendo?',
+      cuerpo: `<label for="svR_q" style="margin-top:0">Su nombre</label>
+        ${selectorBuscable('svR', gente, null, 'Escribe el nombre…')}`,
+      aceptar: 'Listo',
+      alMontar: v => {
+        engancharSelector('svR', gente);
+        return () => v.querySelector('#svR').value || null;
+      }
+    });
+    if (!r) return;
+    reemplaza = r;
+    reemplazaNom = (gente.find(p => p.id === r) || {}).nombre || '';
+    pintarReem();
+  };
+
+  app.querySelectorAll('[data-sv]').forEach(b => b.onclick = async () => {
+    app.querySelectorAll('[data-sv]').forEach(o => o.disabled = true);
+    const { data, error:e2 } = await SB.rpc('vine_a_servir',
+      { p_area:b.dataset.sv, p_reemplaza:reemplaza, p_nota:null });
+    if (e2){
+      app.querySelectorAll('[data-sv]').forEach(o => o.disabled = false);
+      return avisar(e2.message, true);
+    }
+    const r = (data || [])[0];
+    avisar(r?.r_tarde ? 'Quedó registrado. Llegaste tarde.' : 'Quedó registrado. Gracias.');
+    ir('servir');
+  });
+}
+
+/* ------------------------------------------------------------
+   Los citados — la lista que arma el líder de cada área
+   ------------------------------------------------------------ */
+async function vCitados(){
+  cargando();
+
+  const [areasM, { data:js, error }] = await Promise.all([
+    misAreasDeMando(),
+    SB.from('jornadas_vista').select('*').gte('fecha', hoy()).order('fecha').order('orden').limit(60)
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const J_ = (js || []).filter(x => x.estado !== 'cancelada');
+
+  if (!areasM.length){
+    return app.innerHTML = cabeza('Citados del domingo') +
+      `<div class="vacio"><strong>No lideras ningún área</strong>
+        La lista de citados la arma quien lidera el área.</div>`;
+  }
+  if (!J_.length){
+    return app.innerHTML = cabeza('Citados del domingo') +
+      `<div class="vacio"><strong>No hay servicios abiertos por delante</strong>
+        Ábrelos primero en Encuentros · Servicios.</div>`;
+  }
+
+  let jor = J_[0].id, area = areasM[0].id;
+  let lista = [], yaCitados = new Set(), marcados = new Set();
+
+  app.innerHTML = cabeza('Citados del domingo', 'A quién esperas en tu área') +
+    `<div class="tarjeta"><div class="tarjeta-cuerpo"><div class="par">
+      <div><label for="ciJ" style="margin-top:0">Cuál servicio</label>
+        <select id="ciJ">${J_.map(x =>
+          `<option value="${x.id}">${fechaCorta(x.fecha)} · ${esc(x.servicio)}${x.hora ? ' · ' + horaCorta(x.hora) : ''}</option>`).join('')}</select></div>
+      <div><label for="ciA_q" style="margin-top:0">Cuál área</label>
+        ${areasM.length === 1
+          ? `<input type="text" value="${esc(areasM[0].nombre)}" disabled>
+             <input type="hidden" id="ciA" value="${esc(areasM[0].id)}">`
+          : selectorBuscable('ciA', areasM, areasM[0].id, 'Tu área…')}</div>
+    </div></div></div>
+    <div id="ciCaja"></div>`;
+
+  const pintarLista = () => {
+    const q = sinT((document.getElementById('ciQ') || {}).value || '');
+    const vis = lista.filter(p => !q || sinT(p.nombre).includes(q));
+    const cont = document.getElementById('ciLista');
+    if (!cont) return;
+    document.getElementById('ciConteo').textContent =
+      `${marcados.size} ${marcados.size === 1 ? 'citado' : 'citados'}`;
+    cont.innerHTML = vis.length ? `<ul class="registro">${vis.map(p => `<li>
+      <label class="fila" style="cursor:pointer;display:block">
+        <span class="fila-alto">
+          <span class="nombre">
+            <input type="checkbox" data-ci="${p.persona_id}"
+              ${marcados.has(p.persona_id) ? 'checked' : ''}
+              style="margin-right:9px;vertical-align:-1px">
+            ${esc(p.nombre)}</span>
+          ${p.vino_la_vez_pasada ? '<span class="sello">vino la vez pasada</span>' : ''}</span>
+        <span class="sub">
+          <span>${p.veces_ultimas_8 || 0} ${p.veces_ultimas_8 === 1 ? 'vez' : 'veces'} en 8 semanas</span>
+          ${yaCitados.has(p.persona_id) ? '<span>· ya está en la lista</span>' : ''}</span>
+      </label></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nadie con eso.</span></p></div>`;
+
+    cont.querySelectorAll('[data-ci]').forEach(c => c.onchange = e => {
+      e.target.checked ? marcados.add(c.dataset.ci) : marcados.delete(c.dataset.ci);
+      document.getElementById('ciConteo').textContent =
+        `${marcados.size} ${marcados.size === 1 ? 'citado' : 'citados'}`;
+    });
+  };
+
+  const cargar = async () => {
+    const caja = document.getElementById('ciCaja');
+    caja.innerHTML = '<p class="cargando">Un momento…</p>';
+    const [{ data:prop, error:e1 }, { data:cit }] = await Promise.all([
+      SB.rpc('propuesta_de_citados', { p_jornada:jor, p_area:area }),
+      SB.from('citados').select('persona_id').eq('jornada_id', jor).eq('area_id', area)
+    ]);
+    if (e1) return caja.innerHTML = `<div class="error">${esc(e1.message)}</div>`;
+
+    lista = prop || [];
+    yaCitados = new Set((cit || []).map(c => c.persona_id));
+    marcados  = new Set(yaCitados);
+
+    if (!lista.length){
+      caja.innerHTML = `<div class="vacio"><strong>Esta área no tiene servidores</strong>
+        Agrégalos primero en el área y vuelve.</div>`;
+      return;
+    }
+
+    caja.innerHTML = `<div class="tarjeta">
+      <div class="tarjeta-cuerpo">${cajaBusqueda('ciQ', 'Buscar a alguien del equipo…')}</div>
+      <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+        <span class="ruta-conteo" id="ciConteo"></span>
+        <span style="display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn seco chico" id="ciPasada">Los de la vez pasada</button>
+          <button class="btn seco chico" id="ciTodos">Todos</button>
+          <button class="btn seco chico" id="ciNadie">Ninguno</button>
+        </span></div>
+      <div id="ciLista"></div>
+      <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+        <button class="btn" id="ciGuardar" style="width:100%">Guardar la lista</button>
+      </div></div>`;
+
+    pintarLista();
+    engancharBusqueda('ciQ', pintarLista);
+
+    document.getElementById('ciPasada').onclick = () => {
+      marcados = new Set(lista.filter(p => p.vino_la_vez_pasada).map(p => p.persona_id));
+      pintarLista();
+    };
+    document.getElementById('ciTodos').onclick = () => {
+      marcados = new Set(lista.map(p => p.persona_id)); pintarLista();
+    };
+    document.getElementById('ciNadie').onclick = () => { marcados = new Set(); pintarLista(); };
+
+    document.getElementById('ciGuardar').onclick = async () => {
+      const b = document.getElementById('ciGuardar');
+      const suman = [...marcados].filter(x => !yaCitados.has(x));
+      const quitan = [...yaCitados].filter(x => !marcados.has(x));
+      if (!suman.length && !quitan.length) return avisar('No cambiaste nada.');
+      b.disabled = true;
+      if (suman.length){
+        const { error:e2 } = await SB.rpc('citar',
+          { p_jornada:jor, p_area:area, p_personas:suman, p_nota:null });
+        if (e2){ b.disabled = false; return avisar(e2.message, true); }
+      }
+      for (const p of quitan){
+        const { error:e3 } = await SB.rpc('quitar_citado',
+          { p_jornada:jor, p_area:area, p_persona:p });
+        if (e3){ b.disabled = false; return avisar(e3.message, true); }
+      }
+      avisar(`Guardada: ${marcados.size} ${marcados.size === 1 ? 'citado' : 'citados'}.`);
+      await cargar();
+    };
+  };
+
+  document.getElementById('ciJ').onchange = e => { jor = e.target.value; cargar(); };
+  if (areasM.length > 1)
+    engancharSelector('ciA', areasM, v => { if (v){ area = v; cargar(); } });
+
+  await cargar();
+}
+
+/* ------------------------------------------------------------
+   Quién llegó — el tablero del día, por área
+   ------------------------------------------------------------ */
+async function vServidores(){
+  cargando();
+
+  const areasM = await misAreasDeMando();
+  if (!areasM.length){
+    return app.innerHTML = cabeza('Quién llegó') +
+      `<div class="vacio"><strong>No lideras ningún área</strong>
+        Este tablero es de quien lidera el área.</div>`;
+  }
+
+  let fecha = hoy(), area = areasM[0].id, jor = null;
+
+  app.innerHTML = cabeza('Quién llegó', 'Los servidores de cada jornada',
+    `<button class="btn seco" id="sdRef">Actualizar</button>`) +
+    `<div class="tarjeta"><div class="tarjeta-cuerpo"><div class="par">
+      <div><label for="sdF" style="margin-top:0">Qué día</label>
+        <input type="date" id="sdF" value="${fecha}"></div>
+      <div><label for="sdA_q" style="margin-top:0">Cuál área</label>
+        ${areasM.length === 1
+          ? `<input type="text" value="${esc(areasM[0].nombre)}" disabled>
+             <input type="hidden" id="sdA" value="${esc(areasM[0].id)}">`
+          : selectorBuscable('sdA', areasM, areasM[0].id, 'Tu área…')}</div>
+    </div>
+    <div id="sdJor" style="margin-top:14px"></div></div></div>
+    <div id="sdCaja"></div>`;
+
+  const pintarFilas = () => {
+    const q = sinT((document.getElementById('sdQ') || {}).value || '');
+    const cont = document.getElementById('sdFilas');
+    if (!cont) return;
+    const F = (S.sdFilas || []).filter(x => !q || sinT(x.nombre).includes(q));
+    const orden = { 'no llegó':0, 'sin citar':1, 'llegó':2 };
+    F.sort((a,b) => (orden[a.situacion] - orden[b.situacion]) ||
+      String(a.nombre).localeCompare(String(b.nombre), 'es'));
+
+    cont.innerHTML = F.length ? `<ul class="registro">${F.map(x => `<li>
+      <div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(x.nombre)}</span>
+          <span class="marca-est ${MARCA_S[x.situacion] || ''}">${esc(x.situacion)}</span>
+          ${x.tarde ? '<span class="sello">tarde</span>' : ''}</span>
+        <span class="sub">
+          ${x.llego ? `<span>llegó a las ${horaDe(x.llegada_en)}</span>` : '<span>sin marcar</span>'}
+          ${x.se_marco_solo ? '<span>· se marcó desde el cartel</span>' : ''}
+          ${x.reemplaza ? `<span>· cubriendo a ${esc(x.reemplaza)}</span>` : ''}
+          ${x.celular ? `<span>· ${esc(x.celular)}</span>` : ''}</span>
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          ${x.llego
+            ? `<button class="btn seco chico" data-sdel="${x.persona_id}"
+                 data-nom="${esc(x.nombre)}">Deshacer</button>`
+            : `<button class="btn chico" data-smar="${x.persona_id}">Llegó</button>`}
+        </span></div></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nadie con eso.</span></p></div>`;
+
+    cont.querySelectorAll('[data-smar]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      const { error } = await SB.rpc('marcar_llegada',
+        { p_jornada:jor, p_area:area, p_persona:b.dataset.smar, p_reemplaza:null });
+      if (error){ b.disabled = false; return avisar(error.message, true); }
+      avisar('Marcado.'); await cargarFilas();
+    });
+    cont.querySelectorAll('[data-sdel]').forEach(b => b.onclick = async () => {
+      const ok = await dialogo({ titulo: `¿Deshacer la llegada de ${b.dataset.nom}?`,
+        texto: 'Vuelve a quedar como que no ha llegado.',
+        aceptar: 'Deshacer', peligro: true });
+      if (ok === null) return;
+      const { error } = await SB.rpc('borrar_llegada',
+        { p_jornada:jor, p_persona:b.dataset.sdel });
+      if (error) return avisar(error.message, true);
+      avisar('Deshecha.'); await cargarFilas();
+    });
+  };
+
+  const cargarFilas = async () => {
+    const caja = document.getElementById('sdCaja');
+    if (!jor){
+      caja.innerHTML = `<div class="vacio"><strong>Escoge una jornada</strong>
+        Ese día no tiene servicios abiertos, o todavía no has escogido cuál.</div>`;
+      return;
+    }
+    const [{ data:filas, error }, { data:tab }, { data:cada }] = await Promise.all([
+      SB.from('servidores_jornada').select('*').eq('jornada_id', jor).eq('area_id', area),
+      SB.from('tablero_servidores').select('*').eq('jornada_id', jor).eq('area_id', area),
+      SB.from('cada_cuanto_sirve').select('*').eq('area_id', area).order('veces_8_semanas', { ascending:false })
+    ]);
+    if (error) return caja.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+    S.sdFilas = filas || [];
+    const t = (tab || [])[0] || { citados:0, llegaron:0, faltaron:0, sin_citar:0, tarde:0 };
+    const C_ = cada || [];
+
+    caja.innerHTML = cifras([
+      { icono:'citados',    color:'azul',  valor:t.citados  || 0, texto:'citados' },
+      { icono:'servir',     color:'verde', valor:t.llegaron || 0, texto:'llegaron' },
+      { icono:'alerta',     color:'ambar', valor:t.faltaron || 0, texto:'faltan' },
+      { icono:'reloj',      color:'ambar', valor:t.tarde    || 0, texto:'tarde' }
+    ]) +
+    `<div class="tarjeta">
+      <div class="tarjeta-cuerpo">${cajaBusqueda('sdQ', 'Buscar un servidor…')}</div>
+      <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+        <span class="ruta-conteo">${S.sdFilas.length}
+          ${S.sdFilas.length === 1 ? 'persona' : 'personas'}${t.sin_citar ? ` · ${t.sin_citar} sin citar` : ''}</span>
+        ${t.primero ? `<span class="ruta-conteo">primero a las ${horaDe(t.primero)}</span>` : ''}
+      </div>
+      <div id="sdFilas"></div></div>` +
+    (C_.length ? `<div class="tarjeta"><div class="tarjeta-alto">
+        <h2>Cada cuánto está sirviendo cada quien</h2>
+        <span class="ruta-conteo">últimas 8 semanas</span></div>
+      <ul class="registro">${C_.map(c => `<li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(c.nombre)}</span>
+          ${c.veces_4_semanas >= 4 ? '<span class="marca-est m-alerta">4 seguidas</span>' : ''}</span>
+        <span class="sub"><span>${c.veces_8_semanas} de 8</span>
+          <span>· última vez ${haceCuanto(c.hace_dias)}</span></span>
+      </div></li>`).join('')}</ul></div>` : '');
+
+    pintarFilas();
+    engancharBusqueda('sdQ', pintarFilas);
+  };
+
+  const cargarJornadas = async () => {
+    const { data:js } = await SB.from('jornadas_vista').select('*')
+      .eq('fecha', fecha).order('orden');
+    const J_ = (js || []).filter(x => x.estado !== 'cancelada');
+    const caja = document.getElementById('sdJor');
+    if (!J_.length){
+      jor = null;
+      caja.innerHTML = `<p class="sub"><span>Ese día no tiene servicios abiertos.</span></p>`;
+      return cargarFilas();
+    }
+    //  Al entrar se para en la jornada que está corriendo ahora; si
+    //  no hay ninguna, en la primera del día.
+    const { data:ahora } = await SB.rpc('jornada_ahora');
+    jor = J_.some(x => x.id === ahora) ? ahora : (J_.some(x => x.id === jor) ? jor : J_[0].id);
+
+    caja.innerHTML = `<div class="chips">${J_.map(x =>
+      `<button type="button" class="chip" aria-pressed="${x.id === jor}" data-sj="${x.id}">
+        ${esc(x.servicio)}${x.hora ? ' · ' + horaCorta(x.hora) : ''}</button>`).join('')}</div>`;
+    caja.querySelectorAll('[data-sj]').forEach(b => b.onclick = () => {
+      jor = b.dataset.sj;
+      caja.querySelectorAll('.chip').forEach(c =>
+        c.setAttribute('aria-pressed', String(c.dataset.sj === jor)));
+      cargarFilas();
+    });
+    return cargarFilas();
+  };
+
+  document.getElementById('sdF').onchange = e => { fecha = e.target.value; cargarJornadas(); };
+  document.getElementById('sdRef').onclick = () => cargarFilas();
+  if (areasM.length > 1)
+    engancharSelector('sdA', areasM, v => { if (v){ area = v; cargarFilas(); } });
+
+  await cargarJornadas();
+}
+
+/* ------------------------------------------------------------
+   El cartel de la pared
+   ------------------------------------------------------------ */
+async function vAviso(){
+  const url = direccionServir();
+  const TAM = { chico:220, medio:330, grande:460 };
+  let tam = 'medio';
+
+  const pintar = () => {
+    app.innerHTML =
+      `<div class="cabeza no-imprimir">
+        <div><h1>El cartel de la pared</h1>
+          <p>Se imprime una vez y sirve todos los domingos</p></div>
+        <div class="cabeza-acc">
+          <select id="avT" aria-label="Tamaño del código">
+            <option value="chico"${tam==='chico'?' selected':''}>Pequeño</option>
+            <option value="medio"${tam==='medio'?' selected':''}>Mediano</option>
+            <option value="grande"${tam==='grande'?' selected':''}>Grande</option>
+          </select>
+          <button class="btn" id="avImp">Imprimir</button></div>
+      </div>` +
+      `<div class="cartel">
+        <p class="cartel-ojo">Semillas de Vida</p>
+        <h2>¿Vienes a servir?</h2>
+        <p class="cartel-bajada">Escanea y queda registrado que llegaste.</p>
+        <div class="cartel-qr">${qrSvg(url, TAM[tam])}</div>
+        <ol class="cartel-pasos">
+          <li><b>1</b><span>Apunta la cámara de tu celular al código.</span></li>
+          <li><b>2</b><span>Entra con tu correo y tu clave de RDV.</span></li>
+          <li><b>3</b><span>Toca «Vine a servir».</span></li>
+        </ol>
+        <p class="cartel-url">${esc(url)}</p>
+      </div>`;
+
+    document.getElementById('avImp').onclick = () => window.print();
+    document.getElementById('avT').onchange = e => { tam = e.target.value; pintar(); };
+  };
+  pintar();
 }
 
 /* ============================================================
