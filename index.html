@@ -292,6 +292,37 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
   box-shadow:inset 0 0 0 1px var(--linea);min-height:74px;font-size:18px}
 .btn-gigante.seco:hover{filter:none;background:var(--fondo2)}
 
+/* Los tres estados de la asistencia, del tamaño de un pulgar:
+   esto se usa de pie, con cuarenta nombres, antes de que empiece
+   la clase. */
+.tri{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.tri button{padding:12px 6px;font-size:13.5px;font-weight:600;
+  border-radius:var(--r-chico);border:1px solid var(--linea);
+  background:var(--panel-solido);color:var(--suave);cursor:pointer;
+  transition:background .18s var(--brinco), color .18s var(--brinco)}
+.tri button:hover{background:var(--velo)}
+.tri button[aria-pressed=true]{border-color:transparent;color:#fff}
+.tri button.v[aria-pressed=true]{background:var(--verde)}
+.tri button.d[aria-pressed=true]{background:var(--azul)}
+.tri button.n[aria-pressed=true]{background:var(--barro)}
+
+/* El formulario de afuera: sin menú, sin barra, una sola columna. */
+.publica{max-width:560px;margin:0 auto;padding:26px 18px 70px}
+.publica .marca{margin-bottom:26px}
+.publica h1{font-family:var(--serif);font-size:30px;font-weight:600;
+  line-height:1.15;letter-spacing:-.02em;margin:0 0 8px}
+.publica .lema{color:var(--suave);margin:0 0 26px;font-size:15px}
+.publica label{display:block;margin-top:16px;font-size:13.5px;font-weight:600}
+/* Sin esto, los campos de teléfono y de número salen más angostos
+   que los demás: el ancho por defecto del navegador se les cuela. */
+.publica input, .publica select, .publica textarea{width:100%;box-sizing:border-box}
+.publica .campo-op{display:flex;gap:10px;align-items:flex-start;margin-top:14px}
+.publica .campo-op input{width:19px;height:19px;flex:0 0 auto;margin-top:2px;accent-color:var(--verde)}
+/* El texto de la autorización se lee, no se escanea: va en peso normal. */
+.publica .campo-op span{font-weight:400;font-size:14px;line-height:1.45;color:var(--suave)}
+.publica .listo{text-align:center;padding:40px 20px}
+.publica .listo .palomita{font-size:52px;line-height:1;color:var(--verde)}
+
 /* El cartel de la pared. Fondo blanco siempre, en claro y en
    oscuro: se imprime, y un QR en negativo no lo lee ninguna cámara. */
 .cartel{background:#fff;color:#14110F;border:1px solid var(--linea);
@@ -946,7 +977,12 @@ a.pcard:visited, a.ccard:visited, a.fila:visited{color:inherit}
 
 label{display:block;font-size:13px;font-weight:600;color:var(--suave);margin:15px 0 6px}
 .tarjeta-cuerpo label:first-child,form label:first-child{margin-top:0}
-input[type=text],input[type=email],input[type=password],input[type=date],input[type=url],select,textarea{
+/* tel, number y time también: sin ellos el navegador les pone su
+   propio estilo y en un formulario quedan unos campos con fondo y
+   otros sin él, más angostos. */
+input[type=text],input[type=email],input[type=password],input[type=date],
+input[type=url],input[type=tel],input[type=number],input[type=time],
+input[type=search],select,textarea{
   width:100%;background:var(--panel-solido);border:1px solid var(--linea);
   border-radius:var(--r-chico);padding:11px 12px;font-size:16px;
   transition:border-color .2s, box-shadow .2s;
@@ -1486,14 +1522,36 @@ const I = {
   servir:'<svg viewBox="0 0 24 24"><circle cx="11" cy="7.5" r="3.3"/><path d="M4.5 20v-1.3A6.5 6.5 0 0 1 13 12.6" stroke-linecap="round"/><path d="M14 17.3l2.2 2.2 4.3-4.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   citados:'<svg viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9.5 3.5h5v2.6h-5z" stroke-linejoin="round"/><path d="M9 11.5h6M9 15.5h3.5" stroke-linecap="round"/></svg>',
   servidores:'<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M8 16V10M12 16v-3.6M16 16V8.4" stroke-linecap="round"/></svg>',
-  aviso:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14.5h2.5M19.5 14v2.5M14 19.5h1M17.5 18v2M20 19.5h-1" stroke-linecap="round"/></svg>'
+  aviso:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14.5h2.5M19.5 14v2.5M14 19.5h1M17.5 18v2M20 19.5h-1" stroke-linecap="round"/></svg>',
+  formacion:'<svg viewBox="0 0 24 24"><path d="M12 4.5L3 8.5l9 4 9-4z" stroke-linejoin="round"/><path d="M6.5 10.8V16c0 1.4 2.5 2.6 5.5 2.6s5.5-1.2 5.5-2.6v-5.2M21 8.5v5" stroke-linecap="round"/></svg>',
+  asistencia:'<svg viewBox="0 0 24 24"><rect x="4" y="4.5" width="16" height="15" rx="2"/><path d="M8 10.5l1.6 1.6L13 8.5M8 16h8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  preinscripciones:'<svg viewBox="0 0 24 24"><path d="M7 4.5h10a1.5 1.5 0 0 1 1.5 1.5v13.5l-6.5-3-6.5 3V6A1.5 1.5 0 0 1 7 4.5z" stroke-linejoin="round"/><path d="M9.5 9.5h5M12 7v5" stroke-linecap="round"/></svg>'
 };
 
 /* ============================================================
    Arranque
    ============================================================ */
+//  Las pantallas que se abren sin sesión. Por ahora una sola: el
+//  formulario de inscripción de la escuela, que lo llena gente
+//  que todavía no es de la casa y no tiene usuario.
+const PUBLICAS = { inscribirse: vInscribirse };
+
+const vistaPublicaPedida = () => {
+  const h = (location.hash || '').replace(/^#\/?/, '').split('/')[0];
+  return PUBLICAS[h] ? h : null;
+};
+
 async function arrancar(){
   const { data:{ session } } = await SB.auth.getSession();
+  //  Si vienen por el enlace del formulario y no hay sesión, no se
+  //  les pide una: la pantalla pública se abre directo.
+  const publica = vistaPublicaPedida();
+  if (!session && publica){
+    S.vista = publica;
+    await PUBLICAS[publica]();
+    SB.auth.onAuthStateChange(() => {});
+    return;
+  }
   session ? await entrar() : pantallaEntrada();
   SB.auth.onAuthStateChange(e => {
     if (e === 'SIGNED_OUT'){ S.yo = null; lado.hidden = true; barra.hidden = true; pantallaEntrada(); }
@@ -1537,6 +1595,12 @@ async function entrar(){
   S.sirvo = (misAr || []).length > 0;
   S.mando = (misAr || []).some(a =>
     ['cabeza','lider','colider','encargado'].includes(a.rol_en_area));
+
+  // Y si trabaja en formacion, que es lo que abre las pantallas de
+  // la escuela por cohortes. La base lo vuelve a comprobar en cada
+  // consulta; esto solo decide que renglones se ven en el menu.
+  const { data:esF } = await SB.rpc('soy_de_formacion');
+  S.formacion = !!esF;
 
   // Primer ingreso: la clave de arranque no sirve para quedarse.
   if (S.yo.debe_cambiar_clave) return pantallaCambioClave();
@@ -1673,7 +1737,10 @@ function pintarNav(){
       [...(cuida ? [['registrar','Registrar cuidado']] : []),
        ['flujo','Recorrido'], ['mired','Mi red']]],
     ['Escuela', 'procesos',
-      [['procesos','Cursos y procesos'],
+      [['procesos','El catálogo'],
+       ...(mando || S.formacion ? [['formacion','Procesos'],
+                                   ['asistencia','Tomar asistencia'],
+                                   ['preinscripciones','Inscripciones']] : []),
        ...(mando ? [['solicitudes','Solicitudes'], ['revisar','Por revisar']] : [])]],
     ['Encuentros', 'eventos',  [['hoy','Hoy'], ['jornadas','Servicios'],
       ['eventos','Eventos'], ['oracion','Oración'], ['muro','Muro de oración']]],
@@ -1805,6 +1872,7 @@ let padreDeArea = null;
 
 const PADRE = {
   ficha:'personas', lista:'listas', registrar:'registrar',
+  proceso:'formacion',
   evento:'eventos', area:'servicio', lista_oracion:'oracion', familia:'familias',
   tablero:'ninos',
   bajoSuCargo:'jerarquias', nuevoGrupo:'grupos',
@@ -1849,6 +1917,8 @@ const VISTAS = {
   familias:vFamilias, familia:vFamilia, muro:vMuro,
   hoy:vHoy, jornadas:vJornadas, ninos:vNinos, tablero:vTablero,
   servir:vServir, citados:vCitados, servidores:vServidores, aviso:vAviso,
+  formacion:vFormacion, proceso:vProceso, asistencia:vAsistencia,
+  preinscripciones:vPreinscripciones, inscribirse:vInscribirse,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -9514,6 +9584,831 @@ async function vAviso(){
   };
   pintar();
 }
+
+/* ============================================================
+   La escuela por cohortes
+   ------------------------------------------------------------
+   Formación no corre la escuela como un camino que cada quien
+   recorre a su ritmo: abre un proceso tres o cuatro veces al año
+   y ese grupo camina junto. Estas pantallas son eso —el proceso,
+   su agenda, la asistencia— más la puerta de afuera por donde
+   entra quien todavía no es de la casa.
+   ============================================================ */
+
+const EST_PROCESO = { abierto:'Abierto', en_curso:'En curso',
+                      cerrado:'Cerrado', cancelado:'Cancelado' };
+const MARCA_P = { abierto:'m-cuidado', en_curso:'m-cuidado',
+                  cerrado:'', cancelado:'m-desconectado' };
+const EST_MATRICULA = { pendiente:'Pendiente', confirmada:'Confirmada',
+                        rechazada:'Rechazada', retirada:'Se retiró', graduada:'Graduada' };
+const MARCA_M = { pendiente:'m-alerta', confirmada:'m-cuidado',
+                  rechazada:'m-desconectado', retirada:'m-desconectado', graduada:'m-cuidado' };
+const EST_ASIS = { vivo:'Vino', diferido:'La vio', no_asistio:'No vino' };
+
+/* ------------------------------------------------------------
+   Los procesos
+   ------------------------------------------------------------ */
+async function vFormacion(){
+  cargando();
+
+  const [{ data:pr, error }, { data:pre }, { data:fel }] = await Promise.all([
+    SB.from('procesos_vista').select('*').order('fecha_inicio', { ascending:false, nullsFirst:false }),
+    SB.from('preinscripciones').select('id').eq('estado', 'pendiente'),
+    SB.from('felicitaciones_pendientes').select('persona_id')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const P_ = pr || [], nPre = (pre || []).length, nFel = (fel || []).length;
+  const flojos = P_.filter(p => p.estado === 'abierto' && p.inscritos < p.cupo_minimo);
+
+  let html = cabeza('Procesos', 'Cada cohorte de la escuela',
+    `<button class="btn" id="foNuevo">Abrir un proceso</button>`);
+
+  html += cifras([
+    { icono:'formacion',        color:'verde', valor:P_.filter(p => p.estado !== 'cerrado' && p.estado !== 'cancelado').length, texto:'en marcha' },
+    { icono:'preinscripciones', color:'ambar', valor:nPre, texto:'inscripciones por revisar' },
+    { icono:'palomita',         color:'azul',  valor:nFel, texto:'felicitaciones pendientes' },
+    { icono:'alerta',           color:'ambar', valor:flojos.length, texto:'bajo el cupo' }
+  ]);
+
+  if (nPre) html += `<div class="tarjeta"><div class="tarjeta-cuerpo">
+      <button class="btn seco" data-v="preinscripciones" style="width:100%">
+        Revisar las ${nPre} ${nPre === 1 ? 'inscripción que llegó' : 'inscripciones que llegaron'}</button>
+    </div></div>`;
+
+  html += `<div class="tarjeta">
+    <div class="tarjeta-cuerpo">${cajaBusqueda('foQ', 'Buscar un proceso…')}</div>
+    <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+      <span class="ruta-conteo" id="foConteo"></span></div>
+    <div id="foLista"></div></div>`;
+
+  app.innerHTML = html;
+
+  const pinta = () => {
+    const q = sinT((document.getElementById('foQ') || {}).value || '');
+    const V_ = P_.filter(p => !q || sinT(p.nombre).includes(q));
+    document.getElementById('foConteo').textContent =
+      `${V_.length} ${V_.length === 1 ? 'proceso' : 'procesos'}`;
+    document.getElementById('foLista').innerHTML = V_.length ? `<ul class="registro">${V_.map(p => `
+      <li><a class="fila" href="${direccion('proceso', p.id)}" data-pr="${p.id}">
+        <span class="fila-alto"><span class="nombre">${esc(p.nombre)}</span>
+          <span class="marca-est ${MARCA_P[p.estado] || ''}">${EST_PROCESO[p.estado] || p.estado}</span>
+          ${p.estado === 'abierto' && p.inscritos < p.cupo_minimo
+            ? `<span class="sello">faltan ${p.cupo_minimo - p.inscritos}</span>` : ''}</span>
+        <span class="sub">
+          <span>${p.inscritos} ${p.inscritos === 1 ? 'inscrito' : 'inscritos'}</span>
+          ${p.pendientes ? `<span>· ${p.pendientes} por confirmar</span>` : ''}
+          <span>· ${p.programadas} de ${p.clases} clases con fecha</span>
+          ${p.fecha_inicio ? `<span>· empieza ${fechaCorta(p.fecha_inicio)}</span>` : ''}
+          ${p.proxima ? `<span>· próxima ${fechaCorta(p.proxima)}</span>` : ''}</span>
+      </a></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nada con eso.</span></p></div>`;
+
+    app.querySelectorAll('[data-pr]').forEach(a => a.onclick = e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault(); ir('proceso', a.dataset.pr);
+    });
+  };
+  pinta();
+  engancharBusqueda('foQ', pinta);
+  app.querySelectorAll('[data-v]').forEach(b => b.onclick = () => ir(b.dataset.v));
+
+  document.getElementById('foNuevo').onclick = async () => {
+    const hoyF = hoy(), anio = hoyF.slice(0,4);
+    //  El siguiente es el mayor más uno, no cuántos hay: si alguno
+    //  se canceló o se saltó un número, contar propone un nombre
+    //  que ya existe.
+    const siguiente = P_.reduce((mayor, p) => {
+      const m = String(p.nombre).match(new RegExp('^' + anio + '[-_\\s]?(\\d+)$'));
+      return m ? Math.max(mayor, Number(m[1])) : mayor;
+    }, 0) + 1;
+    const r = await dialogo({
+      titulo: 'Abrir un proceso',
+      cuerpo: `<label for="fnN" style="margin-top:0">Cómo se llama</label>
+        <input type="text" id="fnN" value="${anio}-${siguiente}" placeholder="2026-4">
+        <div class="par">
+          <div><label for="fnF">Cuándo empieza</label><input type="date" id="fnF" value="${hoyF}"></div>
+          <div><label for="fnC">Cupo mínimo</label><input type="number" id="fnC" value="15" min="0"></div>
+        </div>
+        <label class="campo-op" style="margin-top:14px">
+          <input type="checkbox" id="fnA" checked>
+          <span>Armarle la agenda con todas las clases del catálogo</span></label>`,
+      aceptar: 'Abrirlo',
+      alMontar: v => () => {
+        const n = v.querySelector('#fnN').value.trim();
+        if (!n){ v.querySelector('#fnN').focus(); return undefined; }
+        return { n, f:v.querySelector('#fnF').value || null,
+                 c:Number(v.querySelector('#fnC').value) || 0,
+                 a:v.querySelector('#fnA').checked };
+      }
+    });
+    if (!r) return;
+    const { data:id, error:e1 } = await SB.rpc('abrir_proceso',
+      { p_nombre:r.n, p_inicio:r.f, p_cupo:r.c });
+    if (e1) return avisar(e1.message, true);
+    if (r.a){
+      const { error:e2 } = await SB.rpc('armar_agenda', { p_proceso:id });
+      if (e2) avisar(e2.message, true);
+    }
+    avisar('Abierto.');
+    ir('proceso', id);
+  };
+}
+
+
+/* ------------------------------------------------------------
+   Un proceso: su agenda y su gente
+   ------------------------------------------------------------ */
+async function vProceso(arg){
+  const id = typeof arg === 'string' ? arg : (arg && arg.id);
+  if (!id) return ir('formacion');
+  cargando();
+
+  const [{ data:pr, error }, { data:ag }, { data:gente }] = await Promise.all([
+    SB.from('procesos_vista').select('*').eq('id', id).maybeSingle(),
+    SB.from('agenda_proceso').select('*').eq('proceso_id', id),
+    SB.from('avance_personas').select('*').eq('proceso_id', id)
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+  if (!pr) return app.innerHTML = `<div class="vacio"><strong>No encontramos ese proceso</strong></div>`;
+
+  const A_ = (ag || []).sort((a,b) =>
+    (a.orden_fase - b.orden_fase) || (a.orden_programa - b.orden_programa) ||
+    (a.orden_clase - b.orden_clase));
+  const G_ = gente || [];
+
+  let html = cabeza(esc(pr.nombre),
+    `${EST_PROCESO[pr.estado] || pr.estado}${pr.fecha_inicio ? ' · empieza ' + fechaCorta(pr.fecha_inicio) : ''}`,
+    `<button class="btn seco" id="prEdit">Cambiar</button>
+     <button class="btn" id="prMat">Matricular</button>`);
+
+  html += cifras([
+    { icono:'personas',   color:'verde', valor:pr.inscritos,   texto:'inscritos' },
+    { icono:'alerta',     color:'ambar', valor:pr.pendientes,  texto:'por confirmar' },
+    { icono:'eventos',    color:'azul',  valor:`${pr.programadas}/${pr.clases}`, texto:'clases con fecha' },
+    { icono:'palomita',   color:'verde', valor:pr.graduados,   texto:'graduados' }
+  ]);
+
+  /* ---------- la agenda, agrupada por fase y curso ---------- */
+  const porCurso = {};
+  A_.forEach(c => (porCurso[c.curso] = porCurso[c.curso] || []).push(c));
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>La agenda</h2>
+      <span style="display:flex;gap:7px">
+        <button class="btn seco chico" id="prArmar">Completar con el catálogo</button>
+      </span></div>
+    ${A_.length ? Object.entries(porCurso).map(([curso, cs]) => `
+      <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+        <h3 style="margin:0;font-size:15px">${esc(curso)}
+          ${cs[0].fase && cs[0].fase !== curso
+            ? `<span style="color:var(--tenue);font-weight:400">· ${esc(cs[0].fase)}</span>` : ''}</h3>
+        <span class="ruta-conteo">${cs.filter(c => c.fecha).length} de ${cs.length} con fecha</span>
+      </div>
+      <ul class="registro">${cs.map(c => `<li>
+        <div class="fila" style="cursor:default">
+          <span class="fila-alto"><span class="nombre">${esc(c.clase)}</span>
+            ${c.codigo ? `<span class="sello">${esc(c.codigo)}</span>` : ''}
+            ${c.hermana_de ? '<span class="sello">va con su pareja</span>' : ''}</span>
+          <span class="sub">
+            ${c.fecha ? `<span>${fechaCorta(c.fecha)}${c.hora ? ' · ' + horaCorta(c.hora) : ''}</span>`
+                      : '<span>sin fecha</span>'}
+            ${c.lugar ? `<span>· ${esc(c.lugar)}</span>` : ''}
+            ${c.maestro ? `<span>· ${esc(c.maestro)}</span>` : ''}
+            ${c.anotados ? `<span>· ${c.vieron} de ${c.anotados} la vieron</span>` : ''}</span>
+          <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+            <button class="btn seco chico" data-pc="${c.id}">Programar</button>
+            ${c.anotados ? '' : `<button class="btn rojo chico" data-pcdel="${c.id}"
+               data-nom="${esc(c.clase)}">Quitar</button>`}
+          </span></div></li>`).join('')}</ul>`).join('')
+      : `<div class="tarjeta-cuerpo"><p class="sub">
+          <span>Todavía no tiene clases. Complétala con el catálogo.</span></p></div>`}
+    </div>`;
+
+  /* ---------- la gente ---------- */
+  html += `<div class="tarjeta">
+    <div class="tarjeta-cuerpo">${cajaBusqueda('prQ', 'Buscar a alguien del proceso…')}</div>
+    <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+      <span class="ruta-conteo" id="prConteo"></span>
+      <button class="btn seco chico" id="prRevisar">Revisar avances</button></div>
+    <div id="prGente"></div></div>`;
+
+  app.innerHTML = html;
+
+  const pintaGente = () => {
+    const q = sinT((document.getElementById('prQ') || {}).value || '');
+    const V_ = G_.filter(g => !q || sinT(g.nombre).includes(q) ||
+                              sinT(g.documento || '').includes(q));
+    document.getElementById('prConteo').textContent =
+      `${V_.length} ${V_.length === 1 ? 'persona' : 'personas'}`;
+    document.getElementById('prGente').innerHTML = V_.length ? `<ul class="registro">${V_.map(g => `
+      <li><div class="fila" style="cursor:default">
+        <span class="fila-alto">
+          <a class="nombre" href="${direccion('ficha', g.persona_id)}" data-f="${g.persona_id}">${esc(g.nombre)}</a>
+          <span class="marca-est ${MARCA_M[g.estado_matricula] || ''}">${EST_MATRICULA[g.estado_matricula] || g.estado_matricula}</span>
+          ${g.reingreso ? '<span class="sello">reingreso</span>' : ''}
+          ${g.iglesia_asiste ? `<span class="sello">${esc(g.iglesia_asiste)}</span>` : ''}</span>
+        <span class="sub">
+          <span>${g.vistas} de ${g.clases} clases</span>
+          ${g.ultima_fase ? `<span>· va en ${esc(g.ultima_fase)}</span>` : ''}
+          ${g.celular ? `<span>· ${esc(g.celular)}</span>` : ''}</span>
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          ${g.estado_matricula === 'pendiente'
+            ? `<button class="btn chico" data-mconf="${g.persona_id}">Confirmar</button>` : ''}
+          <button class="btn seco chico" data-mest="${g.persona_id}">Cambiar estado</button>
+          <button class="btn rojo chico" data-mdel="${g.persona_id}"
+            data-nom="${esc(g.nombre)}">Quitar</button>
+        </span></div></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nadie con eso.</span></p></div>`;
+    enlazarGente();
+  };
+
+  const matriculaDe = async persona => {
+    const { data } = await SB.from('matriculas').select('id')
+      .eq('proceso_id', id).eq('persona_id', persona).maybeSingle();
+    return data && data.id;
+  };
+
+  const enlazarGente = () => {
+    app.querySelectorAll('[data-f]').forEach(a => a.onclick = e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault(); ir('ficha', a.dataset.f);
+    });
+    app.querySelectorAll('[data-mconf]').forEach(b => b.onclick = async () => {
+      const m = await matriculaDe(b.dataset.mconf);
+      if (!m) return avisar('No encontramos esa matrícula.', true);
+      const { error } = await SB.rpc('cambiar_matricula',
+        { p_matricula:m, p_estado:'confirmada', p_nota:null });
+      if (error) return avisar(error.message, true);
+      avisar('Confirmada.'); ir('proceso', id);
+    });
+    app.querySelectorAll('[data-mest]').forEach(b => b.onclick = async () => {
+      const r = await dialogo({
+        titulo: 'Cambiar el estado',
+        cuerpo: `<label for="meE" style="margin-top:0">Cómo queda</label>
+          <select id="meE">${Object.entries(EST_MATRICULA).map(([k,n]) =>
+            `<option value="${k}">${n}</option>`).join('')}</select>
+          <label for="meN">Una nota (opcional)</label>
+          <input type="text" id="meN" placeholder="Se salió porque…">`,
+        aceptar: 'Guardar',
+        alMontar: v => () => ({ e:v.querySelector('#meE').value,
+                                n:v.querySelector('#meN').value.trim() || null })
+      });
+      if (!r) return;
+      const m = await matriculaDe(b.dataset.mest);
+      if (!m) return avisar('No encontramos esa matrícula.', true);
+      const { error } = await SB.rpc('cambiar_matricula',
+        { p_matricula:m, p_estado:r.e, p_nota:r.n });
+      if (error) return avisar(error.message, true);
+      avisar('Guardado.'); ir('proceso', id);
+    });
+    app.querySelectorAll('[data-mdel]').forEach(b => b.onclick = async () => {
+      const ok = await dialogo({ titulo: `¿Quitar a ${b.dataset.nom} del proceso?`,
+        texto: 'Se borra también la asistencia que tenga en este proceso.',
+        aceptar: 'Quitar', peligro: true });
+      if (ok === null) return;
+      const m = await matriculaDe(b.dataset.mdel);
+      if (!m) return;
+      const { error } = await SB.rpc('borrar_matricula', { p_matricula:m });
+      if (error) return avisar(error.message, true);
+      avisar('Quitada.'); ir('proceso', id);
+    });
+  };
+
+  pintaGente();
+  engancharBusqueda('prQ', pintaGente);
+
+  /* ---------- programar una clase ---------- */
+  app.querySelectorAll('[data-pc]').forEach(b => b.onclick = async () => {
+    const c = A_.find(x => x.id === b.dataset.pc);
+    const { data:dir } = await SB.from('directorio').select('id, nombre').order('nombre');
+    const gente = (dir || []).map(p => ({ id:p.id, nombre:p.nombre }));
+    const r = await dialogo({
+      titulo: c.clase,
+      texto: c.hermana_de ? 'Esta clase y su pareja son la misma tarde.' : '',
+      cuerpo: `<div class="par">
+          <div><label for="pcF" style="margin-top:0">Qué día</label>
+            <input type="date" id="pcF" value="${c.fecha || ''}"></div>
+          <div><label for="pcH" style="margin-top:0">A qué hora</label>
+            <input type="time" id="pcH" value="${horaCorta(c.hora)}"></div>
+        </div>
+        <label for="pcL">Dónde</label>
+        <input type="text" id="pcL" value="${esc(c.lugar || '')}" placeholder="Auditorio, salón 2…">
+        <label for="pcK">Link de la reunión</label>
+        <input type="text" id="pcK" value="${esc(c.link_reunion || '')}" placeholder="https://…">
+        <label for="pcM_q">Quién enseña</label>
+        ${selectorBuscable('pcM', gente, c.maestro_id, 'Escribe el nombre…')}
+        <label for="pcI">Itinerario del día</label>
+        <textarea id="pcI" rows="3" placeholder="8:30 llegada · 9:00 alabanza…">${esc(c.itinerario || '')}</textarea>`,
+      aceptar: 'Guardar',
+      alMontar: v => {
+        engancharSelector('pcM', gente);
+        return () => ({ f:v.querySelector('#pcF').value || null,
+                        h:v.querySelector('#pcH').value || null,
+                        l:v.querySelector('#pcL').value.trim() || null,
+                        k:v.querySelector('#pcK').value.trim() || null,
+                        m:v.querySelector('#pcM').value || null,
+                        i:v.querySelector('#pcI').value.trim() || null });
+      }
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('programar_clase', {
+      p_clase:c.id, p_fecha:r.f, p_hora:r.h, p_lugar:r.l,
+      p_link:r.k, p_maestro:r.m, p_itinerario:r.i });
+    if (error) return avisar(error.message, true);
+    avisar('Guardada.'); ir('proceso', id);
+  });
+
+  app.querySelectorAll('[data-pcdel]').forEach(b => b.onclick = async () => {
+    const ok = await dialogo({ titulo: `¿Quitar ${b.dataset.nom} de la agenda?`,
+      texto: 'Se puede volver a agregar completando con el catálogo.',
+      aceptar: 'Quitar', peligro: true });
+    if (ok === null) return;
+    const { error } = await SB.rpc('borrar_clase', { p_clase:b.dataset.pcdel });
+    if (error) return avisar(error.message, true);
+    avisar('Quitada.'); ir('proceso', id);
+  });
+
+  document.getElementById('prArmar').onclick = async () => {
+    const { data, error } = await SB.rpc('armar_agenda', { p_proceso:id });
+    if (error) return avisar(error.message, true);
+    avisar(data ? `${data} ${data === 1 ? 'clase nueva' : 'clases nuevas'}.`
+                : 'Ya estaban todas.');
+    ir('proceso', id);
+  };
+
+  document.getElementById('prRevisar').onclick = async () => {
+    const { data, error } = await SB.rpc('revisar_avances', { p_proceso:id });
+    if (error) return avisar(error.message, true);
+    avisar(data ? `${data} ${data === 1 ? 'fase completa' : 'fases completas'}.`
+                : 'Nadie completó una fase todavía.');
+    ir('proceso', id);
+  };
+
+  /* ---------- matricular ---------- */
+  document.getElementById('prMat').onclick = async () => {
+    const { data:dir } = await SB.from('directorio').select('id, nombre').order('nombre');
+    const yaEstan = new Set(G_.map(g => g.persona_id));
+    const gente = (dir || []).filter(p => !yaEstan.has(p.id))
+      .map(p => ({ id:p.id, nombre:p.nombre }));
+    const r = await dialogo({
+      titulo: 'Matricular a alguien',
+      cuerpo: `<label for="pmP_q" style="margin-top:0">Quién</label>
+        ${selectorBuscable('pmP', gente, null, 'Escribe el nombre…')}
+        <label class="campo-op" style="margin-top:14px">
+          <input type="checkbox" id="pmR">
+          <span>Ya hizo Kairos antes y está retomando</span></label>
+        <label for="pmC">¿Cómo se enteró? (opcional)</label>
+        <input type="text" id="pmC" placeholder="Un amigo, el anuncio del domingo…">`,
+      aceptar: 'Matricular',
+      alMontar: v => {
+        engancharSelector('pmP', gente);
+        return () => {
+          const p = v.querySelector('#pmP').value;
+          if (!p) return undefined;
+          return { p, r:v.querySelector('#pmR').checked,
+                   c:v.querySelector('#pmC').value.trim() || null };
+        };
+      }
+    });
+    if (!r) return;
+    const { error } = await SB.rpc('matricular',
+      { p_proceso:id, p_persona:r.p, p_reingreso:r.r, p_como:r.c, p_confirmada:true });
+    if (error) return avisar(error.message, true);
+    avisar('Matriculado.'); ir('proceso', id);
+  };
+
+  /* ---------- cambiar el proceso ---------- */
+  document.getElementById('prEdit').onclick = async () => {
+    const r = await dialogo({
+      titulo: pr.nombre,
+      cuerpo: `<label for="peN" style="margin-top:0">Cómo se llama</label>
+        <input type="text" id="peN" value="${esc(pr.nombre)}">
+        <div class="par">
+          <div><label for="peF">Empieza</label>
+            <input type="date" id="peF" value="${pr.fecha_inicio || ''}"></div>
+          <div><label for="peE">Cómo va</label>
+            <select id="peE">${Object.entries(EST_PROCESO).map(([k,n]) =>
+              `<option value="${k}"${k === pr.estado ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+        </div>
+        <div class="par">
+          <div><label for="peC">Cupo mínimo</label>
+            <input type="number" id="peC" value="${pr.cupo_minimo}" min="0"></div>
+          <div><label for="peT">Culmina</label>
+            <input type="date" id="peT" value="${pr.fecha_culminacion || ''}"></div>
+        </div>
+        <label for="peW">Grupo de WhatsApp</label>
+        <input type="text" id="peW" value="${esc(pr.whatsapp_link || '')}" placeholder="https://chat.whatsapp.com/…">`,
+      aceptar: 'Guardar', cancelar: 'Cerrar',
+      alMontar: v => () => ({ n:v.querySelector('#peN').value.trim(),
+        f:v.querySelector('#peF').value || null, e:v.querySelector('#peE').value,
+        c:Number(v.querySelector('#peC').value) || 0,
+        t:v.querySelector('#peT').value || null,
+        w:v.querySelector('#peW').value.trim() || null })
+    });
+    if (!r || !r.n) return;
+    const { error } = await SB.from('procesos').update({
+      nombre:r.n, fecha_inicio:r.f, estado:r.e, cupo_minimo:r.c,
+      fecha_culminacion:r.t, whatsapp_link:r.w }).eq('id', id);
+    if (error) return avisar(error.message, true);
+    avisar('Guardado.'); ir('proceso', id);
+  };
+}
+
+
+/* ------------------------------------------------------------
+   Tomar asistencia
+   ------------------------------------------------------------ */
+async function vAsistencia(){
+  cargando();
+
+  const { data:pr, error } = await SB.from('procesos_vista').select('*')
+    .in('estado', ['abierto','en_curso']).order('fecha_inicio', { ascending:false, nullsFirst:false });
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const P_ = pr || [];
+  if (!P_.length){
+    return app.innerHTML = cabeza('Tomar asistencia') +
+      `<div class="vacio"><strong>No hay procesos en marcha</strong>
+        Abre uno en Escuela · Procesos.</div>`;
+  }
+
+  let proceso = P_[0].id, clase = null, clases = [];
+
+  app.innerHTML = cabeza('Tomar asistencia', 'Marca a todos de una sola vez') +
+    `<div class="tarjeta"><div class="tarjeta-cuerpo">
+      <label for="asP" style="margin-top:0">Cuál proceso</label>
+      <select id="asP">${P_.map(p =>
+        `<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select>
+      <label for="asC_q">Cuál clase</label>
+      <div id="asCaja"></div>
+    </div></div>
+    <div id="asLista"></div>`;
+
+  const pintarGente = () => {
+    const q = sinT((document.getElementById('asQ') || {}).value || '');
+    const cont = document.getElementById('asFilas');
+    if (!cont) return;
+    const F_ = (S.asGente || []).filter(x => !q || sinT(x.nombre).includes(q));
+    const n = (S.asGente || []).filter(x => x.estado).length;
+    document.getElementById('asConteo').textContent =
+      `${n} de ${(S.asGente || []).length} marcados`;
+
+    cont.innerHTML = F_.length ? `<ul class="registro">${F_.map(x => `<li>
+      <div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(x.nombre)}</span></span>
+        <span class="tri">
+          <button class="v" data-as="${x.persona_id}" data-e="vivo"
+            aria-pressed="${x.estado === 'vivo'}">Vino</button>
+          <button class="d" data-as="${x.persona_id}" data-e="diferido"
+            aria-pressed="${x.estado === 'diferido'}">La vio</button>
+          <button class="n" data-as="${x.persona_id}" data-e="no_asistio"
+            aria-pressed="${x.estado === 'no_asistio'}">No vino</button>
+        </span></div></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nadie con eso.</span></p></div>`;
+
+    cont.querySelectorAll('[data-as]').forEach(b => b.onclick = async () => {
+      const persona = b.dataset.as, nuevo = b.dataset.e;
+      const fila = (S.asGente || []).find(x => x.persona_id === persona);
+      const antes = fila ? fila.estado : null;
+
+      //  Volver a tocar el mismo botón lo quita: así se deshace sin
+      //  tener que buscar otro sitio dónde hacerlo.
+      if (antes === nuevo){
+        const { error:e1 } = await SB.rpc('borrar_asistencia',
+          { p_clase:clase, p_persona:persona });
+        if (e1) return avisar(e1.message, true);
+        fila.estado = null;
+      } else {
+        const { error:e2 } = await SB.rpc('anotar_asistencia',
+          { p_clase:clase, p_persona:persona, p_estado:nuevo });
+        if (e2) return avisar(e2.message, true);
+        fila.estado = nuevo;
+      }
+      pintarGente();
+    });
+  };
+
+  const cargarGente = async () => {
+    const caja = document.getElementById('asLista');
+    if (!clase){ caja.innerHTML = ''; return; }
+    caja.innerHTML = '<p class="cargando">Un momento…</p>';
+    const { data, error:e1 } = await SB.from('lista_asistencia').select('*')
+      .eq('proceso_clase_id', clase).order('nombre');
+    if (e1) return caja.innerHTML = `<div class="error">${esc(e1.message)}</div>`;
+
+    S.asGente = data || [];
+    const c = clases.find(x => x.id === clase);
+
+    if (!S.asGente.length){
+      caja.innerHTML = `<div class="vacio"><strong>Este proceso no tiene matriculados</strong>
+        Matricula gente primero y vuelve.</div>`;
+      return;
+    }
+
+    caja.innerHTML = `<div class="tarjeta">
+      <div class="tarjeta-cuerpo">${cajaBusqueda('asQ', 'Buscar a alguien…')}</div>
+      <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+        <span class="ruta-conteo" id="asConteo"></span>
+        ${c && c.hermana_de ? '<span class="sello">se marca también en su pareja</span>' : ''}
+      </div>
+      <div id="asFilas"></div>
+      <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+        <button class="btn seco" id="asTodos" style="width:100%">Marcar «Vino» a los que faltan</button>
+      </div></div>`;
+
+    pintarGente();
+    engancharBusqueda('asQ', pintarGente);
+
+    document.getElementById('asTodos').onclick = async () => {
+      const faltan = (S.asGente || []).filter(x => !x.estado);
+      if (!faltan.length) return avisar('Ya están todos marcados.');
+      const ok = await dialogo({
+        titulo: `¿Marcar «Vino» a ${faltan.length === 1 ? 'la persona que falta' : `las ${faltan.length} que faltan`}?`,
+        texto: 'Después puedes corregir una por una.',
+        aceptar: 'Marcarlos', peligro: false });
+      if (ok === null) return;
+      for (const f of faltan){
+        const { error:e2 } = await SB.rpc('anotar_asistencia',
+          { p_clase:clase, p_persona:f.persona_id, p_estado:'vivo' });
+        if (e2) return avisar(e2.message, true);
+        f.estado = 'vivo';
+      }
+      avisar('Marcados.');
+      pintarGente();
+    };
+  };
+
+  const cargarClases = async () => {
+    const caja = document.getElementById('asCaja');
+    caja.innerHTML = '<p class="sub"><span>Buscando las clases…</span></p>';
+    const { data } = await SB.from('agenda_proceso').select('*').eq('proceso_id', proceso);
+    clases = (data || []).sort((a,b) =>
+      (a.orden_fase - b.orden_fase) || (a.orden_programa - b.orden_programa) ||
+      (a.orden_clase - b.orden_clase));
+    if (!clases.length){
+      clase = null;
+      caja.innerHTML = `<p class="sub"><span>Este proceso no tiene agenda todavía.</span></p>`;
+      return cargarGente();
+    }
+    //  Arranca en la clase de hoy si la hay; si no, en la última
+    //  que ya pasó, que es la que uno viene a corregir.
+    const hoyF = hoy();
+    const deHoy = clases.find(c => c.fecha === hoyF);
+    const pasadas = clases.filter(c => c.fecha && c.fecha < hoyF);
+    clase = (deHoy || pasadas[pasadas.length - 1] || clases[0]).id;
+
+    const ops = clases.map(c => ({ id:c.id,
+      nombre:`${c.clase}${c.fecha ? ' · ' + fechaCorta(c.fecha) : ''}`,
+      sub:`${c.curso}${c.anotados ? ' · ' + c.anotados + ' marcados' : ''}` }));
+    caja.innerHTML = selectorBuscable('asC', ops, clase, 'Escribe el nombre de la clase…');
+    engancharSelector('asC', ops, v => { clase = v || null; cargarGente(); });
+    return cargarGente();
+  };
+
+  document.getElementById('asP').onchange = e => { proceso = e.target.value; cargarClases(); };
+  await cargarClases();
+}
+
+
+/* ------------------------------------------------------------
+   Las inscripciones que llegan de afuera
+   ------------------------------------------------------------ */
+async function vPreinscripciones(){
+  cargando();
+
+  const { data, error } = await SB.from('preinscripciones').select('*')
+    .order('creado_en', { ascending:false }).limit(300);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const T_ = data || [];
+  const { data:pr } = await SB.from('procesos_vista').select('id, nombre');
+  const nombreProceso = Object.fromEntries((pr || []).map(p => [p.id, p.nombre]));
+
+  let filtro = 'pendiente';
+
+  app.innerHTML = cabeza('Inscripciones', 'Lo que llega por el formulario') +
+    `<div class="tarjeta">
+      <div class="tarjeta-cuerpo">
+        ${cajaBusqueda('piQ', 'Buscar por nombre, documento o celular…')}
+        <div class="chips" style="margin-top:12px">
+          ${[['pendiente','Por revisar'],['aceptada','Aceptadas'],
+             ['rechazada','Rechazadas'],['','Todas']].map(([k,n]) =>
+            `<button type="button" class="chip" aria-pressed="${k === filtro}" data-pif="${k}">${n}</button>`).join('')}
+        </div>
+      </div>
+      <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+        <span class="ruta-conteo" id="piConteo"></span></div>
+      <div id="piLista"></div></div>`;
+
+  const pinta = () => {
+    const q = sinT((document.getElementById('piQ') || {}).value || '');
+    const V_ = T_.filter(x => (!filtro || x.estado === filtro) &&
+      (!q || sinT(x.nombre_completo).includes(q) ||
+             sinT(x.documento || '').includes(q) || sinT(x.telefono || '').includes(q)));
+    document.getElementById('piConteo').textContent =
+      `${V_.length} ${V_.length === 1 ? 'inscripción' : 'inscripciones'}`;
+
+    document.getElementById('piLista').innerHTML = V_.length ? `<ul class="registro">${V_.map(x => `
+      <li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(x.nombre_completo)}</span>
+          <span class="marca-est ${x.estado === 'pendiente' ? 'm-alerta'
+            : x.estado === 'aceptada' ? 'm-cuidado' : 'm-desconectado'}">
+            ${x.estado === 'pendiente' ? 'Por revisar' : x.estado === 'aceptada' ? 'Aceptada' : 'Rechazada'}</span>
+          ${x.reingreso ? '<span class="sello">reingreso</span>' : ''}
+          ${x.iglesia_asiste ? `<span class="sello">${esc(x.iglesia_asiste)}</span>` : ''}</span>
+        <span class="sub">
+          ${x.documento ? `<span>CC ${esc(x.documento)}</span>` : '<span>sin documento</span>'}
+          <span>· ${esc(x.telefono)}</span>
+          ${x.correo ? `<span>· ${esc(x.correo)}</span>` : ''}
+          ${x.edad ? `<span>· ${x.edad} años</span>` : ''}
+          ${x.proceso_id ? `<span>· ${esc(nombreProceso[x.proceso_id] || 'un proceso')}</span>` : ''}
+          <span>· llegó ${fechaCorta(String(x.creado_en).slice(0,10))}</span></span>
+        ${x.como_se_entero ? `<span class="sub"><span>se enteró por ${esc(x.como_se_entero)}</span></span>` : ''}
+        ${x.emergencia_nombre ? `<span class="sub">
+          <span>emergencia: ${esc(x.emergencia_nombre)}${x.emergencia_tel ? ' · ' + esc(x.emergencia_tel) : ''}</span></span>` : ''}
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          ${x.estado === 'pendiente' ? `
+            <button class="btn chico" data-piok="${x.id}" data-nom="${esc(x.nombre_completo)}">Aceptar</button>
+            <button class="btn seco chico" data-pino="${x.id}" data-nom="${esc(x.nombre_completo)}">Rechazar</button>`
+          : `<button class="btn seco chico" data-pides="${x.id}">Devolver a por revisar</button>`}
+        </span></div></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nada acá.</span></p></div>`;
+    enlazar();
+  };
+
+  const enlazar = () => {
+    app.querySelectorAll('[data-piok]').forEach(b => b.onclick = async () => {
+      const ok = await dialogo({ titulo: `¿Aceptar a ${b.dataset.nom}?`,
+        texto: 'Si ya existe en RDV con el mismo documento o correo, se le pega a esa persona. Si no, entra como visitante.',
+        aceptar: 'Aceptar', peligro: false });
+      if (ok === null) return;
+      const { error } = await SB.rpc('aceptar_preinscripcion',
+        { p_pre:b.dataset.piok, p_persona:null });
+      if (error) return avisar(error.message, true);
+      avisar('Aceptada.'); ir('preinscripciones');
+    });
+    app.querySelectorAll('[data-pino]').forEach(b => b.onclick = async () => {
+      const r = await dialogo({ titulo: `¿Rechazar a ${b.dataset.nom}?`,
+        cuerpo: `<label for="prM" style="margin-top:0">¿Por qué? (opcional)</label>
+          <input type="text" id="prM" placeholder="Se inscribió dos veces…">`,
+        aceptar: 'Rechazar', peligro: true,
+        alMontar: v => () => v.querySelector('#prM').value.trim() || null });
+      if (r === null) return;
+      const { error } = await SB.rpc('rechazar_preinscripcion',
+        { p_pre:b.dataset.pino, p_motivo:r });
+      if (error) return avisar(error.message, true);
+      avisar('Rechazada.'); ir('preinscripciones');
+    });
+    app.querySelectorAll('[data-pides]').forEach(b => b.onclick = async () => {
+      const { error } = await SB.rpc('deshacer_revision', { p_pre:b.dataset.pides });
+      if (error) return avisar(error.message, true);
+      avisar('Vuelve a la cola.'); ir('preinscripciones');
+    });
+  };
+
+  pinta();
+  engancharBusqueda('piQ', pinta);
+  app.querySelectorAll('[data-pif]').forEach(b => b.onclick = () => {
+    filtro = b.dataset.pif;
+    app.querySelectorAll('[data-pif]').forEach(o =>
+      o.setAttribute('aria-pressed', String(o.dataset.pif === filtro)));
+    pinta();
+  });
+}
+
+
+/* ------------------------------------------------------------
+   El formulario de afuera
+   ------------------------------------------------------------
+   La única pantalla de RDV que se abre sin sesión. No lee nada:
+   lo único que puede es mandar una fila, y ni siquiera se entera
+   de si el documento ya existía.
+   ------------------------------------------------------------ */
+async function vInscribirse(){
+  app.innerHTML = '<p class="cargando">Un momento…</p>';
+  lado.hidden = true; barra.hidden = true;
+  document.querySelector('.principal').style.marginLeft = '0';
+
+  const { data:pr } = await SB.from('procesos_abiertos').select('*');
+  const P_ = pr || [];
+
+  const marca = `<div class="marca"><span class="marca-sello">${I.sello}</span>
+    <span><b>RDV</b><span>Semillas de Vida</span></span></div>`;
+
+  const gracias = () => {
+    app.innerHTML = `<div class="publica">${marca}
+      <div class="listo">
+        <p class="palomita">${I.palomita || '✓'}</p>
+        <h1 style="margin-top:14px">¡Recibimos tu inscripción!</h1>
+        <p class="lema">El equipo de formación la va a confirmar muy pronto
+          y te escribe por WhatsApp.</p>
+        <button class="btn seco" id="inOtra">Inscribir a alguien más</button>
+      </div></div>`;
+    document.getElementById('inOtra').onclick = pintar;
+  };
+
+  const pintar = () => {
+    app.innerHTML = `<div class="publica">${marca}
+      <h1>Inscripción a Kairos</h1>
+      <p class="lema">Completa tus datos. Tu inscripción queda en proceso
+        mientras el equipo de formación la confirma.</p>
+      <form id="inF" novalidate>
+        <label for="inN">Nombre completo *</label>
+        <input type="text" id="inN" autocomplete="name">
+
+        <label for="inD">Documento</label>
+        <input type="text" id="inD" inputmode="numeric" autocomplete="off">
+
+        <label for="inT">Teléfono / celular *</label>
+        <input type="tel" id="inT" inputmode="tel" autocomplete="tel">
+
+        <label for="inC">Correo electrónico</label>
+        <input type="email" id="inC" autocomplete="email">
+
+        <div class="par">
+          <div><label for="inE">Edad</label>
+            <input type="number" id="inE" min="1" max="120" inputmode="numeric"></div>
+          <div><label for="inG">Género</label>
+            <select id="inG"><option value="">Selecciona…</option>
+              <option value="f">Femenino</option><option value="m">Masculino</option></select></div>
+        </div>
+
+        <label for="inI">Iglesia a la que asistes</label>
+        <input type="text" id="inI" placeholder="Si no es Semillas de Vida">
+
+        <label for="inP">Proceso al que te inscribes *</label>
+        <select id="inP">
+          <option value="">Selecciona…</option>
+          ${P_.map(p => `<option value="${p.id}">${esc(p.nombre)}${
+            p.fecha_inicio ? ' · empieza ' + fechaCorta(p.fecha_inicio) : ''}</option>`).join('')}
+        </select>
+
+        <div class="par">
+          <div><label for="inEN">Contacto de emergencia</label>
+            <input type="text" id="inEN"></div>
+          <div><label for="inET">Su teléfono</label>
+            <input type="tel" id="inET" inputmode="tel"></div>
+        </div>
+
+        <label for="inM">¿Por qué medio te enteraste?</label>
+        <input type="text" id="inM" placeholder="Un amigo, el anuncio del domingo…">
+
+        <label class="campo-op" style="margin-top:18px">
+          <input type="checkbox" id="inR">
+          <span>Ya hice Kairos antes y estoy retomando el proceso</span></label>
+
+        <label class="campo-op" style="margin-top:14px">
+          <input type="checkbox" id="inA">
+          <span>Autorizo a Semillas de Vida a usar mis datos personales para
+            gestionar mi inscripción y mi proceso de formación, y a contactarme
+            por WhatsApp, correo o teléfono. *</span></label>
+
+        <div id="inErr"></div>
+        <div style="margin-top:22px">
+          <button class="btn ancho" type="submit" id="inB">Enviar inscripción</button></div>
+      </form></div>`;
+
+    document.getElementById('inF').onsubmit = async e => {
+      e.preventDefault();
+      const b = document.getElementById('inB'), err = document.getElementById('inErr');
+      const v = x => document.getElementById(x).value.trim();
+      const falta = !v('inN') ? 'Falta tu nombre.'
+                  : !v('inT') ? 'Falta tu teléfono.'
+                  : !v('inP') ? 'Escoge a cuál proceso te inscribes.'
+                  : !document.getElementById('inA').checked
+                    ? 'Necesitamos tu autorización para usar tus datos.' : '';
+      if (falta){ err.innerHTML = `<div class="error">${falta}</div>`; return; }
+
+      err.innerHTML = '';
+      b.disabled = true; b.textContent = 'Enviando…';
+      const { error } = await SB.rpc('recibir_preinscripcion', { d: {
+        nombre_completo:v('inN'), documento:v('inD') || null, telefono:v('inT'),
+        correo:v('inC') || null,
+        edad:v('inE') ? Number(v('inE')) : null,
+        genero:document.getElementById('inG').value || null,
+        iglesia_asiste:v('inI') || null, proceso_id:v('inP'),
+        emergencia_nombre:v('inEN') || null, emergencia_tel:v('inET') || null,
+        como_se_entero:v('inM') || null,
+        reingreso:document.getElementById('inR').checked,
+        autoriza_datos:true } });
+
+      if (error){
+        b.disabled = false; b.textContent = 'Enviar inscripción';
+        err.innerHTML = `<div class="error">No se pudo enviar: ${esc(error.message)}</div>`;
+        return;
+      }
+      gracias();
+    };
+  };
+
+  if (!P_.length){
+    return app.innerHTML = `<div class="publica">${marca}
+      <div class="listo"><h1>Por ahora no hay inscripciones abiertas</h1>
+        <p class="lema">Vuelve a intentarlo más adelante, o escríbenos.</p></div></div>`;
+  }
+  pintar();
+}
+
 
 /* ============================================================
    Cargar la base
