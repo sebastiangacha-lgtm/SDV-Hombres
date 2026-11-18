@@ -1525,7 +1525,11 @@ const I = {
   aviso:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14.5h2.5M19.5 14v2.5M14 19.5h1M17.5 18v2M20 19.5h-1" stroke-linecap="round"/></svg>',
   formacion:'<svg viewBox="0 0 24 24"><path d="M12 4.5L3 8.5l9 4 9-4z" stroke-linejoin="round"/><path d="M6.5 10.8V16c0 1.4 2.5 2.6 5.5 2.6s5.5-1.2 5.5-2.6v-5.2M21 8.5v5" stroke-linecap="round"/></svg>',
   asistencia:'<svg viewBox="0 0 24 24"><rect x="4" y="4.5" width="16" height="15" rx="2"/><path d="M8 10.5l1.6 1.6L13 8.5M8 16h8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  preinscripciones:'<svg viewBox="0 0 24 24"><path d="M7 4.5h10a1.5 1.5 0 0 1 1.5 1.5v13.5l-6.5-3-6.5 3V6A1.5 1.5 0 0 1 7 4.5z" stroke-linejoin="round"/><path d="M9.5 9.5h5M12 7v5" stroke-linecap="round"/></svg>'
+  preinscripciones:'<svg viewBox="0 0 24 24"><path d="M7 4.5h10a1.5 1.5 0 0 1 1.5 1.5v13.5l-6.5-3-6.5 3V6A1.5 1.5 0 0 1 7 4.5z" stroke-linejoin="round"/><path d="M9.5 9.5h5M12 7v5" stroke-linecap="round"/></svg>',
+  campanas:'<svg viewBox="0 0 24 24"><path d="M3.5 6.5l8.5 6 8.5-6" stroke-linecap="round" stroke-linejoin="round"/><rect x="3.5" y="5" width="17" height="14" rx="2"/></svg>',
+  cola:'<svg viewBox="0 0 24 24"><path d="M4 7h11M4 12h11M4 17h7" stroke-linecap="round"/><path d="M17.5 15.5l2 2 3-3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  respuestas:'<svg viewBox="0 0 24 24"><path d="M20.5 12.5a7 7 0 0 1-7 7H8l-4 2.5 1-4.2a7 7 0 1 1 15.5-5.3z" stroke-linejoin="round"/><path d="M9 11.5h6M9 14.5h3.5" stroke-linecap="round"/></svg>',
+  cumple:'<svg viewBox="0 0 24 24"><path d="M4 20v-6.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2V20z" stroke-linejoin="round"/><path d="M4 16c2 0 2 1.4 4 1.4s2-1.4 4-1.4 2 1.4 4 1.4 2-1.4 4-1.4M12 11.5V8M12 5.6V5" stroke-linecap="round"/></svg>'
 };
 
 /* ============================================================
@@ -1601,6 +1605,11 @@ async function entrar(){
   // consulta; esto solo decide que renglones se ven en el menu.
   const { data:esF } = await SB.rpc('soy_de_formacion');
   S.formacion = !!esF;
+
+  // Los envios masivos se hacen solo desde la iglesia: ningun lider
+  // manda campanas. La base lo vuelve a comprobar en cada consulta.
+  const { data:esC } = await SB.rpc('soy_de_comunicaciones');
+  S.comunico = !!esC;
 
   // Primer ingreso: la clave de arranque no sirve para quedarse.
   if (S.yo.debe_cambiar_clave) return pantallaCambioClave();
@@ -1757,6 +1766,8 @@ function pintarNav(){
                                ['servidores','Quién llegó'],
                                ['aviso','El cartel de la pared']] : []),
        ...(mando ? [['servicios','Áreas de servicio']] : [])]],
+    ...(mando || S.comunico ? [['Mensajes', 'campanas',
+      [['campanas','Campañas'], ['respuestas','Respuestas']]]] : []),
     ['Recursos',   'material', [['material','Material']]],
     ...(mando ? [['Administrar', 'usuarios',
       [['usuarios','Usuarios'], ['permisos','Permisos'],
@@ -1872,7 +1883,7 @@ let padreDeArea = null;
 
 const PADRE = {
   ficha:'personas', lista:'listas', registrar:'registrar',
-  proceso:'formacion',
+  proceso:'formacion', campana:'campanas', cola:'campanas',
   evento:'eventos', area:'servicio', lista_oracion:'oracion', familia:'familias',
   tablero:'ninos',
   bajoSuCargo:'jerarquias', nuevoGrupo:'grupos',
@@ -1919,6 +1930,7 @@ const VISTAS = {
   servir:vServir, citados:vCitados, servidores:vServidores, aviso:vAviso,
   formacion:vFormacion, proceso:vProceso, asistencia:vAsistencia,
   preinscripciones:vPreinscripciones, inscribirse:vInscribirse,
+  campanas:vCampanas, campana:vCampana, cola:vCola, respuestas:vRespuestas,
   listas:vListas, lista:vLista, yo:vYo, ficha:vFicha, registrar:vRegistrar,
   nuevaPersona:vRegistrarPersona, nuevaLista:vNuevaLista,
   usuarios:vUsuarios, permisos:vPermisos, fusionar:vFusionar,
@@ -2172,6 +2184,27 @@ async function vInicio(){
 
   html += `<div class="rejilla">${widgetVerso()}${widgetCalendario(eventos)}</div>`;
 
+  //  Quiénes cumplen años hoy. Lo ve cualquiera con sesión; el
+  //  botón de copiar el saludo, solo quien manda las campañas.
+  const { data:cumplen } = await SB.from('cumplen_hoy').select('*');
+  if ((cumplen || []).length){
+    const C_ = cumplen;
+    html += `<div class="tarjeta"><div class="tarjeta-alto">
+        <h2>Hoy cumple años ${C_.length === 1 ? 'alguien' : `${C_.length} personas`}</h2></div>
+      <ul class="registro">${C_.map(c => `<li>
+        <div class="fila" style="cursor:default">
+          <span class="fila-alto"><span class="nombre">${esc(c.nombre)}</span>
+            <span class="sello">${c.cumple} años</span>
+            ${c.no_escribir ? '<span class="marca-est m-desconectado">no escribirle</span>' : ''}</span>
+          <span class="sub">${c.celular ? `<span>${esc(c.celular)}</span>` : '<span>sin celular</span>'}
+            ${c.correo ? `<span>· ${esc(c.correo)}</span>` : ''}</span>
+          ${S.comunico && !c.no_escribir ? `<span style="display:flex;gap:7px;margin-top:10px">
+            <button class="btn seco chico" data-cusal="${esc(c.nombre)}">Copiar saludo</button>
+            ${c.celular ? `<button class="btn seco chico" data-cucel="${esc(c.celular)}">Copiar número</button>` : ''}
+          </span>` : ''}
+        </div></li>`).join('')}</ul></div>`;
+  }
+
   if (proxima)
     html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>Te toca servir</h2>
         <span class="sello">${proxima.rol === 'encargado' ? 'Encargado' : esc(proxima.area || 'Servidor')}</span></div>
@@ -2199,6 +2232,28 @@ async function vInicio(){
   app.innerHTML = html;
   enlazarFilas(); enlazarCalendario();
   app.querySelectorAll('[data-ir]').forEach(b => b.onclick = () => ir(b.dataset.ir));
+
+  //  Los botones del recuadro de cumpleaños. El saludo se arma con
+  //  la misma plantilla que usaría el envío automático, para que
+  //  diga lo mismo prendido que apagado.
+  app.querySelectorAll('[data-cucel]').forEach(b => b.onclick = async () => {
+    const ok = await copiar(b.dataset.cucel);
+    avisar(ok ? 'Copiado.' : 'No se pudo copiar.', !ok);
+  });
+  const saludos = app.querySelectorAll('[data-cusal]');
+  if (saludos.length){
+    const { data:pl } = await SB.from('plantillas_mensaje')
+      .select('contenido').eq('codigo', 'cumpleanos').maybeSingle();
+    const base = (pl && pl.contenido) || '¡Feliz cumpleaños, {{primer_nombre}}!';
+    saludos.forEach(b => b.onclick = async () => {
+      const n = b.dataset.cusal;
+      const t = base.replace(/\{\{primer_nombre\}\}/g, n.split(' ')[0])
+                    .replace(/\{\{nombre\}\}/g, n)
+                    .replace(/\{\{iglesia\}\}/g, 'Semillas de Vida');
+      const ok = await copiar(t);
+      avisar(ok ? 'Saludo copiado.' : 'No se pudo copiar.', !ok);
+    });
+  }
 }
 
 /* ============================================================
@@ -8574,10 +8629,10 @@ async function vJornadas(){
         cuerpo: `<label for="jcN" style="margin-top:0">¿Por qué? (opcional)</label>
           <input type="text" id="jcN" placeholder="Se canceló por…">`,
         aceptar: 'No hubo', peligro: true,
-        alMontar: v => () => v.querySelector('#jcN').value.trim() || null });
-      if (r === null) return;
+        alMontar: v => () => ({ m: v.querySelector('#jcN').value.trim() || null }) });
+      if (!r) return;
       const { error } = await SB.rpc('cambiar_jornada',
-        { p_jornada:b.dataset.jcan, p_estado:'cancelada', p_nota:r });
+        { p_jornada:b.dataset.jcan, p_estado:'cancelada', p_nota:r.m });
       if (error) return avisar(error.message, true);
       avisar('Marcada.'); ir('jornadas');
     });
@@ -10252,10 +10307,10 @@ async function vPreinscripciones(){
         cuerpo: `<label for="prM" style="margin-top:0">¿Por qué? (opcional)</label>
           <input type="text" id="prM" placeholder="Se inscribió dos veces…">`,
         aceptar: 'Rechazar', peligro: true,
-        alMontar: v => () => v.querySelector('#prM').value.trim() || null });
-      if (r === null) return;
+        alMontar: v => () => ({ m: v.querySelector('#prM').value.trim() || null }) });
+      if (!r) return;
       const { error } = await SB.rpc('rechazar_preinscripcion',
-        { p_pre:b.dataset.pino, p_motivo:r });
+        { p_pre:b.dataset.pino, p_motivo:r.m });
       if (error) return avisar(error.message, true);
       avisar('Rechazada.'); ir('preinscripciones');
     });
@@ -10407,6 +10462,547 @@ async function vInscribirse(){
         <p class="lema">Vuelve a intentarlo más adelante, o escríbenos.</p></div></div>`;
   }
   pintar();
+}
+
+
+/* ============================================================
+   Los mensajes
+   ------------------------------------------------------------
+   Hoy alguien saca los números de un reporte, los pega en un
+   celular compartido y manda uno por uno. Acá queda en un solo
+   sitio a quién le toca, qué dice, si ya salió y qué contestó.
+
+   El paso del envío está aparte a propósito: hoy lo da una
+   persona copiando y pegando, y el día que Meta apruebe la vía
+   oficial lo dará un trabajo programado. Los dos terminan en
+   marcar_enviado().
+   ============================================================ */
+
+const EST_CAMPANA = { borrador:'Borrador', armada:'Lista para enviar',
+                      enviando:'Enviando', enviada:'Enviada', cancelada:'Cancelada' };
+const MARCA_C = { borrador:'', armada:'m-alerta', enviando:'m-alerta',
+                  enviada:'m-cuidado', cancelada:'m-desconectado' };
+const TIPO_RESP = { interesado:'Interesado', ya_no:'Ya no',
+                    pregunta:'Preguntó algo', otro:'Otra cosa' };
+
+//  Copiar al portapapeles. El método viejo queda de respaldo
+//  porque navigator.clipboard solo existe en https, y el celular
+//  compartido de la iglesia no siempre entra por ahí.
+async function copiar(texto){
+  try {
+    await navigator.clipboard.writeText(texto);
+    return true;
+  } catch {
+    try {
+      const t = document.createElement('textarea');
+      t.value = texto;
+      t.style.cssText = 'position:fixed;top:-1000px';
+      document.body.appendChild(t); t.select();
+      const ok = document.execCommand('copy');
+      t.remove();
+      return ok;
+    } catch { return false; }
+  }
+}
+
+/* ------------------------------------------------------------
+   Las campañas
+   ------------------------------------------------------------ */
+async function vCampanas(){
+  cargando();
+
+  const [{ data:cs, error }, { data:atras }] = await Promise.all([
+    SB.from('campanas_vista').select('*').order('creada_en', { ascending:false }),
+    SB.from('correos_atrasados').select('*').maybeSingle()
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const C_ = cs || [];
+  const pendientes = C_.reduce((a,c) => a + Number(c.pendientes || 0), 0);
+
+  let html = cabeza('Campañas', 'Los mensajes que salen de la iglesia',
+    `<button class="btn" id="caNueva">Nueva campaña</button>`);
+
+  html += cifras([
+    { icono:'campanas',  color:'verde', valor:C_.filter(c => c.estado === 'armada' || c.estado === 'enviando').length, texto:'por enviar' },
+    { icono:'cola',      color:'ambar', valor:pendientes, texto:'mensajes en cola' },
+    { icono:'respuestas',color:'azul',  valor:C_.reduce((a,c) => a + Number(c.respondieron || 0), 0), texto:'respondieron' },
+    { icono:'corte',     color:'ambar', valor:C_.reduce((a,c) => a + Number(c.sin_canal || 0), 0), texto:'sin cómo llegarles' }
+  ]);
+
+  if (atras && Number(atras.cuantos) > 0)
+    html += `<div class="tarjeta"><div class="tarjeta-cuerpo">
+      <p class="sub"><span class="marca-est m-alerta">revisar</span>
+        <span>Hay ${atras.cuantos} ${atras.cuantos === 1 ? 'correo' : 'correos'}
+          esperando desde hace más de un día.</span></p></div></div>`;
+
+  html += `<div class="tarjeta">
+    <div class="tarjeta-cuerpo">${cajaBusqueda('caQ', 'Buscar una campaña…')}</div>
+    <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+      <span class="ruta-conteo" id="caConteo"></span></div>
+    <div id="caLista"></div></div>`;
+
+  app.innerHTML = html;
+
+  const pinta = () => {
+    const q = sinT((document.getElementById('caQ') || {}).value || '');
+    const V_ = C_.filter(c => !q || sinT(c.nombre).includes(q));
+    document.getElementById('caConteo').textContent =
+      `${V_.length} ${V_.length === 1 ? 'campaña' : 'campañas'}`;
+    document.getElementById('caLista').innerHTML = V_.length ? `<ul class="registro">${V_.map(c => `
+      <li><a class="fila" href="${direccion('campana', c.id)}" data-ca="${c.id}">
+        <span class="fila-alto"><span class="nombre">${esc(c.nombre)}</span>
+          <span class="marca-est ${MARCA_C[c.estado] || ''}">${EST_CAMPANA[c.estado] || c.estado}</span>
+          <span class="sello">${c.canal === 'correo' ? 'correo' : 'WhatsApp'}</span></span>
+        <span class="sub">
+          <span>${c.enviados} de ${c.destinatarios} enviados</span>
+          ${c.respondieron ? `<span>· ${c.respondieron} ${c.respondieron === 1 ? 'respondió' : 'respondieron'}</span>` : ''}
+          ${c.sin_canal ? `<span>· ${c.sin_canal} sin cómo llegarles</span>` : ''}
+          ${c.lista ? `<span>· ${esc(c.lista)}</span>` : ''}</span>
+      </a></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nada con eso.</span></p></div>`;
+    app.querySelectorAll('[data-ca]').forEach(a => a.onclick = e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault(); ir('campana', a.dataset.ca);
+    });
+  };
+  pinta();
+  engancharBusqueda('caQ', pinta);
+
+  document.getElementById('caNueva').onclick = async () => {
+    const { data:pl } = await SB.from('plantillas_mensaje').select('*').eq('activa', true).order('nombre');
+    const P_ = pl || [];
+    const r = await dialogo({
+      titulo: 'Nueva campaña',
+      cuerpo: `<label for="cnN" style="margin-top:0">Cómo se llama</label>
+        <input type="text" id="cnN" placeholder="Invitación de diciembre">
+        <label for="cnC">Por dónde</label>
+        <select id="cnC"><option value="whatsapp">WhatsApp</option>
+          <option value="correo">Correo</option></select>
+        <label for="cnP_q">De qué plantilla sale (opcional)</label>
+        ${selectorBuscable('cnP', P_.map(p => ({ id:p.id, nombre:p.nombre, sub:p.tipo })),
+          null, 'Escribe el nombre…')}`,
+      aceptar: 'Crearla',
+      alMontar: v => {
+        engancharSelector('cnP', P_.map(p => ({ id:p.id, nombre:p.nombre, sub:p.tipo })));
+        return () => {
+          const n = v.querySelector('#cnN').value.trim();
+          if (!n){ v.querySelector('#cnN').focus(); return undefined; }
+          return { n, c:v.querySelector('#cnC').value, p:v.querySelector('#cnP').value || null };
+        };
+      }
+    });
+    if (!r) return;
+    const plantilla = P_.find(p => p.id === r.p);
+    const { data, error } = await SB.from('campanas').insert({
+      nombre:r.n, canal:r.c, plantilla_id:r.p,
+      texto: plantilla ? plantilla.contenido : 'Hola {{primer_nombre}},',
+      creada_por: S.yo.persona_id }).select('id').single();
+    if (error) return avisar(error.message, true);
+    ir('campana', data.id);
+  };
+}
+
+
+/* ------------------------------------------------------------
+   Armar una campaña
+   ------------------------------------------------------------
+   A quién le llega lo resuelve esta pantalla, no la base: las
+   listas de RDV son filtros y el filtro ya está escrito acá
+   (pasaFiltros). Se mandan los ids y la base aplica las
+   exclusiones, que es la parte que no se puede saltar nadie.
+   ------------------------------------------------------------ */
+async function vCampana(arg){
+  const id = typeof arg === 'string' ? arg : (arg && arg.id);
+  if (!id) return ir('campanas');
+  cargando();
+
+  const [{ data:c, error }, { data:ls }, { data:pl }, { data:gente }] = await Promise.all([
+    SB.from('campanas_vista').select('*').eq('id', id).maybeSingle(),
+    SB.from('listas').select('*').order('nombre'),
+    SB.from('plantillas_mensaje').select('*').eq('activa', true).order('nombre'),
+    SB.from('buscador').select('*')
+  ]);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+  if (!c) return app.innerHTML = `<div class="vacio"><strong>No encontramos esa campaña</strong></div>`;
+
+  const L_ = ls || [], P_ = pl || [], G_ = gente || [];
+  let lista = c.lista_id || null;
+
+  const aQuienes = () => {
+    const l = L_.find(x => x.id === lista);
+    if (!l) return [];
+    return G_.filter(g => pasaFiltros(g, { ...FILTROS_VACIOS, ...(l.filtros || {}) }));
+  };
+
+  const armada = c.destinatarios > 0;
+
+  let html = cabeza(esc(c.nombre),
+    `${EST_CAMPANA[c.estado] || c.estado} · ${c.canal === 'correo' ? 'correo' : 'WhatsApp'}`,
+    armada
+      ? `<button class="btn seco" id="cmDesarmar">Desarmar</button>
+         <button class="btn" id="cmCola">Ir a la cola</button>`
+      : `<button class="btn rojo seco" id="cmBorrar">Borrar</button>`);
+
+  if (armada) html += cifras([
+    { icono:'personas',  color:'verde', valor:c.destinatarios, texto:'destinatarios' },
+    { icono:'palomita',  color:'verde', valor:c.enviados,      texto:'enviados' },
+    { icono:'cola',      color:'ambar', valor:c.pendientes,    texto:'en cola' },
+    { icono:'respuestas',color:'azul',  valor:c.respondieron,  texto:'respondieron' }
+  ]);
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>El mensaje</h2>
+      <span style="display:flex;gap:7px">
+        <button class="btn seco chico" id="cmPlantilla">Traer de una plantilla</button>
+      </span></div>
+    <div class="tarjeta-cuerpo">
+      ${c.canal === 'correo'
+        ? `<label for="cmA" style="margin-top:0">Asunto</label>
+           <input type="text" id="cmA" value="${esc(c.asunto || '')}">` : ''}
+      <label for="cmT"${c.canal === 'correo' ? '' : ' style="margin-top:0"'}>Qué dice</label>
+      <textarea id="cmT" rows="7">${esc(c.texto || '')}</textarea>
+      <div class="sub" style="margin-top:8px"><span>{{primer_nombre}}</span>
+        <span>· {{nombre}}</span><span>· {{iglesia}}</span></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn seco" id="cmGuardar">Guardar el texto</button>
+        <button class="btn seco" id="cmVer">Ver cómo queda</button></div>
+    </div></div>`;
+
+  html += `<div class="tarjeta"><div class="tarjeta-alto"><h2>A quiénes</h2>
+      <span class="ruta-conteo" id="cmCuantos"></span></div>
+    <div class="tarjeta-cuerpo">
+      <label for="cmL_q" style="margin-top:0">De qué lista</label>
+      ${selectorBuscable('cmL', L_.map(l => ({ id:l.id, nombre:l.nombre })), lista, 'Escribe el nombre de la lista…')}
+      <div id="cmAviso" style="margin-top:12px"></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn" id="cmArmar">${armada ? 'Agregar los nuevos' : 'Armar la campaña'}</button>
+      </div>
+    </div></div>`;
+
+  app.innerHTML = html;
+
+  const pintarCuantos = () => {
+    const n = aQuienes().length;
+    document.getElementById('cmCuantos').textContent = lista
+      ? `${n} ${n === 1 ? 'persona' : 'personas'} en la lista hoy` : 'escoge una lista';
+  };
+  pintarCuantos();
+  engancharSelector('cmL', L_.map(l => ({ id:l.id, nombre:l.nombre })), v => {
+    lista = v || null; pintarCuantos();
+  });
+
+  const guardarTexto = async () => {
+    const t = document.getElementById('cmT').value;
+    const a = document.getElementById('cmA');
+    const { error } = await SB.from('campanas').update({
+      texto:t, asunto:a ? a.value.trim() || null : null, lista_id:lista }).eq('id', id);
+    if (error){ avisar(error.message, true); return false; }
+    return true;
+  };
+
+  document.getElementById('cmGuardar').onclick = async () => {
+    if (await guardarTexto()) avisar('Guardado.');
+  };
+
+  document.getElementById('cmVer').onclick = async () => {
+    const quienes = aQuienes();
+    const uno = quienes[0] || G_[0];
+    if (!uno) return avisar('Escoge una lista con gente para poder ver.', true);
+    const t = document.getElementById('cmT').value
+      .replace(/\{\{primer_nombre\}\}/g, String(uno.nombre || '').split(' ')[0])
+      .replace(/\{\{nombre\}\}/g, uno.nombre || '')
+      .replace(/\{\{iglesia\}\}/g, 'Semillas de Vida');
+    await dialogo({ titulo: `Así le queda a ${uno.nombre}`,
+      cuerpo: `<div class="tarjeta-cuerpo" style="white-space:pre-wrap;padding:0">${esc(t)}</div>`,
+      aceptar: 'Cerrar', cancelar: '' });
+  };
+
+  document.getElementById('cmPlantilla').onclick = async () => {
+    const ops = P_.map(p => ({ id:p.id, nombre:p.nombre, sub:p.tipo }));
+    const r = await dialogo({
+      titulo: 'Traer de una plantilla',
+      texto: 'Reemplaza lo que esté escrito.',
+      cuerpo: `<label for="cpP_q" style="margin-top:0">Cuál</label>
+        ${selectorBuscable('cpP', ops, null, 'Escribe el nombre…')}`,
+      aceptar: 'Traerla',
+      alMontar: v => { engancharSelector('cpP', ops);
+        return () => v.querySelector('#cpP').value || undefined; }
+    });
+    if (!r) return;
+    const p = P_.find(x => x.id === r);
+    document.getElementById('cmT').value = p.contenido;
+    avisar('Traída. Acuérdate de guardar.');
+  };
+
+  document.getElementById('cmArmar').onclick = async () => {
+    const quienes = aQuienes();
+    if (!quienes.length) return avisar('Esa lista no tiene a nadie hoy.', true);
+    if (!await guardarTexto()) return;
+
+    //  Antes de congelar, avisar de los que ya están en otra
+    //  campaña armada: si no, les llegan dos mensajes el mismo día.
+    const ids = quienes.map(g => g.id);
+    const { data:otros } = await SB.from('campana_envios')
+      .select('persona_id, campana_id').eq('estado', 'pendiente');
+    const repetidos = new Set((otros || [])
+      .filter(e => e.campana_id !== id && ids.includes(e.persona_id))
+      .map(e => e.persona_id));
+
+    const ok = await dialogo({
+      titulo: armada ? '¿Agregar los nuevos?' : `¿Armar para ${quienes.length}?`,
+      texto: repetidos.size
+        ? `${repetidos.size} ${repetidos.size === 1 ? 'persona ya está' : 'personas ya están'} en la cola de otra campaña.`
+        : '',
+      aceptar: armada ? 'Agregarlos' : 'Armarla' });
+    if (ok === null) return;
+
+    const { data, error } = await SB.rpc(armada ? 'agregar_nuevos' : 'armar_campana',
+      { p_campana:id, p_personas:ids });
+    if (error) return avisar(error.message, true);
+
+    const r = data || {};
+    const fuera = [];
+    if (r.sin_canal)        fuera.push(`${r.sin_canal} sin ${c.canal === 'correo' ? 'correo' : 'celular'}`);
+    if (r.no_escribir)      fuera.push(`${r.no_escribir} pidieron que no les escribieran`);
+    if (r.sin_autorizacion) fuera.push(`${r.sin_autorizacion} sin autorización de datos`);
+    if (r.ya_estaban)       fuera.push(`${r.ya_estaban} ya estaban`);
+
+    await dialogo({ titulo: `${r.armados} ${r.armados === 1 ? 'mensaje listo' : 'mensajes listos'}`,
+      texto: fuera.length ? 'Quedaron por fuera: ' + fuera.join(', ') + '.' : '',
+      aceptar: 'Listo', cancelar: '' });
+    ir('campana', id);
+  };
+
+  const bd = document.getElementById('cmDesarmar');
+  if (bd) bd.onclick = async () => {
+    const ok = await dialogo({ titulo: '¿Desarmar la campaña?',
+      texto: 'Se van los que están en cola. Los que ya se enviaron se quedan.',
+      aceptar: 'Desarmar', peligro: true });
+    if (ok === null) return;
+    const { data, error } = await SB.rpc('desarmar_campana', { p_campana:id });
+    if (error) return avisar(error.message, true);
+    avisar(`${data || 0} fuera de la cola.`); ir('campana', id);
+  };
+
+  const bc = document.getElementById('cmCola');
+  if (bc) bc.onclick = () => ir('cola', id);
+
+  const bb = document.getElementById('cmBorrar');
+  if (bb) bb.onclick = async () => {
+    const ok = await dialogo({ titulo: `¿Borrar «${c.nombre}»?`,
+      texto: 'Se borra la campaña con todo lo suyo.', aceptar: 'Borrar', peligro: true });
+    if (ok === null) return;
+    const { error } = await SB.rpc('borrar_campana', { p_campana:id });
+    if (error) return avisar(error.message, true);
+    avisar('Borrada.'); ir('campanas');
+  };
+}
+
+
+/* ------------------------------------------------------------
+   La cola — la pantalla que tiene que ganarle a copiar y pegar
+   ------------------------------------------------------------ */
+async function vCola(arg){
+  const id = typeof arg === 'string' ? arg : (arg && arg.id);
+  if (!id) return ir('campanas');
+  cargando();
+
+  const { data, error } = await SB.from('cola_envio').select('*').eq('campana_id', id);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const T_ = data || [];
+  if (!T_.length){
+    return app.innerHTML = cabeza('La cola') +
+      `<div class="vacio"><strong>Esta campaña no tiene a nadie</strong>
+        Ármala primero.</div>`;
+  }
+
+  const campana = T_[0].campana, canal = T_[0].canal;
+  let i = Math.max(0, T_.findIndex(x => x.estado === 'pendiente'));
+  if (i < 0) i = 0;
+
+  const pintar = () => {
+    const x = T_[i];
+    const hechos = T_.filter(y => y.estado !== 'pendiente').length;
+
+    app.innerHTML = cabeza(esc(campana),
+      `${hechos} de ${T_.length} · ${canal === 'correo' ? 'correo' : 'WhatsApp'}`,
+      `<button class="btn seco" id="coVolver">Ver la campaña</button>`) +
+      `<div class="tarjeta">
+        <div class="tarjeta-cuerpo">
+          <p style="margin:0;font-size:22px;font-weight:700">${esc(x.nombre)}</p>
+          <p class="sub" style="margin-top:4px"><span>${esc(x.destino || 'sin destino')}</span>
+            ${x.estado !== 'pendiente'
+              ? `<span class="marca-est ${x.estado === 'enviado' ? 'm-cuidado' : 'm-desconectado'}">${
+                  x.estado === 'enviado' ? 'ya salió'
+                  : x.estado === 'sin_canal' ? 'sin WhatsApp' : 'omitido'}</span>` : ''}</p>
+          <div style="margin-top:14px;padding:14px;border-radius:var(--r-chico);
+               background:var(--velo);white-space:pre-wrap;font-size:15px">${esc(x.mensaje)}</div>
+          <div class="par" style="margin-top:14px">
+            <button class="btn" id="coMsg">Copiar mensaje</button>
+            <button class="btn seco" id="coNum">Copiar ${canal === 'correo' ? 'correo' : 'número'}</button>
+          </div>
+        </div>
+        <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave)">
+          ${x.estado === 'pendiente'
+            ? `<button class="btn-gigante" id="coYa">${I.palomita || '✓'}<span>Ya lo mandé</span></button>
+               <div class="par" style="margin-top:10px">
+                 <button class="btn seco" id="coSin">No tiene ${canal === 'correo' ? 'correo' : 'WhatsApp'}</button>
+                 <button class="btn rojo seco" id="coNo">No escribirle</button>
+               </div>`
+            : `<button class="btn seco" id="coDes" style="width:100%">Deshacer</button>`}
+        </div>
+        <div class="tarjeta-cuerpo" style="border-top:1px solid var(--linea-suave);
+             display:flex;justify-content:space-between;gap:10px">
+          <button class="btn seco chico" id="coAnt" ${i === 0 ? 'disabled' : ''}>← Anterior</button>
+          <button class="btn seco chico" id="coSig" ${i >= T_.length - 1 ? 'disabled' : ''}>Saltar →</button>
+        </div></div>`;
+
+    const avanzar = () => {
+      const sig = T_.findIndex((y, k) => k > i && y.estado === 'pendiente');
+      i = sig >= 0 ? sig : Math.min(i + 1, T_.length - 1);
+      pintar();
+    };
+
+    document.getElementById('coMsg').onclick = async () => {
+      const ok = await copiar(x.mensaje);
+      avisar(ok ? 'Mensaje copiado.' : 'No se pudo copiar.', !ok);
+    };
+    document.getElementById('coNum').onclick = async () => {
+      const ok = await copiar(x.destino || '');
+      avisar(ok ? 'Copiado.' : 'No se pudo copiar.', !ok);
+    };
+    document.getElementById('coVolver').onclick = () => ir('campana', id);
+    document.getElementById('coAnt').onclick = () => { if (i > 0){ i--; pintar(); } };
+    document.getElementById('coSig').onclick = () => { if (i < T_.length - 1){ i++; pintar(); } };
+
+    const ya = document.getElementById('coYa');
+    if (ya) ya.onclick = async () => {
+      const { error:e1 } = await SB.rpc('marcar_enviado', { p_envio:x.id });
+      if (e1) return avisar(e1.message, true);
+      x.estado = 'enviado'; avanzar();
+    };
+
+    const sin = document.getElementById('coSin');
+    if (sin) sin.onclick = async () => {
+      const { error:e2 } = await SB.rpc('cambiar_estado_envio',
+        { p_envio:x.id, p_estado:'sin_canal', p_nota:null });
+      if (e2) return avisar(e2.message, true);
+      x.estado = 'sin_canal'; avanzar();
+    };
+
+    const no = document.getElementById('coNo');
+    if (no) no.onclick = async () => {
+      const r = await dialogo({
+        titulo: `¿No volver a escribirle a ${x.nombre}?`,
+        texto: 'Sale de esta campaña y de todas las demás, para siempre, hasta que alguien lo deshaga.',
+        cuerpo: `<label for="cnM" style="margin-top:0">¿Qué dijo? (opcional)</label>
+          <input type="text" id="cnM" placeholder="Pidió que no le escribiéramos más">`,
+        aceptar: 'No escribirle', peligro: true,
+        alMontar: v => () => ({ m: v.querySelector('#cnM').value.trim() || null }) });
+      if (!r) return;
+      const { data:n, error:e3 } = await SB.rpc('no_escribirle',
+        { p_persona:x.persona_id, p_motivo:r.m });
+      if (e3) return avisar(e3.message, true);
+      avisar(n > 1 ? `Sacado de ${n} campañas.` : 'Listo.');
+      x.estado = 'omitido'; avanzar();
+    };
+
+    const des = document.getElementById('coDes');
+    if (des) des.onclick = async () => {
+      const { error:e4 } = await SB.rpc('desmarcar_envio', { p_envio:x.id });
+      if (e4) return avisar(e4.message, true);
+      x.estado = 'pendiente'; pintar();
+    };
+  };
+
+  pintar();
+}
+
+
+/* ------------------------------------------------------------
+   Las respuestas — lo que hoy se pierde
+   ------------------------------------------------------------ */
+async function vRespuestas(){
+  cargando();
+
+  const { data, error } = await SB.from('respuestas_campana').select('*').limit(500);
+  if (error) return app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+
+  const T_ = data || [];
+  let solo = 'todos';
+
+  app.innerHTML = cabeza('Respuestas', 'Lo que contestaron') +
+    `<div class="tarjeta">
+      <div class="tarjeta-cuerpo">
+        ${cajaBusqueda('reQ', 'Buscar a alguien…')}
+        <div class="chips" style="margin-top:12px">
+          ${[['todos','Todos'],['si','Respondieron'],['no','Sin respuesta']].map(([k,n]) =>
+            `<button type="button" class="chip" aria-pressed="${k === solo}" data-ref="${k}">${n}</button>`).join('')}
+        </div></div>
+      <div class="tarjeta-alto" style="border-top:1px solid var(--linea-suave)">
+        <span class="ruta-conteo" id="reConteo"></span></div>
+      <div id="reLista"></div></div>`;
+
+  const pinta = () => {
+    const q = sinT((document.getElementById('reQ') || {}).value || '');
+    const V_ = T_.filter(x =>
+      (solo === 'todos' || (solo === 'si') === !!x.respondio_en) &&
+      (!q || sinT(x.nombre).includes(q) || sinT(x.campana).includes(q)));
+    document.getElementById('reConteo').textContent =
+      `${V_.length} ${V_.length === 1 ? 'persona' : 'personas'}`;
+    document.getElementById('reLista').innerHTML = V_.length ? `<ul class="registro">${V_.map(x => `
+      <li><div class="fila" style="cursor:default">
+        <span class="fila-alto"><span class="nombre">${esc(x.nombre)}</span>
+          ${x.respuesta_tipo ? `<span class="marca-est m-cuidado">${TIPO_RESP[x.respuesta_tipo] || x.respuesta_tipo}</span>` : ''}</span>
+        <span class="sub"><span>${esc(x.campana)}</span>
+          ${x.celular ? `<span>· ${esc(x.celular)}</span>` : ''}
+          ${x.respondio_en ? `<span>· respondió ${fechaCorta(String(x.respondio_en).slice(0,10))}</span>` : ''}</span>
+        ${x.respuesta_texto ? `<span class="sub"><span>«${esc(x.respuesta_texto)}»</span></span>` : ''}
+        <span style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn seco chico" data-rean="${x.id}" data-nom="${esc(x.nombre)}"
+            data-tipo="${x.respuesta_tipo || ''}" data-txt="${esc(x.respuesta_texto || '')}">
+            ${x.respondio_en ? 'Cambiar' : 'Anotar respuesta'}</button>
+          ${x.respondio_en ? `<button class="btn rojo chico" data-rebo="${x.id}">Quitar</button>` : ''}
+        </span></div></li>`).join('')}</ul>`
+      : `<div class="tarjeta-cuerpo"><p class="sub"><span>Nadie acá.</span></p></div>`;
+    enlazar();
+  };
+
+  const enlazar = () => {
+    app.querySelectorAll('[data-rean]').forEach(b => b.onclick = async () => {
+      const r = await dialogo({
+        titulo: `¿Qué respondió ${b.dataset.nom}?`,
+        cuerpo: `<label for="raT" style="margin-top:0">Qué tipo</label>
+          <select id="raT">${Object.entries(TIPO_RESP).map(([k,n]) =>
+            `<option value="${k}"${k === b.dataset.tipo ? ' selected' : ''}>${n}</option>`).join('')}</select>
+          <label for="raX">Lo que dijo</label>
+          <input type="text" id="raX" value="${esc(b.dataset.txt)}" placeholder="Dijo que viene el domingo">`,
+        aceptar: 'Guardar',
+        alMontar: v => () => ({ t:v.querySelector('#raT').value,
+                                x:v.querySelector('#raX').value.trim() || null })
+      });
+      if (!r) return;
+      const { error } = await SB.rpc('anotar_respuesta',
+        { p_envio:b.dataset.rean, p_tipo:r.t, p_texto:r.x });
+      if (error) return avisar(error.message, true);
+      avisar('Anotada.'); ir('respuestas');
+    });
+    app.querySelectorAll('[data-rebo]').forEach(b => b.onclick = async () => {
+      const { error } = await SB.rpc('borrar_respuesta', { p_envio:b.dataset.rebo });
+      if (error) return avisar(error.message, true);
+      avisar('Quitada.'); ir('respuestas');
+    });
+  };
+
+  pinta();
+  engancharBusqueda('reQ', pinta);
+  app.querySelectorAll('[data-ref]').forEach(b => b.onclick = () => {
+    solo = b.dataset.ref;
+    app.querySelectorAll('[data-ref]').forEach(o =>
+      o.setAttribute('aria-pressed', String(o.dataset.ref === solo)));
+    pinta();
+  });
 }
 
 
